@@ -3,6 +3,7 @@ using NexoRuta.ApiClient;
 using NexoRuta.Commerce.Components;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHealthChecks();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -34,6 +35,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapHealthChecks("/health/ready").AllowAnonymous();
 app.MapRazorPages();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
