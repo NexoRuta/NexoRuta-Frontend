@@ -27,7 +27,7 @@ public sealed class EnviosApiClientTests
             Assert.False(body.RootElement.TryGetProperty("creadoPorUsuarioId", out _));
             return JsonResponse(HttpStatusCode.Created, """
                 {"id":"00000000-0000-0000-0000-000000000001","operadorId":"00000000-0000-0000-0000-000000000002",
-                "operadorComercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004",
+                "comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004",
                 "usuarioEmail":"ana@comercio.local","operadorNombre":"Distribución Sur","comercioNombre":"Comercio Centro",
                 "codigoBulto":"B-001","pesoGramos":1250,"largoCentimetros":30,"anchoCentimetros":20,"altoCentimetros":10}
                 """);
@@ -37,6 +37,7 @@ public sealed class EnviosApiClientTests
 
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000001"), created.Id);
         Assert.Equal("Comercio Centro", created.ComercioNombre);
+        Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000003"), created.ComercioId);
         Assert.Equal("B-001", created.CodigoBulto);
         Assert.Equal(1250m, created.PesoGramos);
     }
@@ -50,7 +51,7 @@ public sealed class EnviosApiClientTests
             Assert.Equal("/api/envios", request.RequestUri!.AbsolutePath);
             return Task.FromResult(JsonResponse(HttpStatusCode.OK, """
                 [{"id":"00000000-0000-0000-0000-000000000001","operadorId":"00000000-0000-0000-0000-000000000002",
-                "operadorComercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004",
+                "comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004",
                 "usuarioEmail":"ana@comercio.local","operadorNombre":"Distribución Sur","comercioNombre":"Comercio Centro",
                 "destinatarioNombre":"Ana","direccion":"18 de Julio 123","estado":"Admitido",
                 "bultos":[{"codigo":"B-001","pesoGramos":"1250","largoCentimetros":30,"anchoCentimetros":20,"altoCentimetros":10}]}]
@@ -60,6 +61,7 @@ public sealed class EnviosApiClientTests
         var shipment = Assert.Single(await new EnviosApiClient(http).ListarEnviosAsync(AccesoId));
 
         Assert.Equal("Ana", shipment.DestinatarioNombre);
+        Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000003"), shipment.ComercioId);
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000002"), shipment.OperadorId);
         Assert.Equal(1250m, Assert.Single(shipment.Bultos).PesoGramos);
     }
@@ -179,7 +181,7 @@ public sealed class EnviosApiClientTests
             Assert.Equal(AccesoId.ToString(), Assert.Single(request.Headers.GetValues("X-NexoRuta-Acceso")));
             return Task.FromResult(JsonResponse(HttpStatusCode.OK, """
                 [{"operadorId":"00000000-0000-0000-0000-000000000002",
-                "operadorComercioId":"00000000-0000-0000-0000-000000000003","nombre":"Distribución Sur"}]
+                "nombre":"Distribución Sur"}]
                 """));
         });
 
@@ -194,6 +196,34 @@ public sealed class EnviosApiClientTests
         var request = ValidRequest();
         request.OperadorId = null;
         Assert.False(Validator.TryValidateObject(request, new ValidationContext(request), [], validateAllProperties: true));
+    }
+
+    [Theory]
+    [InlineData("usuario")]
+    [InlineData("operadores")]
+    [InlineData("alta")]
+    public async Task Peticion_PropagaLaCancelacionAlTransporteHttp(string operacion)
+    {
+        using var cancelacion = new CancellationTokenSource();
+        var iniciada = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var http = CreateHttpClient(async (_, cancellationToken) =>
+        {
+            iniciada.SetResult(cancellationToken);
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            throw new InvalidOperationException("La petición debía cancelarse.");
+        });
+        var cliente = new EnviosApiClient(http);
+        Task peticion = operacion switch
+        {
+            "usuario" => cliente.ObtenerUsuarioActualAsync(AccesoId, cancelacion.Token),
+            "operadores" => cliente.ListarOperadoresAsync(AccesoId, cancelacion.Token),
+            _ => cliente.CrearEnvioAsync(ValidRequest(), AccesoId, cancelacion.Token)
+        };
+        var tokenDelTransporte = await iniciada.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        cancelacion.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => peticion.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.True(tokenDelTransporte.IsCancellationRequested);
     }
 
     private static CrearEnvioRequest ValidRequest() => new()

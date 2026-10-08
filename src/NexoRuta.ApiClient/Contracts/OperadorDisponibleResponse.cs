@@ -1,3 +1,3 @@
 namespace NexoRuta.ApiClient.Contracts;
 
-public sealed record OperadorDisponibleResponse(Guid OperadorId, Guid OperadorComercioId, string Nombre);
+public sealed record OperadorDisponibleResponse(Guid OperadorId, string Nombre);

@@ -7,7 +7,7 @@ COPY . .
 
 RUN dotnet restore "src/${PROJECT}/${PROJECT}.csproj"
 RUN dotnet publish "src/${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish /p:UseAppHost=false
-RUN case "$PROJECT" in NexoRuta.Commerce|NexoRuta.Backoffice) ;; *) exit 1 ;; esac \
+RUN case "$PROJECT" in NexoRuta.Commerce|NexoRuta.Backoffice|NexoRuta.Tracking) ;; *) exit 1 ;; esac \
     && printf '#!/bin/sh\nexec dotnet %s.dll\n' "$PROJECT" > /app/publish/start-web
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final

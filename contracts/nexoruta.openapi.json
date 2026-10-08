@@ -582,7 +582,7 @@
         "required": [
           "id",
           "operadorId",
-          "operadorComercioId",
+          "comercioId",
           "creadoPorUsuarioId",
           "usuarioEmail",
           "operadorNombre",
@@ -603,7 +603,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "operadorComercioId": {
+          "comercioId": {
             "type": "string",
             "format": "uuid"
           },
@@ -661,7 +661,7 @@
         "required": [
           "id",
           "operadorId",
-          "operadorComercioId",
+          "comercioId",
           "creadoPorUsuarioId",
           "usuarioEmail",
           "operadorNombre",
@@ -681,7 +681,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "operadorComercioId": {
+          "comercioId": {
             "type": "string",
             "format": "uuid"
           },
@@ -718,16 +718,11 @@
       "OperadorDisponible": {
         "required": [
           "operadorId",
-          "operadorComercioId",
           "nombre"
         ],
         "type": "object",
         "properties": {
           "operadorId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "operadorComercioId": {
             "type": "string",
             "format": "uuid"
           },
