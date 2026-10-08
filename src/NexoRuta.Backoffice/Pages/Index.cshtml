@@ -5,7 +5,10 @@
 }
 
 <h1>Envíos recibidos</h1>
-<p>Vista de control del operador y comercio de demostración.</p>
+@if (Model.UsuarioActual is { } usuarioActual)
+{
+    <p>Operador: <strong>@usuarioActual.OperadorNombre</strong> · Usuario: @usuarioActual.UsuarioEmail</p>
+}
 @if (Model.Error is not null)
 {
     <p class="alert alert-danger" role="alert">@Model.Error</p>
@@ -22,16 +25,16 @@ else
         @foreach (var envio in Model.Envios)
         {
             <tr>
-                <td><code>@envio.id</code></td>
-                <td>@envio.operadorNombre / @envio.comercioNombre<br /><small>@envio.operadorId / @envio.operadorComercioId</small></td>
-                <td>@envio.usuarioEmail<br /><small>@envio.creadoPorUsuarioId</small></td>
-                <td>@envio.destinatarioNombre</td>
-                <td>@envio.direccion</td>
-                <td>@envio.estado</td>
+                <td><code>@envio.Id</code></td>
+                <td>@envio.OperadorNombre / @envio.ComercioNombre<br /><small>@envio.OperadorId / @envio.OperadorComercioId</small></td>
+                <td>@envio.UsuarioEmail<br /><small>@envio.CreadoPorUsuarioId</small></td>
+                <td>@envio.DestinatarioNombre</td>
+                <td>@envio.Direccion</td>
+                <td>@envio.Estado</td>
                 <td>
-                    @foreach (var bulto in envio.bultos)
+                    @foreach (var bulto in envio.Bultos)
                     {
-                        <div>@bulto.codigo — @bulto.pesoGramos g — @bulto.largoCentimetros × @bulto.anchoCentimetros × @bulto.altoCentimetros cm</div>
+                        <div>@bulto.Codigo — @bulto.PesoGramos g — @bulto.LargoCentimetros × @bulto.AnchoCentimetros × @bulto.AltoCentimetros cm</div>
                     }
                 </td>
             </tr>

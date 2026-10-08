@@ -4,7 +4,9 @@ Repositorio de las tres aplicaciones web de NexoRuta: backoffice, portal de come
 
 ## Estado actual
 
-La solución compila. Las aplicaciones siguen siendo mayormente plantillas .NET: contienen pantallas de ejemplo (incluidos contador y clima en Blazor), sin flujos de negocio ni integración funcional con la API. No se implementan ni se afirman autenticación, pedidos, seguimiento real o CI. Este repositorio no tiene proyectos de pruebas; **se ejecutan cero pruebas**.
+Commerce permite el alta individual de un envío con su bulto y Backoffice consulta los registros persistidos por la API. `/ingresar` selecciona una cuenta propia del comercio en Commerce o una cuenta del operador en Backoffice. El dueño del comercio de prueba elige el operador desde el formulario de cada envío; las opciones y la cuenta se leen de PostgreSQL y la API valida la relación comercial. Las aplicaciones usan cookies independientes y `NexoRuta.ApiClient`. El selector es sin credenciales para este monitoreo; no se implementaron CRUD ni perfiles laborales. Tracking conserva la plantilla Blazor.
+
+La solución incluye pruebas del cliente HTTP, validación del formulario y compatibilidad de contratos con OpenAPI. El workflow de frontend ejecuta build y tests en PRs de `develop` hacia `main`; su presencia no acredita una ejecución remota.
 
 ## Estructura
 
@@ -14,6 +16,12 @@ src/
   NexoRuta.Backoffice/  # Razor Pages
   NexoRuta.Commerce/    # Blazor Server interactivo
   NexoRuta.Tracking/    # Blazor Server interactivo
+  NexoRuta.ApiClient/   # cliente HTTP tipado y DTOs compartidos
+tests/
+  NexoRuta.ApiClient.Tests/
+contracts/
+  nexoruta.openapi.json # copia del contrato publicado por la API
+docs/api-client.md      # uso y verificación de contratos
 Dockerfile              # publica un proyecto elegido por el argumento PROJECT
 ```
 
@@ -32,7 +40,7 @@ dotnet build NexoRuta.sln --no-restore --nologo
 dotnet test NexoRuta.sln --no-build --no-restore --nologo
 ```
 
-En la validación local del 7 de octubre de 2026, restore y build finalizaron sin advertencias ni errores. `dotnet test` finalizó con código 0, pero esta solución no contiene proyectos de pruebas: **no ejecutó pruebas**.
+La validación histórica del 7 de octubre de 2026 no ejecutó pruebas. Actualmente `dotnet test` ejecuta las pruebas de `NexoRuta.ApiClient.Tests`, sin requerir PostgreSQL. La [guía del cliente HTTP](docs/api-client.md) explica cómo verificar los DTOs contra el documento OpenAPI de un backend activo.
 
 ## Ejecutar las aplicaciones
 
@@ -56,4 +64,4 @@ El Compose del repositorio principal publica las mismas tres apps en `http://loc
 
 ## Pendiente
 
-Implementar las pantallas y flujos propios de cada actor, conectar los clientes con endpoints existentes cuando estén disponibles, agregar autenticación/autorización y pruebas automatizadas. El HTTP 200 de una plantilla o su compilación no valida esos flujos.
+Completar las pantallas y flujos propios de cada actor, agregar autenticación/autorización, integrar Tracking y ampliar las pruebas de interfaz y de extremo a extremo. Las pruebas del cliente HTTP y los contratos no validan por sí solas persistencia, aislamiento entre operadores ni flujos completos de usuario.
