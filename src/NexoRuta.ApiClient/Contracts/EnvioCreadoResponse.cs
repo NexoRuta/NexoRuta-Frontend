@@ -3,7 +3,7 @@ namespace NexoRuta.ApiClient.Contracts;
 public sealed record EnvioCreadoResponse(
     Guid Id,
     Guid OperadorId,
-    Guid OperadorComercioId,
+    Guid ComercioId,
     Guid CreadoPorUsuarioId,
     string UsuarioEmail,
     string OperadorNombre,

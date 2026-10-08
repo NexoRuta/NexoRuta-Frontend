@@ -72,6 +72,7 @@ public sealed class OpenApiContractTests
         else
         {
             var properties = schema.GetProperty("properties");
+            Assert.Equal(type.GetProperties().Length, properties.EnumerateObject().Count());
             foreach (var property in type.GetProperties())
             {
                 var name = JsonNamingPolicy.CamelCase.ConvertName(property.Name);
