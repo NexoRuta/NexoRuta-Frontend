@@ -22,10 +22,19 @@
         }
       }
     },
-    "/api/demo/context": {
+    "/api/accesos": {
       "get": {
         "tags": [
-          "Envios"
+          "Accesos"
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/TipoAccesoUsuario"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -33,17 +42,46 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/DemoComercioContext"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContextoUsuario"
+                  }
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DemoComercioContext"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContextoUsuario"
+                  }
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DemoComercioContext"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContextoUsuario"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -116,6 +154,49 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       },
@@ -152,6 +233,159 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/comercio/operadores": {
+      "get": {
+        "tags": [
+          "OperadoresDelComercio"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperadorDisponible"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperadorDisponible"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperadorDisponible"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/usuarios/actual": {
+      "get": {
+        "tags": [
+          "UsuarioActual"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextoUsuario"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextoUsuario"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextoUsuario"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -206,8 +440,70 @@
           }
         }
       },
+      "ContextoUsuario": {
+        "required": [
+          "accesoId",
+          "usuarioId",
+          "operadorId",
+          "comercioId",
+          "usuarioEmail",
+          "operadorNombre",
+          "comercioNombre",
+          "esPropietario"
+        ],
+        "type": "object",
+        "properties": {
+          "accesoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usuarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operadorId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "comercioId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "usuarioEmail": {
+            "type": "string"
+          },
+          "operadorNombre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "comercioNombre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "esPropietario": {
+            "type": "boolean"
+          },
+          "tipo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "CrearEnvioRequest": {
         "required": [
+          "operadorId",
           "destinatarioNombre",
           "direccion",
           "codigoBulto",
@@ -218,6 +514,13 @@
         ],
         "type": "object",
         "properties": {
+          "operadorId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "destinatarioNombre": {
             "maxLength": 160,
             "minLength": 0,
@@ -272,40 +575,6 @@
               "string"
             ],
             "format": "double"
-          }
-        }
-      },
-      "DemoComercioContext": {
-        "required": [
-          "usuarioId",
-          "operadorId",
-          "operadorComercioId",
-          "usuarioEmail",
-          "operadorNombre",
-          "comercioNombre"
-        ],
-        "type": "object",
-        "properties": {
-          "usuarioId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "operadorId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "operadorComercioId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "usuarioEmail": {
-            "type": "string"
-          },
-          "operadorNombre": {
-            "type": "string"
-          },
-          "comercioNombre": {
-            "type": "string"
           }
         }
       },
@@ -446,6 +715,27 @@
           }
         }
       },
+      "OperadorDisponible": {
+        "required": [
+          "operadorId",
+          "operadorComercioId",
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "operadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operadorComercioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string"
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -483,6 +773,9 @@
             ]
           }
         }
+      },
+      "TipoAccesoUsuario": {
+        "type": "integer"
       }
     }
   },
@@ -491,7 +784,16 @@
       "name": "NexoRuta.Api"
     },
     {
+      "name": "Accesos"
+    },
+    {
       "name": "Envios"
+    },
+    {
+      "name": "OperadoresDelComercio"
+    },
+    {
+      "name": "UsuarioActual"
     }
   ]
 }

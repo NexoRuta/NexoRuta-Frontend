@@ -2,19 +2,37 @@
 
 @using NexoRuta.ApiClient
 @using NexoRuta.ApiClient.Contracts
+@using Microsoft.AspNetCore.Components.Authorization
 @inject EnviosApiClient ApiClient
+@inject AuthenticationStateProvider AuthenticationState
 @rendermode InteractiveServer
 
 <PageTitle>Alta de envío | NexoRuta</PageTitle>
 <h1>Alta de envío</h1>
-<p>Portal de demostración para <strong>@(contexto?.ComercioNombre ?? "Comercio Demo")</strong>.</p>
+@if (usuarioActual is not null)
+{
+    <p>Comercio: <strong>@usuarioActual.ComercioNombre</strong> · Cuenta: @usuarioActual.UsuarioEmail@(usuarioActual.EsPropietario ? " (dueño)" : "")</p>
+}
 
 @if (!string.IsNullOrWhiteSpace(error)) { <p class="alert alert-danger" role="alert">@error</p> }
-@if (creado is not null) { <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para @creado.ComercioNombre; bulto @creado.CodigoBulto.</p> }
+@if (creado is not null) { <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para @creado.ComercioNombre con @creado.OperadorNombre; bulto @creado.CodigoBulto.</p> }
+@if (usuarioActual is not null && operadores.Count == 0 && error is null)
+{
+    <p class="alert alert-warning" role="status">El comercio todavía no tiene operadores disponibles para crear un envío.</p>
+}
 
 <EditForm Model="formulario" OnValidSubmit="CrearAsync" FormName="crear-envio">
     <DataAnnotationsValidator /><ValidationSummary />
-    <fieldset disabled="@enviando">
+    <fieldset disabled="@(enviando || usuarioActual is null || operadores.Count == 0)">
+        <label for="envio-operador">Operador</label>
+        <InputSelect id="envio-operador" @bind-Value="formulario.OperadorId">
+            <option value="">Seleccioná un operador</option>
+            @foreach (var operador in operadores)
+            {
+                <option value="@operador.OperadorId">@operador.Nombre</option>
+            }
+        </InputSelect>
+        <ValidationMessage For="() => formulario.OperadorId" />
         <h2>Destinatario</h2>
         <label>Nombre <InputText @bind-Value="formulario.DestinatarioNombre" /></label><ValidationMessage For="() => formulario.DestinatarioNombre" />
         <label>Dirección <InputText @bind-Value="formulario.Direccion" /></label><ValidationMessage For="() => formulario.Direccion" />
@@ -30,14 +48,21 @@
 
 @code {
     private readonly CrearEnvioRequest formulario = new();
-    private ContextoDemoResponse? contexto;
+    private UsuarioActualResponse? usuarioActual;
+    private IReadOnlyList<OperadorDisponibleResponse> operadores = [];
     private EnvioCreadoResponse? creado;
     private string? error;
     private bool enviando;
+    private Guid accesoId;
 
     protected override async Task OnInitializedAsync()
     {
-        try { contexto = await ApiClient.ObtenerContextoDemoAsync(); }
+        try
+        {
+            accesoId = SesionUsuario.ObtenerAccesoId((await AuthenticationState.GetAuthenticationStateAsync()).User);
+            usuarioActual = await ApiClient.ObtenerUsuarioActualAsync(accesoId);
+            operadores = await ApiClient.ListarOperadoresAsync(accesoId);
+        }
         catch (NexoRutaApiException exception) { error = exception.Message; }
         catch (HttpRequestException) { error = "No se pudo conectar con el servicio de envíos."; }
     }
@@ -47,7 +72,7 @@
         enviando = true; error = null; creado = null;
         try
         {
-            creado = await ApiClient.CrearEnvioAsync(formulario);
+            creado = await ApiClient.CrearEnvioAsync(formulario, accesoId);
         }
         catch (NexoRutaApiException exception) { error = exception.Message; }
         catch (HttpRequestException) { error = "No se pudo guardar el envío porque el servicio no está disponible."; }

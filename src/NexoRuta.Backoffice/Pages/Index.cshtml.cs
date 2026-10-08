@@ -7,13 +7,16 @@ namespace NexoRuta.Backoffice.Pages;
 public class IndexModel(EnviosApiClient apiClient) : PageModel
 {
     public IReadOnlyList<EnvioResponse> Envios { get; private set; } = [];
+    public UsuarioActualResponse? UsuarioActual { get; private set; }
     public string? Error { get; private set; }
 
     public async Task OnGetAsync()
     {
         try
         {
-            Envios = await apiClient.ListarEnviosAsync(HttpContext.RequestAborted);
+            var accesoId = SesionUsuario.ObtenerAccesoId(User);
+            UsuarioActual = await apiClient.ObtenerUsuarioActualAsync(accesoId, HttpContext.RequestAborted);
+            Envios = await apiClient.ListarEnviosAsync(accesoId, HttpContext.RequestAborted);
         }
         catch (NexoRutaApiException exception)
         {

@@ -4,7 +4,7 @@ Repositorio de las tres aplicaciones web de NexoRuta: backoffice, portal de come
 
 ## Estado actual
 
-Commerce permite el alta individual de un envío de demo y Backoffice consulta los registros de la API. Ambas aplicaciones usan el cliente HTTP tipado y los DTOs de `NexoRuta.ApiClient`. Tracking conserva la página de inicio de la plantilla Blazor. La identidad es de demostración; no se afirma autenticación ni seguimiento real.
+Commerce permite el alta individual de un envío con su bulto y Backoffice consulta los registros persistidos por la API. `/ingresar` selecciona una cuenta propia del comercio en Commerce o una cuenta del operador en Backoffice. El dueño del comercio de prueba elige el operador desde el formulario de cada envío; las opciones y la cuenta se leen de PostgreSQL y la API valida la relación comercial. Las aplicaciones usan cookies independientes y `NexoRuta.ApiClient`. El selector es sin credenciales para este monitoreo; no se implementaron CRUD ni perfiles laborales. Tracking conserva la plantilla Blazor.
 
 La solución incluye pruebas del cliente HTTP, validación del formulario y compatibilidad de contratos con OpenAPI. El workflow de frontend ejecuta build y tests en PRs de `develop` hacia `main`; su presencia no acredita una ejecución remota.
 

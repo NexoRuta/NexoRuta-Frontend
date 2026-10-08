@@ -1,0 +1,42 @@
+@page "/ingresar"
+@model NexoRuta.Commerce.Pages.IngresarModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ingresar | Portal de comercios NexoRuta</title>
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-light">
+    <main class="container py-5" style="max-width: 480px">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <p class="text-muted mb-1">NexoRuta · Portal de comercios</p>
+                <h1 class="h3 mb-3">Seleccioná tu usuario</h1>
+                @if (Model.Error is not null)
+                {
+                    <p class="alert alert-danger" role="alert">@Model.Error</p>
+                }
+                @if (Model.Usuarios.Count == 0)
+                {
+                    <p role="status">No hay usuarios disponibles para ingresar a esta aplicación.</p>
+                }
+                <form method="post" asp-page="/Ingresar">
+                    <label asp-for="AccesoId" class="form-label">Usuario</label>
+                    <select asp-for="AccesoId" class="form-select mb-3" required>
+                        <option value="">Seleccioná un usuario</option>
+                        @foreach (var usuario in Model.Usuarios)
+                        {
+                            <option value="@usuario.AccesoId">@usuario.UsuarioEmail — @usuario.ComercioNombre@(usuario.EsPropietario ? " (dueño)" : "")</option>
+                        }
+                    </select>
+                    <button type="submit" class="btn btn-primary w-100" disabled="@(Model.Usuarios.Count == 0)">Ingresar</button>
+                </form>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

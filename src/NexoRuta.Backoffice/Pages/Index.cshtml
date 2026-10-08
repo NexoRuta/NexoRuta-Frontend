@@ -5,7 +5,10 @@
 }
 
 <h1>Envíos recibidos</h1>
-<p>Vista de control del operador y comercio de demostración.</p>
+@if (Model.UsuarioActual is { } usuarioActual)
+{
+    <p>Operador: <strong>@usuarioActual.OperadorNombre</strong> · Usuario: @usuarioActual.UsuarioEmail</p>
+}
 @if (Model.Error is not null)
 {
     <p class="alert alert-danger" role="alert">@Model.Error</p>

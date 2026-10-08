@@ -6,26 +6,47 @@ namespace NexoRuta.ApiClient;
 
 public sealed class EnviosApiClient(HttpClient httpClient)
 {
-    public async Task<ContextoDemoResponse> ObtenerContextoDemoAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<UsuarioActualResponse>> ListarAccesosAsync(
+        string tipo, CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "api/demo/context");
-        return await SendAsync<ContextoDemoResponse>(request, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/accesos?tipo={Uri.EscapeDataString(tipo)}");
+        return await SendAsync<UsuarioActualResponse[]>(request, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<EnvioResponse>> ListarEnviosAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<OperadorDisponibleResponse>> ListarOperadoresAsync(
+        Guid accesoId, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/comercio/operadores");
+        request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
+        return await SendAsync<OperadorDisponibleResponse[]>(request, cancellationToken);
+    }
+
+    public async Task<UsuarioActualResponse> ObtenerUsuarioActualAsync(
+        Guid accesoId, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/usuarios/actual");
+        request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
+        return await SendAsync<UsuarioActualResponse>(request, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<EnvioResponse>> ListarEnviosAsync(
+        Guid accesoId, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "api/envios");
+        request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
         return await SendAsync<EnvioResponse[]>(request, cancellationToken);
     }
 
     public async Task<EnvioCreadoResponse> CrearEnvioAsync(
         CrearEnvioRequest envio,
+        Guid accesoId,
         CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "api/envios")
         {
             Content = JsonContent.Create(envio)
         };
+        request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
         return await SendAsync<EnvioCreadoResponse>(request, cancellationToken);
     }
 

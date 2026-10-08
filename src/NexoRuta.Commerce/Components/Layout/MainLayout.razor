@@ -7,7 +7,10 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <form method="post" action="/salir">
+                <AntiforgeryToken />
+                <button type="submit" class="btn btn-link">Cambiar usuario</button>
+            </form>
         </div>
 
         <article class="content px-4">

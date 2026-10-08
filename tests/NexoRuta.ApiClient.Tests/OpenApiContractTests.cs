@@ -36,7 +36,9 @@ public sealed class OpenApiContractTests
     }
 
     [Theory]
-    [InlineData("/api/demo/context", "get", "200", typeof(ContextoDemoResponse))]
+    [InlineData("/api/usuarios/actual", "get", "200", typeof(UsuarioActualResponse))]
+    [InlineData("/api/accesos", "get", "200", typeof(IReadOnlyList<UsuarioActualResponse>))]
+    [InlineData("/api/comercio/operadores", "get", "200", typeof(IReadOnlyList<OperadorDisponibleResponse>))]
     [InlineData("/api/envios", "post", "201", typeof(EnvioCreadoResponse))]
     [InlineData("/api/envios", "get", "200", typeof(IReadOnlyList<EnvioResponse>))]
     public async Task Respuestas_CoincidenConLasPropiedadesYTiposDelCliente(string path, string method, string status, Type type)
@@ -49,10 +51,11 @@ public sealed class OpenApiContractTests
 
     private static void AssertSchema(Type type, JsonElement schema, JsonElement document)
     {
+        type = Nullable.GetUnderlyingType(type) ?? type;
         schema = Resolve(schema, document);
-        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal))
+        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(bool))
         {
-            var expected = type == typeof(decimal) ? "number" : "string";
+            var expected = type == typeof(decimal) ? "number" : type == typeof(bool) ? "boolean" : "string";
             var declared = schema.GetProperty("type");
             IEnumerable<string?> types = declared.ValueKind == JsonValueKind.Array
                 ? declared.EnumerateArray().Select(x => x.GetString())

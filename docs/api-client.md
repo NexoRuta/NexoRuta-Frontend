@@ -6,7 +6,13 @@ Las dos aplicaciones registran el cliente con `AddHttpClient<EnviosApiClient>` y
 
 `Contracts/CrearEnvioRequest.cs` también sirve como modelo del formulario. Conserva las longitudes 160/240/80 de nombre, dirección y código, y el rango `0.01`–`999999999` de peso y dimensiones. La API mantiene su contrato HTTP independiente en `NexoRuta.Api/Contracts/Envios/CrearEnvioRequest.cs`.
 
-El cliente acepta las respuestas JSON de contexto, alta y listado. Para errores HTTP interpreta `message`, Problem Details (`detail`/`title`) y errores de validación (`errors`). Expone `NexoRutaApiException` con un mensaje y el código HTTP; un error HTML o de texto genera un mensaje genérico. Las pantallas no reciben `HttpResponseMessage` ni presentan JSON crudo.
+`ListarAccesosAsync(tipo)` consulta `GET /api/accesos?tipo=Comercio|Operador` para poblar el selector de cuentas desde la base de datos. `ObtenerUsuarioActualAsync(accesoId)`, `ListarEnviosAsync(accesoId)` y `CrearEnvioAsync(envio, accesoId)` identifican la cuenta en `X-NexoRuta-Acceso`; la API vuelve a comprobar su pertenencia al comercio u operador.
+
+El ingreso al portal selecciona la cuenta del comercio. `ListarOperadoresAsync(accesoId)` consulta `GET /api/comercio/operadores` para poblar el dropdown del formulario de alta. `CrearEnvioRequest.OperadorId` es obligatorio y cambia por envío; la API valida la relación comercial. La cuenta y el comercio de origen no cambian al elegir otro operador. `UsuarioActualResponse.OperadorId` es nulo para cuentas del comercio y `ComercioId` es nulo para cuentas del operador; `EsPropietario` identifica al dueño inicial.
+
+Las pantallas obtienen el ID de cuenta de la cookie de su aplicación mediante `SesionUsuario`. Commerce admite cuentas propias del comercio y Backoffice cuentas del operador usando `nexoruta:tipo_acceso`; esto no representa los perfiles laborales de la letra. Cada aplicación tiene cookies de sesión/antiforgery propias y permite cambiar de usuario mediante un POST. La selección es sin credenciales para el primer monitoreo, y su esquema debe sustituirse al incorporar autenticación real.
+
+El cliente acepta las respuestas JSON de usuario actual, alta y listado. Para errores HTTP interpreta `message`, Problem Details (`detail`/`title`) y errores de validación (`errors`). Expone `NexoRutaApiException` con un mensaje y el código HTTP; un error HTML o de texto genera un mensaje genérico. Las pantallas no reciben `HttpResponseMessage` ni presentan JSON crudo.
 
 ## Comprobar la compatibilidad
 
