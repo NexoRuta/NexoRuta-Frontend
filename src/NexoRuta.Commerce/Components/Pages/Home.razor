@@ -1,7 +1,70 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+@rendermode InteractiveServer
 
-<h1>Hello, world!</h1>
+<PageTitle>Alta de envío | NexoRuta</PageTitle>
+<h1>Alta de envío</h1>
+<p>Portal de demostración para <strong>@(contexto?.ComercioNombre ?? "Comercio Demo")</strong>.</p>
 
-Welcome to your new app.
+@if (!string.IsNullOrWhiteSpace(error)) { <p class="alert alert-danger" role="alert">@error</p> }
+@if (creado is not null) { <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para @creado.ComercioNombre; bulto @creado.CodigoBulto.</p> }
+
+<EditForm Model="formulario" OnValidSubmit="CrearAsync" FormName="crear-envio">
+    <DataAnnotationsValidator /><ValidationSummary />
+    <fieldset disabled="@enviando">
+        <h2>Destinatario</h2>
+        <label>Nombre <InputText @bind-Value="formulario.DestinatarioNombre" /></label><ValidationMessage For="() => formulario.DestinatarioNombre" />
+        <label>Dirección <InputText @bind-Value="formulario.Direccion" /></label><ValidationMessage For="() => formulario.Direccion" />
+        <h2>Bulto</h2>
+        <label>Código <InputText @bind-Value="formulario.CodigoBulto" /></label><ValidationMessage For="() => formulario.CodigoBulto" />
+        <label>Peso (g) <InputNumber @bind-Value="formulario.PesoGramos" /></label><ValidationMessage For="() => formulario.PesoGramos" />
+        <label>Largo (cm) <InputNumber @bind-Value="formulario.LargoCentimetros" /></label><ValidationMessage For="() => formulario.LargoCentimetros" />
+        <label>Ancho (cm) <InputNumber @bind-Value="formulario.AnchoCentimetros" /></label><ValidationMessage For="() => formulario.AnchoCentimetros" />
+        <label>Alto (cm) <InputNumber @bind-Value="formulario.AltoCentimetros" /></label><ValidationMessage For="() => formulario.AltoCentimetros" />
+        <button type="submit">@(enviando ? "Guardando…" : "Crear envío")</button>
+    </fieldset>
+</EditForm>
+
+@code {
+    private readonly AltaEnvio formulario = new();
+    private ContextoDemo? contexto;
+    private EnvioCreado? creado;
+    private string? error;
+    private bool enviando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { contexto = await Api.GetFromJsonAsync<ContextoDemo>("api/demo/context"); }
+        catch (HttpRequestException) { error = "No se pudo conectar con la API. Verificá que Compose esté saludable."; }
+    }
+
+    private async Task CrearAsync()
+    {
+        enviando = true; error = null; creado = null;
+        try
+        {
+            var response = await Api.PostAsJsonAsync("api/envios", formulario);
+            if (!response.IsSuccessStatusCode) { error = await response.Content.ReadAsStringAsync(); return; }
+            creado = await response.Content.ReadFromJsonAsync<EnvioCreado>();
+        }
+        catch (HttpRequestException) { error = "No se pudo guardar el envío porque la API no está disponible."; }
+        finally { enviando = false; }
+    }
+
+    private HttpClient Api => HttpClientFactory.CreateClient("NexoRuta.Api");
+    private sealed class AltaEnvio
+    {
+        [Required, StringLength(160)] public string DestinatarioNombre { get; set; } = "";
+        [Required, StringLength(240)] public string Direccion { get; set; } = "";
+        [Required, StringLength(80)] public string CodigoBulto { get; set; } = "";
+        [Range(typeof(decimal), "0.01", "9999999999")] public decimal PesoGramos { get; set; }
+        [Range(typeof(decimal), "0.01", "9999999999")] public decimal LargoCentimetros { get; set; }
+        [Range(typeof(decimal), "0.01", "9999999999")] public decimal AnchoCentimetros { get; set; }
+        [Range(typeof(decimal), "0.01", "9999999999")] public decimal AltoCentimetros { get; set; }
+    }
+    private sealed record ContextoDemo(string UsuarioEmail, string OperadorNombre, string ComercioNombre);
+    private sealed record EnvioCreado(Guid Id, string ComercioNombre, string CodigoBulto);
+}

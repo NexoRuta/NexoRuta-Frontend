@@ -1,0 +1,32 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR source
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ "$PR_HEAD_REF" != "develop" || "$PR_HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]]; then
+            echo "This workflow only accepts PRs from develop in the same repository." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore frontend
+        run: dotnet restore NexoRuta.sln
+      - name: Build frontend
+        run: dotnet build NexoRuta.sln --no-restore --configuration Release
