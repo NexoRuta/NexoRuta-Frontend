@@ -1,8 +1,8 @@
 ﻿@page "/"
 
-@using System.ComponentModel.DataAnnotations
-@using System.Net.Http.Json
-@inject IHttpClientFactory HttpClientFactory
+@using NexoRuta.ApiClient
+@using NexoRuta.ApiClient.Contracts
+@inject EnviosApiClient ApiClient
 @rendermode InteractiveServer
 
 <PageTitle>Alta de envío | NexoRuta</PageTitle>
@@ -29,16 +29,17 @@
 </EditForm>
 
 @code {
-    private readonly AltaEnvio formulario = new();
-    private ContextoDemo? contexto;
-    private EnvioCreado? creado;
+    private readonly CrearEnvioRequest formulario = new();
+    private ContextoDemoResponse? contexto;
+    private EnvioCreadoResponse? creado;
     private string? error;
     private bool enviando;
 
     protected override async Task OnInitializedAsync()
     {
-        try { contexto = await Api.GetFromJsonAsync<ContextoDemo>("api/demo/context"); }
-        catch (HttpRequestException) { error = "No se pudo conectar con la API. Verificá que Compose esté saludable."; }
+        try { contexto = await ApiClient.ObtenerContextoDemoAsync(); }
+        catch (NexoRutaApiException exception) { error = exception.Message; }
+        catch (HttpRequestException) { error = "No se pudo conectar con el servicio de envíos."; }
     }
 
     private async Task CrearAsync()
@@ -46,25 +47,10 @@
         enviando = true; error = null; creado = null;
         try
         {
-            var response = await Api.PostAsJsonAsync("api/envios", formulario);
-            if (!response.IsSuccessStatusCode) { error = await response.Content.ReadAsStringAsync(); return; }
-            creado = await response.Content.ReadFromJsonAsync<EnvioCreado>();
+            creado = await ApiClient.CrearEnvioAsync(formulario);
         }
-        catch (HttpRequestException) { error = "No se pudo guardar el envío porque la API no está disponible."; }
+        catch (NexoRutaApiException exception) { error = exception.Message; }
+        catch (HttpRequestException) { error = "No se pudo guardar el envío porque el servicio no está disponible."; }
         finally { enviando = false; }
     }
-
-    private HttpClient Api => HttpClientFactory.CreateClient("NexoRuta.Api");
-    private sealed class AltaEnvio
-    {
-        [Required, StringLength(160)] public string DestinatarioNombre { get; set; } = "";
-        [Required, StringLength(240)] public string Direccion { get; set; } = "";
-        [Required, StringLength(80)] public string CodigoBulto { get; set; } = "";
-        [Range(typeof(decimal), "0.01", "9999999999")] public decimal PesoGramos { get; set; }
-        [Range(typeof(decimal), "0.01", "9999999999")] public decimal LargoCentimetros { get; set; }
-        [Range(typeof(decimal), "0.01", "9999999999")] public decimal AnchoCentimetros { get; set; }
-        [Range(typeof(decimal), "0.01", "9999999999")] public decimal AltoCentimetros { get; set; }
-    }
-    private sealed record ContextoDemo(string UsuarioEmail, string OperadorNombre, string ComercioNombre);
-    private sealed record EnvioCreado(Guid Id, string ComercioNombre, string CodigoBulto);
 }
