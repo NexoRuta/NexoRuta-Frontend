@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using NexoRuta.ApiClient;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHealthChecks();
 
 // Add services to the container.
 builder.Services.AddRazorPages(options =>
@@ -36,6 +37,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+app.MapHealthChecks("/health/ready").AllowAnonymous();
 app.MapRazorPages()
    .WithStaticAssets();
 
