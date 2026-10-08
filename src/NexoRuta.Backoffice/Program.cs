@@ -1,8 +1,10 @@
+using NexoRuta.ApiClient;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
-builder.Services.AddHttpClient("NexoRuta.Api", client =>
+builder.Services.AddHttpClient<EnviosApiClient>(client =>
     client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5000/"));
 
 var app = builder.Build();
