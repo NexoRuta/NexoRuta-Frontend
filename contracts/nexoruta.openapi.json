@@ -260,10 +260,10 @@
         }
       }
     },
-    "/api/comercio/operadores": {
+    "/api/operadores": {
       "get": {
         "tags": [
-          "OperadoresDelComercio"
+          "OperadoresDisponibles"
         ],
         "responses": {
           "200": {
@@ -785,7 +785,7 @@
       "name": "Envios"
     },
     {
-      "name": "OperadoresDelComercio"
+      "name": "OperadoresDisponibles"
     },
     {
       "name": "UsuarioActual"

@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using NexoRuta.ApiClient.Contracts;
+using NexoRuta.ApiClient.Excepciones;
 
 namespace NexoRuta.ApiClient;
 
@@ -16,7 +17,7 @@ public sealed class EnviosApiClient(HttpClient httpClient)
     public async Task<IReadOnlyList<OperadorDisponibleResponse>> ListarOperadoresAsync(
         Guid accesoId, CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "api/comercio/operadores");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/operadores");
         request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
         return await SendAsync<OperadorDisponibleResponse[]>(request, cancellationToken);
     }
