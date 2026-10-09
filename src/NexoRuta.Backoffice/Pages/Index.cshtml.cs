@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using NexoRuta.ApiClient;
 using NexoRuta.ApiClient.Contracts;
+using NexoRuta.ApiClient.Excepciones;
 
 namespace NexoRuta.Backoffice.Pages;
 

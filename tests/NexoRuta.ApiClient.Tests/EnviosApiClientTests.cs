@@ -4,6 +4,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using NexoRuta.ApiClient.Contracts;
+using NexoRuta.ApiClient.Excepciones;
 
 namespace NexoRuta.ApiClient.Tests;
 
@@ -157,7 +158,7 @@ public sealed class EnviosApiClientTests
     }
 
     [Fact]
-    public async Task ObtenerUsuarioActualAsync_UnOperadorNoTieneUnComercioAsignado()
+    public async Task ObtenerUsuarioActualAsync_UnaCuentaDelOperadorNoPerteneceAUnComercio()
     {
         using var http = CreateHttpClient((_, _) => Task.FromResult(JsonResponse(HttpStatusCode.OK, """
             {"accesoId":"00000000-0000-0000-0000-000000000005","tipo":"Operador",
@@ -173,11 +174,11 @@ public sealed class EnviosApiClientTests
     }
 
     [Fact]
-    public async Task ListarOperadoresAsync_LeeLasOpcionesDelComercioAutenticado()
+    public async Task ListarOperadoresAsync_ConsultaElCatalogoGlobalConLaCuentaSeleccionada()
     {
         using var http = CreateHttpClient((request, _) =>
         {
-            Assert.Equal("/api/comercio/operadores", request.RequestUri!.AbsolutePath);
+            Assert.Equal("/api/operadores", request.RequestUri!.AbsolutePath);
             Assert.Equal(AccesoId.ToString(), Assert.Single(request.Headers.GetValues("X-NexoRuta-Acceso")));
             return Task.FromResult(JsonResponse(HttpStatusCode.OK, """
                 [{"operadorId":"00000000-0000-0000-0000-000000000002",
