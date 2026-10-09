@@ -9,6 +9,15 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task CatalogoOperadores_PublicaLaRutaGlobalSinLaRutaAnterior()
+    {
+        using var document = await LoadOpenApiAsync();
+        var paths = document.RootElement.GetProperty("paths");
+        Assert.True(paths.TryGetProperty("/api/operadores", out _));
+        Assert.False(paths.TryGetProperty("/api/comercio/operadores", out _));
+    }
+
+    [Fact]
     public async Task CrearEnvioRequest_ConservaPropiedadesYValidacionesDelContratoPublicado()
     {
         using var document = await LoadOpenApiAsync();
@@ -38,7 +47,7 @@ public sealed class OpenApiContractTests
     [Theory]
     [InlineData("/api/usuarios/actual", "get", "200", typeof(UsuarioActualResponse))]
     [InlineData("/api/accesos", "get", "200", typeof(IReadOnlyList<UsuarioActualResponse>))]
-    [InlineData("/api/comercio/operadores", "get", "200", typeof(IReadOnlyList<OperadorDisponibleResponse>))]
+    [InlineData("/api/operadores", "get", "200", typeof(IReadOnlyList<OperadorDisponibleResponse>))]
     [InlineData("/api/envios", "post", "201", typeof(EnvioCreadoResponse))]
     [InlineData("/api/envios", "get", "200", typeof(IReadOnlyList<EnvioResponse>))]
     public async Task Respuestas_CoincidenConLasPropiedadesYTiposDelCliente(string path, string method, string status, Type type)
@@ -72,6 +81,7 @@ public sealed class OpenApiContractTests
         else
         {
             var properties = schema.GetProperty("properties");
+            Assert.Equal(type.GetProperties().Length, properties.EnumerateObject().Count());
             foreach (var property in type.GetProperties())
             {
                 var name = JsonNamingPolicy.CamelCase.ConvertName(property.Name);

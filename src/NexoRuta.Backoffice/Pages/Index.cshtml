@@ -15,7 +15,7 @@
 }
 else if (Model.Envios.Count == 0)
 {
-    <p>No hay envíos registrados todavía. Creá uno desde el portal de comercio.</p>
+    <p>Este operador todavía no tiene envíos registrados. Los envíos de los comercios aparecerán aquí cuando se registren con este operador.</p>
 }
 else
 {
@@ -26,7 +26,7 @@ else
         {
             <tr>
                 <td><code>@envio.Id</code></td>
-                <td>@envio.OperadorNombre / @envio.ComercioNombre<br /><small>@envio.OperadorId / @envio.OperadorComercioId</small></td>
+                <td>@envio.OperadorNombre / @envio.ComercioNombre<br /><small>@envio.OperadorId / @envio.ComercioId</small></td>
                 <td>@envio.UsuarioEmail<br /><small>@envio.CreadoPorUsuarioId</small></td>
                 <td>@envio.DestinatarioNombre</td>
                 <td>@envio.Direccion</td>

@@ -2,10 +2,12 @@
 
 @using NexoRuta.ApiClient
 @using NexoRuta.ApiClient.Contracts
+@using NexoRuta.ApiClient.Excepciones
 @using Microsoft.AspNetCore.Components.Authorization
 @inject EnviosApiClient ApiClient
 @inject AuthenticationStateProvider AuthenticationState
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Alta de envío | NexoRuta</PageTitle>
 <h1>Alta de envío</h1>
@@ -18,7 +20,7 @@
 @if (creado is not null) { <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para @creado.ComercioNombre con @creado.OperadorNombre; bulto @creado.CodigoBulto.</p> }
 @if (usuarioActual is not null && operadores.Count == 0 && error is null)
 {
-    <p class="alert alert-warning" role="status">El comercio todavía no tiene operadores disponibles para crear un envío.</p>
+    <p class="alert alert-warning" role="status">Todavía no hay operadores registrados para crear un envío.</p>
 }
 
 <EditForm Model="formulario" OnValidSubmit="CrearAsync" FormName="crear-envio">
@@ -47,6 +49,7 @@
 </EditForm>
 
 @code {
+    private readonly CancellationTokenSource cancelacion = new();
     private readonly CrearEnvioRequest formulario = new();
     private UsuarioActualResponse? usuarioActual;
     private IReadOnlyList<OperadorDisponibleResponse> operadores = [];
@@ -57,25 +60,36 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var cancellationToken = cancelacion.Token;
         try
         {
             accesoId = SesionUsuario.ObtenerAccesoId((await AuthenticationState.GetAuthenticationStateAsync()).User);
-            usuarioActual = await ApiClient.ObtenerUsuarioActualAsync(accesoId);
-            operadores = await ApiClient.ListarOperadoresAsync(accesoId);
+            cancellationToken.ThrowIfCancellationRequested();
+            usuarioActual = await ApiClient.ObtenerUsuarioActualAsync(accesoId, cancellationToken);
+            operadores = await ApiClient.ListarOperadoresAsync(accesoId, cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (NexoRutaApiException exception) { error = exception.Message; }
         catch (HttpRequestException) { error = "No se pudo conectar con el servicio de envíos."; }
     }
 
     private async Task CrearAsync()
     {
+        var cancellationToken = cancelacion.Token;
         enviando = true; error = null; creado = null;
         try
         {
-            creado = await ApiClient.CrearEnvioAsync(formulario, accesoId);
+            creado = await ApiClient.CrearEnvioAsync(formulario, accesoId, cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (NexoRutaApiException exception) { error = exception.Message; }
         catch (HttpRequestException) { error = "No se pudo guardar el envío porque el servicio no está disponible."; }
         finally { enviando = false; }
+    }
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
     }
 }
