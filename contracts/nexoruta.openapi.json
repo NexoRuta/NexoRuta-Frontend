@@ -260,7 +260,7 @@
         }
       }
     },
-    "/api/operadores": {
+    "/api/comercio/operadores": {
       "get": {
         "tags": [
           "OperadoresDisponibles"

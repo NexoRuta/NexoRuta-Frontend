@@ -130,6 +130,7 @@ public sealed class EnviosApiClientTests
     [InlineData("1000000000", false)]
     public void Formulario_RespetaLosLimitesNumericosDeLaApi(string value, bool expected)
     {
+        Assert.Equal("es-UY", CultureInfo.CurrentCulture.Name);
         var request = ValidRequest();
         var number = decimal.Parse(value, CultureInfo.InvariantCulture);
         request.PesoGramos = request.LargoCentimetros = request.AnchoCentimetros = request.AltoCentimetros = number;
@@ -178,7 +179,7 @@ public sealed class EnviosApiClientTests
     {
         using var http = CreateHttpClient((request, _) =>
         {
-            Assert.Equal("/api/operadores", request.RequestUri!.AbsolutePath);
+            Assert.Equal("/api/comercio/operadores", request.RequestUri!.AbsolutePath);
             Assert.Equal(AccesoId.ToString(), Assert.Single(request.Headers.GetValues("X-NexoRuta-Acceso")));
             return Task.FromResult(JsonResponse(HttpStatusCode.OK, """
                 [{"operadorId":"00000000-0000-0000-0000-000000000002",

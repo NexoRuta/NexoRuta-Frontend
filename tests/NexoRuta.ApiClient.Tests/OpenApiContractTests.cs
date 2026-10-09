@@ -9,12 +9,12 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
-    public async Task CatalogoOperadores_PublicaLaRutaGlobalSinLaRutaAnterior()
+    public async Task CatalogoOperadores_CoincideConLaRutaPublicadaPorLaApi()
     {
         using var document = await LoadOpenApiAsync();
         var paths = document.RootElement.GetProperty("paths");
-        Assert.True(paths.TryGetProperty("/api/operadores", out _));
-        Assert.False(paths.TryGetProperty("/api/comercio/operadores", out _));
+        Assert.True(paths.TryGetProperty("/api/comercio/operadores", out _));
+        Assert.False(paths.TryGetProperty("/api/operadores", out _));
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class OpenApiContractTests
     [Theory]
     [InlineData("/api/usuarios/actual", "get", "200", typeof(UsuarioActualResponse))]
     [InlineData("/api/accesos", "get", "200", typeof(IReadOnlyList<UsuarioActualResponse>))]
-    [InlineData("/api/operadores", "get", "200", typeof(IReadOnlyList<OperadorDisponibleResponse>))]
+    [InlineData("/api/comercio/operadores", "get", "200", typeof(IReadOnlyList<OperadorDisponibleResponse>))]
     [InlineData("/api/envios", "post", "201", typeof(EnvioCreadoResponse))]
     [InlineData("/api/envios", "get", "200", typeof(IReadOnlyList<EnvioResponse>))]
     public async Task Respuestas_CoincidenConLasPropiedadesYTiposDelCliente(string path, string method, string status, Type type)
