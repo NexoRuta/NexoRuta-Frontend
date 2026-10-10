@@ -3,8 +3,13 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using NexoRuta.ApiClient.Contracts;
-using NexoRuta.ApiClient.Excepciones;
+using NexoRuta.ApiClient.Features.Envios.Contracts.Requests;
+using NexoRuta.ApiClient.Core.Session;
+using NexoRuta.ApiClient.Core.Exceptions;
+using NexoRuta.ApiClient.Features.Envios.Clients;
+using NexoRuta.ApiClient.Features.Accesos.Clients;
+using NexoRuta.ApiClient.Features.Operadores.Clients;
+using NexoRuta.ApiClient.Features.Usuarios.Clients;
 
 namespace NexoRuta.ApiClient.Tests;
 
@@ -83,7 +88,7 @@ public sealed class EnviosApiClientTests
                 """));
         });
 
-        var usuario = await new EnviosApiClient(http).ObtenerUsuarioActualAsync(AccesoId);
+        var usuario = await new UsuariosApiClient(http).ObtenerUsuarioActualAsync(AccesoId);
         Assert.Equal(AccesoId, usuario.AccesoId);
         Assert.Equal("Comercio", usuario.Tipo);
         Assert.Equal("ana@comercio.local", usuario.UsuarioEmail);
@@ -153,7 +158,7 @@ public sealed class EnviosApiClientTests
                 """));
         });
 
-        var usuario = Assert.Single(await new EnviosApiClient(http).ListarAccesosAsync(SesionUsuario.Comercio));
+        var usuario = Assert.Single(await new AccesosApiClient(http).ListarAccesosAsync(SesionUsuario.Comercio));
         Assert.Equal(AccesoId, usuario.AccesoId);
         Assert.Equal("Comercio", usuario.Tipo);
     }
@@ -168,7 +173,7 @@ public sealed class EnviosApiClientTests
             "operadorNombre":"Distribución Sur","comercioNombre":null}
             """)));
 
-        var usuario = await new EnviosApiClient(http).ObtenerUsuarioActualAsync(AccesoId);
+        var usuario = await new UsuariosApiClient(http).ObtenerUsuarioActualAsync(AccesoId);
         Assert.Equal(SesionUsuario.Operador, usuario.Tipo);
         Assert.Null(usuario.ComercioId);
         Assert.Null(usuario.ComercioNombre);
@@ -187,7 +192,7 @@ public sealed class EnviosApiClientTests
                 """));
         });
 
-        var operador = Assert.Single(await new EnviosApiClient(http).ListarOperadoresAsync(AccesoId));
+        var operador = Assert.Single(await new OperadoresApiClient(http).ListarOperadoresAsync(AccesoId));
         Assert.Equal("Distribución Sur", operador.Nombre);
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000002"), operador.OperadorId);
     }
@@ -204,6 +209,8 @@ public sealed class EnviosApiClientTests
     [InlineData("usuario")]
     [InlineData("operadores")]
     [InlineData("alta")]
+    [InlineData("accesos")]
+    [InlineData("listado")]
     public async Task Peticion_PropagaLaCancelacionAlTransporteHttp(string operacion)
     {
         using var cancelacion = new CancellationTokenSource();
@@ -214,12 +221,13 @@ public sealed class EnviosApiClientTests
             await Task.Delay(Timeout.Infinite, cancellationToken);
             throw new InvalidOperationException("La petición debía cancelarse.");
         });
-        var cliente = new EnviosApiClient(http);
         Task peticion = operacion switch
         {
-            "usuario" => cliente.ObtenerUsuarioActualAsync(AccesoId, cancelacion.Token),
-            "operadores" => cliente.ListarOperadoresAsync(AccesoId, cancelacion.Token),
-            _ => cliente.CrearEnvioAsync(ValidRequest(), AccesoId, cancelacion.Token)
+            "usuario" => new UsuariosApiClient(http).ObtenerUsuarioActualAsync(AccesoId, cancelacion.Token),
+            "operadores" => new OperadoresApiClient(http).ListarOperadoresAsync(AccesoId, cancelacion.Token),
+            "accesos" => new AccesosApiClient(http).ListarAccesosAsync(SesionUsuario.Comercio, cancelacion.Token),
+            "listado" => new EnviosApiClient(http).ListarEnviosAsync(AccesoId, cancelacion.Token),
+            _ => new EnviosApiClient(http).CrearEnvioAsync(ValidRequest(), AccesoId, cancelacion.Token)
         };
         var tokenDelTransporte = await iniciada.Task.WaitAsync(TimeSpan.FromSeconds(5));
 

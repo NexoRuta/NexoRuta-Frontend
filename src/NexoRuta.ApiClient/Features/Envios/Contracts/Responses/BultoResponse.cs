@@ -1,4 +1,4 @@
-namespace NexoRuta.ApiClient.Contracts;
+namespace NexoRuta.ApiClient.Features.Envios.Contracts.Responses;
 
 public sealed record BultoResponse(
     string Codigo,

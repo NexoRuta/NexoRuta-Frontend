@@ -2,7 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
-using NexoRuta.ApiClient.Contracts;
+using NexoRuta.ApiClient.Features.Envios.Contracts.Requests;
+using NexoRuta.ApiClient.Features.Envios.Contracts.Responses;
+using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses;
+using NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
 
 namespace NexoRuta.ApiClient.Tests;
 

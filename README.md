@@ -1,6 +1,6 @@
 # NexoRuta Frontend
 
-Repositorio de las tres aplicaciones web de NexoRuta: backoffice, portal de comercios y portal de seguimiento. Las tres están construidas con ASP.NET Core sobre .NET 10; Backoffice usa Razor Pages y Commerce/Tracking usan Blazor Server interactivo.
+Repositorio de las tres aplicaciones web de NexoRuta: backoffice, portal de comercios y portal de seguimiento. Las tres están construidas con ASP.NET Core sobre .NET 10; Backoffice usa Razor Pages, Commerce usa componentes Blazor con InteractiveServer y Tracking conserva una plantilla de Razor Components sin una feature funcional de seguimiento.
 
 ## Estado actual
 
@@ -15,8 +15,8 @@ NexoRuta.sln
 src/
   NexoRuta.Backoffice/  # Razor Pages
   NexoRuta.Commerce/    # Blazor Server interactivo
-  NexoRuta.Tracking/    # Blazor Server interactivo
-  NexoRuta.ApiClient/   # cliente HTTP tipado y DTOs compartidos
+  NexoRuta.Tracking/    # plantilla Razor Components
+  NexoRuta.ApiClient/   # clientes especializados y contratos por feature
 tests/
   NexoRuta.ApiClient.Tests/
 contracts/
@@ -26,6 +26,21 @@ Dockerfile              # publica un proyecto elegido por el argumento PROJECT
 ```
 
 Cada aplicación contiene su `Program.cs`, configuración `appsettings*.json`, perfil `Properties/launchSettings.json` y páginas/componentes bajo `Pages/` o `Components/`. Los recursos estáticos de Bootstrap, jQuery y validación están en `wwwroot/`.
+
+## Organización de presentación
+
+ApiClient agrupa contratos Request/Response y clientes por feature; `Core` contiene
+HTTP, excepciones y sesión compartidos. Commerce mantiene su pantalla en
+`Components/Features/Envios/Pages/CrearEnvio.razor`, con ruta `/` e InteractiveServer.
+Backoffice y Commerce conservan las vistas Razor en `Pages` y trasladan solamente
+sus PageModels a `Features/Envios` o `Features/Sesion`, preservando las identidades
+utilizadas por `asp-page`. Tracking no incorpora carpetas funcionales artificiales.
+
+La [guía de presentación](docs/presentation-structure.md) detalla rutas y límites
+de las comprobaciones HTTP. Después de un build Debug puede ejecutarse
+`python scripts/check-presentation.py` con Python 3, puertos loopback libres y un
+entorno controlado sin proxies externos. Usa un backend simulado, no PostgreSQL;
+no constituye una prueba end-to-end del sistema.
 
 ## Requisitos y compilación
 

@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using NexoRuta.ApiClient;
-using NexoRuta.ApiClient.Contracts;
-using NexoRuta.ApiClient.Excepciones;
+using NexoRuta.ApiClient.Features.Envios.Contracts.Responses;
+using NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
+using NexoRuta.ApiClient.Core.Session;
+using NexoRuta.ApiClient.Core.Exceptions;
+using NexoRuta.ApiClient.Features.Envios.Clients;
+using NexoRuta.ApiClient.Features.Usuarios.Clients;
 
-namespace NexoRuta.Backoffice.Pages;
+namespace NexoRuta.Backoffice.Features.Envios.Pages;
 
-public class IndexModel(EnviosApiClient apiClient) : PageModel
+public class IndexModel(EnviosApiClient apiClient, UsuariosApiClient usuariosClient) : PageModel
 {
     public IReadOnlyList<EnvioResponse> Envios { get; private set; } = [];
     public UsuarioActualResponse? UsuarioActual { get; private set; }
@@ -16,7 +19,7 @@ public class IndexModel(EnviosApiClient apiClient) : PageModel
         try
         {
             var accesoId = SesionUsuario.ObtenerAccesoId(User);
-            UsuarioActual = await apiClient.ObtenerUsuarioActualAsync(accesoId, HttpContext.RequestAborted);
+            UsuarioActual = await usuariosClient.ObtenerUsuarioActualAsync(accesoId, HttpContext.RequestAborted);
             Envios = await apiClient.ListarEnviosAsync(accesoId, HttpContext.RequestAborted);
         }
         catch (NexoRutaApiException exception)

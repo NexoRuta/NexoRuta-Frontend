@@ -4,14 +4,16 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using NexoRuta.ApiClient;
-using NexoRuta.ApiClient.Contracts;
-using NexoRuta.ApiClient.Excepciones;
+using NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
+using NexoRuta.ApiClient.Core.Session;
+using NexoRuta.ApiClient.Core.Exceptions;
+using NexoRuta.ApiClient.Features.Accesos.Clients;
+using NexoRuta.ApiClient.Features.Usuarios.Clients;
 
-namespace NexoRuta.Commerce.Pages;
+namespace NexoRuta.Backoffice.Features.Sesion.Pages;
 
 [AllowAnonymous]
-public sealed class IngresarModel(EnviosApiClient apiClient) : PageModel
+public sealed class IngresarModel(AccesosApiClient accesosClient, UsuariosApiClient usuariosClient) : PageModel
 {
     public IReadOnlyList<UsuarioActualResponse> Usuarios { get; private set; } = [];
     public string? Error { get; private set; }
@@ -27,8 +29,8 @@ public sealed class IngresarModel(EnviosApiClient apiClient) : PageModel
         {
             try
             {
-                var usuario = await apiClient.ObtenerUsuarioActualAsync(accesoId, HttpContext.RequestAborted);
-                if (usuario.Tipo == SesionUsuario.Comercio)
+                var usuario = await usuariosClient.ObtenerUsuarioActualAsync(accesoId, HttpContext.RequestAborted);
+                if (usuario.Tipo == SesionUsuario.Operador)
                 {
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                         SesionUsuario.CrearPrincipal(usuario, CookieAuthenticationDefaults.AuthenticationScheme));
@@ -50,7 +52,7 @@ public sealed class IngresarModel(EnviosApiClient apiClient) : PageModel
 
     private async Task CargarUsuariosAsync()
     {
-        try { Usuarios = await apiClient.ListarAccesosAsync(SesionUsuario.Comercio, HttpContext.RequestAborted); }
+        try { Usuarios = await accesosClient.ListarAccesosAsync(SesionUsuario.Operador, HttpContext.RequestAborted); }
         catch (NexoRutaApiException exception) { Error = exception.Message; }
         catch (HttpRequestException) { Error = "No se pudo consultar la lista de usuarios."; }
     }

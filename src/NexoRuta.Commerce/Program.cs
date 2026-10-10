@@ -1,5 +1,9 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
-using NexoRuta.ApiClient;
+using NexoRuta.ApiClient.Core.Session;
+using NexoRuta.ApiClient.Features.Envios.Clients;
+using NexoRuta.ApiClient.Features.Accesos.Clients;
+using NexoRuta.ApiClient.Features.Operadores.Clients;
+using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.Commerce.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,8 +23,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 });
 builder.Services.AddAuthorization(options => options.AddPolicy(SesionUsuario.Comercio,
     policy => policy.RequireAuthenticatedUser().RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Comercio)));
-builder.Services.AddHttpClient<EnviosApiClient>(client =>
-    client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5000/"));
+builder.Services.AddHttpClient("NexoRuta", client =>
+    client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5000/"))
+    .AddTypedClient<EnviosApiClient>()
+    .AddTypedClient<AccesosApiClient>()
+    .AddTypedClient<UsuariosApiClient>()
+    .AddTypedClient<OperadoresApiClient>();
 
 var app = builder.Build();
 

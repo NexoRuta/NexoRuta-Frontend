@@ -1,10 +1,18 @@
 ﻿@page "/"
 
-@using NexoRuta.ApiClient
-@using NexoRuta.ApiClient.Contracts
-@using NexoRuta.ApiClient.Excepciones
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Requests
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
+@using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses
+@using NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses
+@using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Core.Exceptions
+@using NexoRuta.ApiClient.Features.Envios.Clients
+@using NexoRuta.ApiClient.Features.Operadores.Clients
+@using NexoRuta.ApiClient.Features.Usuarios.Clients
 @using Microsoft.AspNetCore.Components.Authorization
 @inject EnviosApiClient ApiClient
+@inject UsuariosApiClient UsuariosClient
+@inject OperadoresApiClient OperadoresClient
 @inject AuthenticationStateProvider AuthenticationState
 @rendermode InteractiveServer
 @implements IDisposable
@@ -95,8 +103,8 @@
         {
             accesoId = SesionUsuario.ObtenerAccesoId((await AuthenticationState.GetAuthenticationStateAsync()).User);
             cancellationToken.ThrowIfCancellationRequested();
-            usuarioActual = await ApiClient.ObtenerUsuarioActualAsync(accesoId, cancellationToken);
-            operadores = await ApiClient.ListarOperadoresAsync(accesoId, cancellationToken);
+            usuarioActual = await UsuariosClient.ObtenerUsuarioActualAsync(accesoId, cancellationToken);
+            operadores = await OperadoresClient.ListarOperadoresAsync(accesoId, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (NexoRutaApiException exception) { error = exception.Message; }

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace NexoRuta.ApiClient.Contracts;
+namespace NexoRuta.ApiClient.Features.Envios.Contracts.Requests;
 
 public sealed class CrearEnvioRequest
 {
