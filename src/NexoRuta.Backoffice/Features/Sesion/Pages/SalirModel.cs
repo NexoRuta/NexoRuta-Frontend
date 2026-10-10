@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace NexoRuta.Backoffice.Pages;
+namespace NexoRuta.Backoffice.Features.Sesion.Pages;
 
 [Authorize]
 public sealed class SalirModel : PageModel

@@ -1,4 +1,4 @@
-namespace NexoRuta.ApiClient.Contracts;
+namespace NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
 
 public sealed record UsuarioActualResponse(
     Guid AccesoId,
