@@ -1,0 +1,105 @@
+@page "/seguimiento/{Token}"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+@using System.Net
+@using NexoRuta.ApiClient.Features.Seguimiento.Clients
+@inject SeguimientoApiClient SeguimientoClient
+
+<PageTitle>Seguimiento de envío | NexoRuta</PageTitle>
+
+<main class="container py-5">
+
+    <h1>Seguimiento de envío</h1>
+
+    <p class="text-muted">
+        Consultá el estado actual de tu envío.
+    </p>
+
+    <section class="card mt-4">
+        <div class="card-body">
+
+            <h2 class="h5">Estado del envío</h2>
+
+            @if (cargando)
+            {
+                <p>Consultando el estado...</p>
+            }
+            else if (estado is not null)
+            {
+                <div class="alert alert-success">
+                    Estado actual: <strong>@estado</strong>
+                </div>
+            }
+            else if (limiteExcedido)
+            {
+                <div class="alert alert-warning">
+                    Demasiadas consultas.
+                    Intentá nuevamente en unos minutos.
+                </div>
+            }
+            else if (enlaceNoDisponible)
+            {
+                <div class="alert alert-secondary">
+                    El enlace no existe, venció o fue revocado.
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-danger">
+                    No pudimos consultar el estado.
+                    Intentá nuevamente más tarde.
+                </div>
+            }
+
+        </div>
+    </section>
+
+</main>
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = string.Empty;
+
+    private bool cargando = true;
+    private bool enlaceNoDisponible;
+    private bool limiteExcedido;
+    private string? estado;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        cargando = true;
+        estado = null;
+        enlaceNoDisponible = false;
+        limiteExcedido = false;
+
+        try
+        {
+            var respuesta = await SeguimientoClient.ConsultarAsync(Token);
+
+            if (respuesta is null)
+            {
+                enlaceNoDisponible = true;
+                return;
+            }
+
+            estado = respuesta.Estado;
+        }
+        catch (HttpRequestException ex)
+            when (ex.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            limiteExcedido = true;
+        }
+        catch (HttpRequestException)
+        {
+            // El bloque de error genérico se mostrará.
+        }
+        catch (TaskCanceledException)
+        {
+            // Puede producirse por un timeout HTTP.
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}
