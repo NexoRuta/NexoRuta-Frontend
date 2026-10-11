@@ -80,10 +80,18 @@ for app,port in [('Backoffice',55141),('Commerce',55140),('Tracking',55142)]:
    for path in ['/app.css','/lib/bootstrap/dist/css/bootstrap.min.css','/favicon.png']:
     code,_,_,body=fetch(path,record=False);assert code==200;results[path]={'status':code,'sha256':hashlib.sha256(body).hexdigest()}
    assert not calls,'Tracking unexpectedly invokes an API'
+   # The token page is interactive-only; HTTP verifies anonymous routing and safe headers.
+   code,headers,_,body=fetch('/seguimiento/'+'a'*64,record=False)
+   assert code==200 and b'<!--Blazor:' in body
+   assert 'no-store' in headers.get('Cache-Control','')
+   assert headers.get('Referrer-Policy')=='no-referrer'
+   results['anonymous_tracking_route']={'status':code,'cache_control':headers.get('Cache-Control'),'referrer_policy':headers.get('Referrer-Policy')}
   else:
    code,headers,_,_=fetch('/',label='anonymous_root');assert code==302 and '/ingresar' in headers['Location']
    if app=='Backoffice':
     code,_,_,_=fetch('/Index',label='anonymous_Index');assert code==302
+   else:
+    code,headers,_,_=fetch('/envios',label='anonymous_shipments');assert code==302 and '/ingresar' in headers['Location']
    code,_,login,_=fetch('/ingresar');assert code==200 and 'token' in login.tokens
    previous_calls=len(calls)
    code,headers,_,_=fetch('/ingresar',parse.urlencode({'AccesoId':ACCESS}).encode(),label='login_no_antiforgery');assert code==400 or (app=='Commerce' and code==302 and '/ingresar' in headers.get('Location',''))
@@ -96,7 +104,11 @@ for app,port in [('Backoffice',55141),('Commerce',55140),('Tracking',55142)]:
    if app=='Backoffice':
     assert 'Envíos recibidos' in home.text and 'Destinatario de prueba' in home.text
     code,_,_,_=fetch('/Index',label='authenticated_Index');assert code==200
-   else:assert 'Alta de envío' in home.text and '<!--Blazor:' in body.decode()
+   else:
+    assert 'Alta de envío' in home.text and '<!--Blazor:' in body.decode()
+    code,_,shipments,_=fetch('/envios',label='authenticated_shipments')
+    assert code==200 and 'Mis envíos' in shipments.text and 'Ver seguimiento' in shipments.text
+    assert any('Admitido' in text for text in shipments.text)
    for path in ['/Error','/not-found','/arq05-missing','/health/ready']:
     code,_,_,_=fetch(path,label='authenticated'+path)
     assert code==(200 if path in ['/Error','/health/ready'] or app=='Commerce' and path=='/not-found' else 404)

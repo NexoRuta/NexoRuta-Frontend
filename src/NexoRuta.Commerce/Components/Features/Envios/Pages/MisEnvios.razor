@@ -1,0 +1,105 @@
+@page "/envios"
+@rendermode InteractiveServer
+@using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
+@using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Features.Envios.Clients
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
+@inject EnviosApiClient ApiClient
+@inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@implements IDisposable
+
+<PageTitle>Mis envíos | NexoRuta</PageTitle>
+<h1>Mis envíos</h1>
+<p><a href="/">Crear envío</a></p>
+@if (mensaje is not null)
+{
+    <p class="alert alert-warning" role="alert">@mensaje</p>
+}
+@if (cargando)
+{
+    <p role="status">Cargando envíos…</p>
+}
+else if (envios.Count == 0 && mensaje is null)
+{
+    <p role="status">Todavía no tenés envíos.</p>
+}
+else if (envios.Count > 0)
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th scope="col">Envío</th><th scope="col">Operador</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead>
+            <tbody>
+                @foreach (var envio in envios)
+                {
+                    <tr @key="envio.Id">
+                        <td>@envio.Id</td><td>@envio.OperadorNombre</td><td>@envio.Estado</td>
+                        <td><button class="btn btn-primary" disabled="@(consultando is not null)"
+                            aria-label="Ver seguimiento del envío @envio.Id" @onclick="() => VerSeguimientoAsync(envio.Id)">
+                            @(consultando == envio.Id ? "Consultando…" : "Ver seguimiento")
+                        </button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private readonly CancellationTokenSource cancelacion = new();
+    private IReadOnlyList<EnvioResponse> envios = [];
+    private Guid accesoId;
+    private Guid? consultando;
+    private bool cargando = true;
+    private string? mensaje;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var cancellationToken = cancelacion.Token;
+        try
+        {
+            accesoId = SesionUsuario.ObtenerAccesoId((await AuthenticationState.GetAuthenticationStateAsync()).User);
+            cancellationToken.ThrowIfCancellationRequested();
+            envios = await ApiClient.ListarEnviosAsync(accesoId, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
+        catch (HttpRequestException) { mensaje = "No pudimos cargar tus envíos. Intentá nuevamente más tarde."; }
+        catch (OperationCanceledException) { mensaje = "La consulta tardó demasiado. Intentá nuevamente."; }
+        finally { cargando = false; }
+    }
+
+    private async Task VerSeguimientoAsync(Guid envioId)
+    {
+        consultando = envioId;
+        mensaje = null;
+        try
+        {
+            if (!Uri.TryCreate(Configuration["Tracking:BaseAddress"], UriKind.Absolute, out var trackingBase))
+            {
+                mensaje = "El seguimiento no está disponible en este momento.";
+                return;
+            }
+            var url = await ApiClient.ObtenerSeguimientoAsync(envioId, accesoId, trackingBase, cancelacion.Token);
+            if (url is null)
+                mensaje = "El seguimiento se está generando. Intentá nuevamente en unos segundos";
+            else
+                Navigation.NavigateTo(url.AbsoluteUri, forceLoad: true);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Gone)
+        { mensaje = "El enlace de seguimiento expiró o fue revocado."; }
+        catch (HttpRequestException)
+        { mensaje = "No pudimos abrir el seguimiento. Intentá nuevamente más tarde."; }
+        catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
+        catch (OperationCanceledException)
+        { mensaje = "La consulta tardó demasiado. Intentá nuevamente."; }
+        finally { consultando = null; }
+    }
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+}

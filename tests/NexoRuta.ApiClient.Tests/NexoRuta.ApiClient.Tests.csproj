@@ -16,6 +16,8 @@
     </PackageReference>
     <Using Include="Xunit" />
     <ProjectReference Include="..\..\src\NexoRuta.ApiClient\NexoRuta.ApiClient.csproj" />
+    <ProjectReference Include="..\..\src\NexoRuta.Commerce\NexoRuta.Commerce.csproj" />
+    <ProjectReference Include="..\..\src\NexoRuta.Tracking\NexoRuta.Tracking.csproj" />
     <None Include="..\..\contracts\nexoruta.openapi.json" Link="Contracts\nexoruta.openapi.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
