@@ -11,10 +11,30 @@ public sealed class SesionUsuarioTests
     [InlineData(SesionUsuario.Operador)]
     public void CrearPrincipal_ConservaLaIdentidadYElTipoDevueltosPorLaApi(string tipo)
     {
-        var usuario = new UsuarioActualResponse(Guid.CreateVersion7(), Guid.CreateVersion7(), tipo == SesionUsuario.Operador ? Guid.CreateVersion7() : null,
-            tipo == SesionUsuario.Comercio ? Guid.CreateVersion7() : null,
-            "usuario@empresa.local", tipo == SesionUsuario.Operador ? "Operador de prueba" : null,
-            tipo == SesionUsuario.Comercio ? "Comercio de prueba" : null, tipo, tipo == SesionUsuario.Comercio);
+
+        var usuario = new UsuarioActualResponse(
+            AccesoId: Guid.CreateVersion7(),
+            UsuarioId: Guid.CreateVersion7(),
+            OperadorId: tipo == SesionUsuario.Operador
+                ? Guid.CreateVersion7()
+                : null,
+            ComercioId: tipo == SesionUsuario.Comercio
+                ? Guid.CreateVersion7()
+                : null,
+            UsuarioEmail: "usuario@empresa.local",
+            OperadorNombre: tipo == SesionUsuario.Operador
+                ? "Operador de prueba"
+                : null,
+            ComercioNombre: tipo == SesionUsuario.Comercio
+                ? "Comercio de prueba"
+                : null,
+            Tipo: tipo,
+            RolId: Guid.CreateVersion7(),
+            RolCodigo: tipo == SesionUsuario.Operador
+                ? "administrador_operador"
+                : "propietario_comercio"
+        );
+
 
         var principal = SesionUsuario.CrearPrincipal(usuario, "Cookies");
 

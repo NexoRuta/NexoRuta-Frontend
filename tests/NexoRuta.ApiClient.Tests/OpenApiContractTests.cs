@@ -11,14 +11,21 @@ namespace NexoRuta.ApiClient.Tests;
 
 public sealed class OpenApiContractTests
 {
+
     [Fact]
-    public async Task CatalogoOperadores_CoincideConLaRutaPublicadaPorLaApi()
+    public async Task CatalogoOperadores_PublicaLaRutaQueConsumeCommerce()
     {
         using var document = await LoadOpenApiAsync();
+
         var paths = document.RootElement.GetProperty("paths");
-        Assert.True(paths.TryGetProperty("/api/comercio/operadores", out _));
-        Assert.False(paths.TryGetProperty("/api/operadores", out _));
+
+        Assert.True(
+            paths.TryGetProperty("/api/comercio/operadores", out var endpoint));
+
+        Assert.True(
+            endpoint.TryGetProperty("get", out _));
     }
+
 
     [Fact]
     public async Task CrearEnvioRequest_ConservaPropiedadesYValidacionesDelContratoPublicado()

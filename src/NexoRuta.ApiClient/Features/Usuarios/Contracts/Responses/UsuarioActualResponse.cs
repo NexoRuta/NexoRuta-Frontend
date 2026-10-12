@@ -1,3 +1,4 @@
+
 namespace NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
 
 public sealed record UsuarioActualResponse(
@@ -9,4 +10,5 @@ public sealed record UsuarioActualResponse(
     string? OperadorNombre,
     string? ComercioNombre,
     string Tipo,
-    bool EsPropietario);
+    Guid RolId,
+    string RolCodigo);

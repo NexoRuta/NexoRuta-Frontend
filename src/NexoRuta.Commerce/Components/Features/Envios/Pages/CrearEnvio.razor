@@ -22,7 +22,7 @@
 @if (usuarioActual is not null)
 {
     <p>Comercio: <strong>@usuarioActual.ComercioNombre</strong> · Cuenta:
-        @usuarioActual.UsuarioEmail@(usuarioActual.EsPropietario ? " (dueño)" : "")</p>
+        @usuarioActual.UsuarioEmail · Rol: @usuarioActual.RolCodigo</p>
     }
 
     @if (!string.IsNullOrWhiteSpace(error))

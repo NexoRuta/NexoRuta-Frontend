@@ -82,7 +82,9 @@ public sealed class EnviosApiClientTests
             Assert.Equal(AccesoId.ToString(), Assert.Single(request.Headers.GetValues("X-NexoRuta-Acceso")));
             return Task.FromResult(JsonResponse(HttpStatusCode.OK, """
                 {"accesoId":"00000000-0000-0000-0000-000000000005","tipo":"Comercio",
-                "usuarioId":"00000000-0000-0000-0000-000000000001","operadorId":null,"esPropietario":true,
+                "usuarioId":"00000000-0000-0000-0000-000000000001","operadorId":null,
+                "rolId": "00000000-0000-0000-0000-000000000007",
+                "rolCodigo": "administrador_operador",
                 "comercioId":"00000000-0000-0000-0000-000000000003","usuarioEmail":"ana@comercio.local",
                 "operadorNombre":null,"comercioNombre":"Comercio Centro"}
                 """));
@@ -152,7 +154,9 @@ public sealed class EnviosApiClientTests
             Assert.False(request.Headers.Contains("X-NexoRuta-Acceso"));
             return Task.FromResult(JsonResponse(HttpStatusCode.OK, """
                 [{"accesoId":"00000000-0000-0000-0000-000000000005","tipo":"Comercio",
-                "usuarioId":"00000000-0000-0000-0000-000000000001","operadorId":null,"esPropietario":true,
+                "usuarioId":"00000000-0000-0000-0000-000000000001","operadorId":null,
+                "rolId": "00000000-0000-0000-0000-000000000007",
+                "rolCodigo": "administrador_operador",
                 "comercioId":"00000000-0000-0000-0000-000000000003","usuarioEmail":"ana@comercio.local",
                 "operadorNombre":null,"comercioNombre":"Comercio Centro"}]
                 """));
@@ -169,7 +173,10 @@ public sealed class EnviosApiClientTests
         using var http = CreateHttpClient((_, _) => Task.FromResult(JsonResponse(HttpStatusCode.OK, """
             {"accesoId":"00000000-0000-0000-0000-000000000005","tipo":"Operador",
             "usuarioId":"00000000-0000-0000-0000-000000000001","operadorId":"00000000-0000-0000-0000-000000000002",
-            "comercioId":null,"esPropietario":false,"usuarioEmail":"operador@empresa.local",
+            "comercioId":null,
+            "rolId": "00000000-0000-0000-0000-000000000007",
+            "rolCodigo": "administrador_operador",
+            "usuarioEmail":"operador@empresa.local",
             "operadorNombre":"Distribución Sur","comercioNombre":null}
             """)));
 
@@ -239,8 +246,13 @@ public sealed class EnviosApiClientTests
     private static CrearEnvioRequest ValidRequest() => new()
     {
         OperadorId = Guid.Parse("00000000-0000-0000-0000-000000000002"),
-        DestinatarioNombre = "Ana", Direccion = "18 de Julio 123", CodigoBulto = "B-001",
-        PesoGramos = 1250m, LargoCentimetros = 30m, AnchoCentimetros = 20m, AltoCentimetros = 10m
+        DestinatarioNombre = "Ana",
+        Direccion = "18 de Julio 123",
+        CodigoBulto = "B-001",
+        PesoGramos = 1250m,
+        LargoCentimetros = 30m,
+        AnchoCentimetros = 20m,
+        AltoCentimetros = 10m
     };
 
     private static HttpClient CreateHttpClient(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send)
