@@ -10,5 +10,6 @@ public sealed record UsuarioActualResponse(
     string? OperadorNombre,
     string? ComercioNombre,
     string Tipo,
-    Guid RolId,
-    string RolCodigo);
+    Guid? RolId,
+    string? RolCodigo,
+    int? TipoAcceso = null);

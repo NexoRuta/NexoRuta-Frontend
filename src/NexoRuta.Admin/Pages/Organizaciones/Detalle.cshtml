@@ -1,0 +1,13 @@
+@page "/{tipo:regex(^(operadores|comercios)$)}/{id:guid}"
+@model NexoRuta.Admin.Features.Organizaciones.Pages.DetalleModel
+@{ ViewData["Title"] = Model.Titulo; }
+<a href="/@Model.Tipo">Back to list</a>
+@if (Model.Organizacion is { } organization)
+{
+    @if (Model.Confirmacion is not null) { <p class="alert alert-success mt-3" role="status">@Model.Confirmacion</p> }
+    <h1 class="mt-3">@organization.Nombre</h1>
+    <p class="text-muted">@Model.Titulo details</p>
+    <dl class="card p-4"><dt>Organization ID</dt><dd class="text-break">@organization.Id</dd><dt>Name</dt><dd>@organization.Nombre</dd></dl>
+    <p>No editing, deletion or administrator impersonation is available in this slice.</p>
+}
+else { <h1 class="mt-3">Organization not found</h1><p>The organization does not exist or is no longer available.</p> }

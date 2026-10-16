@@ -5,6 +5,7 @@ namespace NexoRuta.ApiClient.Core.Session;
 
 public static class SesionUsuario
 {
+    public const string Plataforma = "Plataforma";
     public const string Operador = "Operador";
     public const string Comercio = "Comercio";
     public const string ClaimAccesoId = "nexoruta:acceso_id";

@@ -1,10 +1,12 @@
 # NexoRuta Frontend
 
-Repositorio de las tres aplicaciones web de NexoRuta: backoffice, portal de comercios y portal de seguimiento. Las tres están construidas con ASP.NET Core sobre .NET 10; Backoffice usa Razor Pages, Commerce usa componentes Blazor con InteractiveServer y Tracking consulta el estado público de un envío mediante un enlace anónimo.
+Repositorio de las cuatro aplicaciones web de NexoRuta: Admin de plataforma, Backoffice, Commerce y Tracking. Las cuatro están construidas con ASP.NET Core sobre .NET 10; Backoffice usa Razor Pages, Commerce usa componentes Blazor con InteractiveServer y Tracking consulta el estado público de un envío mediante un enlace anónimo.
+
+Admin independiente: [configuracion, rutas, seguridad y preparacion local pendiente](docs/admin.md). Puerto local y Compose: `5104`. No completa CU-01.
 
 ## Estado actual
 
-Commerce permite el alta individual de un envío con su bulto y Backoffice consulta los registros persistidos por la API. `/ingresar` autentica por correo y contraseña en ambos portales. Cada aplicación conserva su JWT dentro de una cookie de autenticación protegida e independiente; las llamadas servidor-a-servidor adjuntan Bearer por request. Backoffice administra usuarios/accesos en `/usuarios` y roles/permisos en `/roles`, sujeto a capacidades consultadas dinámicamente y autorización efectiva de la API. Commerce conserva el alta/listado de envíos en `/` y `/envios`; Tracking muestra únicamente el estado público. No hay edición de identidad de usuarios, ABM de comercios ni administración desde Commerce en este corte.
+Commerce permite el alta individual de un envío con su bulto y Backoffice consulta los registros persistidos por la API. `/ingresar` autentica por correo y contraseña en ambos portales. Cada aplicación conserva su JWT dentro de una cookie de autenticación protegida e independiente; las llamadas servidor-a-servidor adjuntan Bearer por request. Backoffice administra usuarios/accesos en `/usuarios` y roles/permisos en `/roles`, sujeto a capacidades consultadas dinámicamente y autorización efectiva de la API. Commerce conserva el alta/listado de envíos en `/` y `/envios`; Tracking muestra únicamente el estado público. No hay edición de identidad de usuarios, ABM completo de comercios ni administración desde Commerce en este corte.
 
 La sesión local usa cookies HttpOnly, antiforgery en formularios y expiración no posterior al JWT. La migración a ASP.NET Identity/OIDC sigue pendiente y no forma parte de este corte.
 
@@ -15,6 +17,7 @@ La solución incluye pruebas del cliente HTTP, validación del formulario y comp
 ```text
 NexoRuta.sln
 src/
+  NexoRuta.Admin/       # Razor Pages, plataforma
   NexoRuta.Backoffice/  # Razor Pages
   NexoRuta.Commerce/    # Blazor Server interactivo
   NexoRuta.Tracking/    # seguimiento público Blazor

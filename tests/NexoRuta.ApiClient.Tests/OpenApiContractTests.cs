@@ -8,11 +8,37 @@ using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Auth.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Roles.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
+using NexoRuta.ApiClient.Features.Plataforma.Contracts.Responses;
+using NexoRuta.ApiClient.Features.Plataforma.Contracts.Requests;
 
 namespace NexoRuta.ApiClient.Tests;
 
 public sealed class OpenApiContractTests
 {
+    [Theory]
+    [InlineData("operadores")]
+    [InlineData("comercios")]
+    public async Task PlatformOrganizationEndpointsExposeAdministrativeContractsWithoutCredentials(string kind)
+    {
+        using var document = await LoadOpenApiAsync();
+        var paths = document.RootElement.GetProperty("paths");
+        var collection = paths.GetProperty($"/api/admin/{kind}");
+        foreach (var operation in new[] { collection.GetProperty("get"), collection.GetProperty("post"),
+                     paths.GetProperty($"/api/admin/{kind}/{{id}}").GetProperty("get") })
+        {
+            Assert.True(operation.GetProperty("responses").TryGetProperty("401", out _));
+            Assert.True(operation.GetProperty("responses").TryGetProperty("403", out _));
+        }
+        var create = collection.GetProperty("post");
+        Assert.True(create.GetProperty("responses").TryGetProperty("409", out _));
+        var response = create.GetProperty("responses").GetProperty("201").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema");
+        var properties = Resolve(response, document.RootElement).GetProperty("properties");
+        Assert.Equal(new[] { "accesoId", "organizacion", "rolId", "usuarioId" }, properties.EnumerateObject().Select(x => x.Name).Order());
+        var listing = Resolve(collection.GetProperty("get").GetProperty("responses").GetProperty("200")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema"), document.RootElement);
+        Assert.Equal(new[] { "items", "pagina", "tamanoPagina", "total" }, listing.GetProperty("properties").EnumerateObject().Select(x => x.Name).Order());
+    }
 
     [Fact]
     public async Task CatalogoOperadores_PublicaLaRutaQueConsumeCommerce()
@@ -64,6 +90,12 @@ public sealed class OpenApiContractTests
     }
 
     [Theory]
+    [InlineData("/api/admin/operadores", "get", "200", typeof(PaginaOrganizacionesResponse))]
+    [InlineData("/api/admin/comercios", "get", "200", typeof(PaginaOrganizacionesResponse))]
+    [InlineData("/api/admin/operadores", "post", "201", typeof(AltaOrganizacionResponse))]
+    [InlineData("/api/admin/comercios", "post", "201", typeof(AltaOrganizacionResponse))]
+    [InlineData("/api/admin/operadores/{id}", "get", "200", typeof(OrganizacionResponse))]
+    [InlineData("/api/admin/comercios/{id}", "get", "200", typeof(OrganizacionResponse))]
     [InlineData("/api/usuarios/actual", "get", "200", typeof(UsuarioActualResponse))]
     [InlineData("/api/usuarios/actual/permisos", "get", "200", typeof(IReadOnlyList<string>))]
     [InlineData("/api/usuarios", "get", "200", typeof(IReadOnlyList<UsuarioOrganizacionResponse>))]
@@ -98,14 +130,30 @@ public sealed class OpenApiContractTests
             .GetProperty("responses").TryGetProperty("403", out _));
     }
 
+    [Theory]
+    [InlineData("operadores")]
+    [InlineData("comercios")]
+    public async Task PlatformCreationRequestMatchesTheApiAndRequiresTwelveCharacterPassword(string kind)
+    {
+        using var document = await LoadOpenApiAsync();
+        var schema = document.RootElement.GetProperty("paths").GetProperty($"/api/admin/{kind}").GetProperty("post")
+            .GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        AssertSchema(typeof(CrearOrganizacionRequest), schema, document.RootElement);
+        var fields = Resolve(schema, document.RootElement).GetProperty("properties");
+        Assert.Equal(160, fields.GetProperty("nombre").GetProperty("maxLength").GetInt32());
+        var admin = Resolve(fields.GetProperty("administrador"), document.RootElement).GetProperty("properties");
+        Assert.Equal(254, admin.GetProperty("email").GetProperty("maxLength").GetInt32());
+        Assert.Equal(12, admin.GetProperty("password").GetProperty("minLength").GetInt32());
+    }
+
     private static void AssertSchema(Type type, JsonElement schema, JsonElement document)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
         schema = Resolve(schema, document);
-        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(bool) ||
+        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(bool) || type == typeof(int) ||
             type == typeof(DateTime) || type == typeof(DateTimeOffset))
         {
-            var expected = type == typeof(decimal) ? "number" : type == typeof(bool) ? "boolean" : "string";
+            var expected = type == typeof(decimal) ? "number" : type == typeof(bool) ? "boolean" : type == typeof(int) ? "integer" : "string";
             var declared = schema.GetProperty("type");
             IEnumerable<string?> types = declared.ValueKind == JsonValueKind.Array
                 ? declared.EnumerateArray().Select(x => x.GetString())

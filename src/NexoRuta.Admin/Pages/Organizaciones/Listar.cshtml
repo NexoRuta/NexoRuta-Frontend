@@ -1,0 +1,28 @@
+@page "/{tipo:regex(^(operadores|comercios)$)}"
+@model NexoRuta.Admin.Features.Organizaciones.Pages.ListarModel
+@{ ViewData["Title"] = Model.Titulo; }
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <h1>@Model.Titulo</h1><a class="btn btn-primary" href="/@Model.Tipo/crear">Create organization</a>
+</div>
+@if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+@if (Model.Resultado is { } result)
+{
+    <p class="text-muted">@result.Total organizations · Page @result.Pagina</p>
+    @if (result.Items.Count == 0) { <p class="alert alert-info">No organizations on this result.</p> }
+    else
+    {
+        <div class="table-responsive bg-white rounded border"><table class="table mb-0">
+            <caption class="visually-hidden">@Model.Titulo, ordered by name and ID</caption>
+            <thead><tr><th scope="col">Name</th><th scope="col">Organization ID</th><th scope="col">Details</th></tr></thead>
+            <tbody>@foreach (var organization in result.Items)
+            {
+                <tr><th scope="row">@organization.Nombre</th><td class="small text-break">@organization.Id</td>
+                    <td><a href="/@Model.Tipo/@organization.Id" aria-label="View @organization.Nombre">View</a></td></tr>
+            }</tbody>
+        </table></div>
+    }
+    <nav class="d-flex gap-3 align-items-center mt-4" aria-label="Pagination">
+        @if (Model.Pagina > 1) { <a href="/@Model.Tipo?pagina=@(Model.Pagina - 1)&amp;tamanoPagina=@Model.TamanoPagina">Previous</a> }
+        @if ((long)Model.Pagina * Model.TamanoPagina < result.Total) { <a href="/@Model.Tipo?pagina=@(Model.Pagina + 1)&amp;tamanoPagina=@Model.TamanoPagina">Next</a> }
+    </nav>
+}

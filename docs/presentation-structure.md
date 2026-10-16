@@ -1,5 +1,9 @@
 # Feature-first presentation without routing changes
 
+## Admin: independent Razor Pages host
+
+`NexoRuta.Admin` follows the same feature-owned PageModel convention, with native views in `Pages/` and constrained public organization routes. Its session/permission boundary is separate from both organizational portals. See [Admin structure, routes and HTTP verification](admin.md). It uses the existing vendored Bootstrap and single-submit script, without a dependency on another portal assembly.
+
 Razor views stay in their native `Pages` root. Feature-owned PageModels live in
 `Features/<feature>/Pages` and are linked explicitly with `@model`.
 This preserves page identities as well as public URLs: moving only the logic

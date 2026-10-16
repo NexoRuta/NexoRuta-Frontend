@@ -17,6 +17,7 @@
     </PackageReference>
     <Using Include="Xunit" />
     <ProjectReference Include="..\..\src\NexoRuta.ApiClient\NexoRuta.ApiClient.csproj" />
+    <ProjectReference Include="..\..\src\NexoRuta.Admin\NexoRuta.Admin.csproj" />
     <ProjectReference Include="..\..\src\NexoRuta.Backoffice\NexoRuta.Backoffice.csproj" />
     <ProjectReference Include="..\..\src\NexoRuta.Commerce\NexoRuta.Commerce.csproj" />
     <ProjectReference Include="..\..\src\NexoRuta.Tracking\NexoRuta.Tracking.csproj" />
