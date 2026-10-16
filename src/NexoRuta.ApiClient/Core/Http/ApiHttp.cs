@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using NexoRuta.ApiClient.Core.Exceptions;
 
@@ -6,6 +7,13 @@ namespace NexoRuta.ApiClient.Core.Http;
 
 internal static class ApiHttp
 {
+    internal static HttpRequestMessage WithBearerToken(HttpRequestMessage request, string token)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return request;
+    }
+
     internal static async Task<T> SendAsync<T>(HttpClient httpClient, HttpRequestMessage request, CancellationToken cancellationToken)
         where T : class
     {
@@ -22,6 +30,13 @@ internal static class ApiHttp
         {
             throw new NexoRutaApiException("La API devolvió una respuesta con un formato inesperado.", response.StatusCode);
         }
+    }
+
+    internal static async Task SendNoContentAsync(HttpClient httpClient, HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw new NexoRutaApiException(await ReadErrorAsync(response, cancellationToken), response.StatusCode);
     }
 
     private static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)

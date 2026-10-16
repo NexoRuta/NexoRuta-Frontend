@@ -10,11 +10,10 @@ namespace NexoRuta.ApiClient.Features.Envios.Clients;
 
 public sealed class EnviosApiClient(HttpClient httpClient)
 {
-    public async Task<Uri?> ObtenerSeguimientoAsync(Guid envioId, Guid accesoId,
+    public async Task<Uri?> ObtenerSeguimientoAsync(Guid envioId, string token,
         Uri trackingBase, CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/envios/{envioId}/seguimiento");
-        request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get, $"api/envios/{envioId}/seguimiento"), token);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         if (response.StatusCode == HttpStatusCode.Accepted) return null;
         response.EnsureSuccessStatusCode();
@@ -31,37 +30,35 @@ public sealed class EnviosApiClient(HttpClient httpClient)
             apiUrl.UserInfo.Length != 0 || apiUrl.Query.Length != 0 || apiUrl.Fragment.Length != 0)
             throw new NexoRutaApiException(mensaje, response.StatusCode);
 
-        var token = apiUrl.Segments.Last();
-        if (token.Length != 64 || token.Any(c => !Uri.IsHexDigit(c)) ||
-            !apiUrl.AbsolutePath.EndsWith("/api/public/seguimiento/" + token, StringComparison.Ordinal) ||
+        var seguimientoToken = apiUrl.Segments.Last();
+        if (seguimientoToken.Length != 64 || seguimientoToken.Any(c => !Uri.IsHexDigit(c)) ||
+            !apiUrl.AbsolutePath.EndsWith("/api/public/seguimiento/" + seguimientoToken, StringComparison.Ordinal) ||
             !trackingBase.IsAbsoluteUri || (trackingBase.Scheme != "http" && trackingBase.Scheme != "https") ||
             trackingBase.UserInfo.Length != 0 || trackingBase.Query.Length != 0 || trackingBase.Fragment.Length != 0)
             throw new NexoRutaApiException(mensaje, response.StatusCode);
 
         // ponytail: adapt the current API link locally; generation and expiry stay backend-owned.
-        return new Uri(trackingBase.AbsoluteUri.TrimEnd('/') + "/seguimiento/" + token);
+        return new Uri(trackingBase.AbsoluteUri.TrimEnd('/') + "/seguimiento/" + seguimientoToken);
     }
 
     private sealed record EnlaceSeguimiento(string Estado, string? Url, DateTimeOffset? ExpiraEnUtc);
 
     public async Task<IReadOnlyList<EnvioResponse>> ListarEnviosAsync(
-        Guid accesoId, CancellationToken cancellationToken = default)
+        string token, CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "api/envios");
-        request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get, "api/envios"), token);
         return await ApiHttp.SendAsync<EnvioResponse[]>(httpClient, request, cancellationToken);
     }
 
     public async Task<EnvioCreadoResponse> CrearEnvioAsync(
         CrearEnvioRequest envio,
-        Guid accesoId,
+        string token,
         CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/envios")
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Post, "api/envios")
         {
             Content = JsonContent.Create(envio)
-        };
-        request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
+        }, token);
         return await ApiHttp.SendAsync<EnvioCreadoResponse>(httpClient, request, cancellationToken);
     }
 }

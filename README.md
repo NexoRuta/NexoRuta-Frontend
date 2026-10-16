@@ -4,7 +4,9 @@ Repositorio de las tres aplicaciones web de NexoRuta: backoffice, portal de come
 
 ## Estado actual
 
-Commerce permite el alta individual de un envío con su bulto y Backoffice consulta los registros persistidos por la API. `/ingresar` selecciona una cuenta propia del comercio en Commerce o una cuenta del operador en Backoffice. El usuario del comercio elige el operador desde el formulario de cada envío; las opciones incluyen todos los operadores registrados y la cuenta se lee de PostgreSQL. La API valida que el operador exista y toma el comercio desde la cuenta, sin exigir un vínculo previo. Las aplicaciones usan cookies independientes y `NexoRuta.ApiClient`. El selector es sin credenciales para este monitoreo; no se implementaron CRUD ni perfiles laborales. Commerce lista sus envíos en `/envios` y recupera el seguimiento bajo demanda; Tracking muestra únicamente el estado público.
+Commerce permite el alta individual de un envío con su bulto y Backoffice consulta los registros persistidos por la API. `/ingresar` autentica por correo y contraseña en ambos portales. Cada aplicación conserva su JWT dentro de una cookie de autenticación protegida e independiente; las llamadas servidor-a-servidor adjuntan Bearer por request. Backoffice administra usuarios/accesos en `/usuarios` y roles/permisos en `/roles`, sujeto a capacidades consultadas dinámicamente y autorización efectiva de la API. Commerce conserva el alta/listado de envíos en `/` y `/envios`; Tracking muestra únicamente el estado público. No hay edición de identidad de usuarios, ABM de comercios ni administración desde Commerce en este corte.
+
+La sesión local usa cookies HttpOnly, antiforgery en formularios y expiración no posterior al JWT. La migración a ASP.NET Identity/OIDC sigue pendiente y no forma parte de este corte.
 
 La solución incluye pruebas del cliente HTTP, validación del formulario y compatibilidad de contratos con OpenAPI. El workflow de frontend ejecuta build y tests en PRs de `develop` hacia `main`; su presencia no acredita una ejecución remota.
 

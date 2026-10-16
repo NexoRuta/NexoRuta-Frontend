@@ -3,6 +3,7 @@
 @using System.Net
 @using Microsoft.AspNetCore.Components.Authorization
 @using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Core.Exceptions
 @using NexoRuta.ApiClient.Features.Envios.Clients
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
 @inject EnviosApiClient ApiClient
@@ -50,7 +51,7 @@ else if (envios.Count > 0)
 @code {
     private readonly CancellationTokenSource cancelacion = new();
     private IReadOnlyList<EnvioResponse> envios = [];
-    private Guid accesoId;
+    private string token = "";
     private Guid? consultando;
     private bool cargando = true;
     private string? mensaje;
@@ -60,11 +61,16 @@ else if (envios.Count > 0)
         var cancellationToken = cancelacion.Token;
         try
         {
-            accesoId = SesionUsuario.ObtenerAccesoId((await AuthenticationState.GetAuthenticationStateAsync()).User);
+            token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
             cancellationToken.ThrowIfCancellationRequested();
-            envios = await ApiClient.ListarEnviosAsync(accesoId, cancellationToken);
+            envios = await ApiClient.ListarEnviosAsync(token, cancellationToken);
         }
         catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        { mensaje = "No tenés permiso para consultar los envíos."; }
+        catch (NexoRutaApiException exception) { mensaje = exception.Message; }
         catch (HttpRequestException) { mensaje = "No pudimos cargar tus envíos. Intentá nuevamente más tarde."; }
         catch (OperationCanceledException) { mensaje = "La consulta tardó demasiado. Intentá nuevamente."; }
         finally { cargando = false; }
@@ -81,7 +87,7 @@ else if (envios.Count > 0)
                 mensaje = "El seguimiento no está disponible en este momento.";
                 return;
             }
-            var url = await ApiClient.ObtenerSeguimientoAsync(envioId, accesoId, trackingBase, cancelacion.Token);
+            var url = await ApiClient.ObtenerSeguimientoAsync(envioId, token, trackingBase, cancelacion.Token);
             if (url is null)
                 mensaje = "El seguimiento se está generando. Intentá nuevamente en unos segundos";
             else
@@ -89,6 +95,10 @@ else if (envios.Count > 0)
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Gone)
         { mensaje = "El enlace de seguimiento expiró o fue revocado."; }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        { mensaje = "No tenés permiso para consultar este seguimiento."; }
         catch (HttpRequestException)
         { mensaje = "No pudimos abrir el seguimiento. Intentá nuevamente más tarde."; }
         catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }

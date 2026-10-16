@@ -6,10 +6,9 @@ namespace NexoRuta.ApiClient.Features.Operadores.Clients;
 public sealed class OperadoresApiClient(HttpClient httpClient)
 {
     public async Task<IReadOnlyList<OperadorDisponibleResponse>> ListarOperadoresAsync(
-        Guid accesoId, CancellationToken cancellationToken = default)
+        string token, CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "api/comercio/operadores");
-        request.Headers.Add("X-NexoRuta-Acceso", accesoId.ToString());
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get, "api/comercio/operadores"), token);
         return await ApiHttp.SendAsync<OperadorDisponibleResponse[]>(httpClient, request, cancellationToken);
     }
 }

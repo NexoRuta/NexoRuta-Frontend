@@ -23,11 +23,13 @@ public sealed class SeguimientoPagesTests
     private static readonly Guid Acceso = Guid.NewGuid();
     private static readonly Guid Envio = Guid.NewGuid();
     private static readonly string Token = new('b', 64);
+    private const string ApiToken = "commerce-session";
 
     [Theory]
     [InlineData(200, null)]
     [InlineData(202, "El seguimiento se está generando. Intentá nuevamente en unos segundos")]
     [InlineData(410, "El enlace de seguimiento expiró o fue revocado.")]
+    [InlineData(401, "session-expired")]
     [InlineData(403, "No pudimos abrir el seguimiento. Intentá nuevamente más tarde.")]
     [InlineData(503, "No pudimos abrir el seguimiento. Intentá nuevamente más tarde.")]
     [InlineData(0, "No pudimos abrir el seguimiento. Intentá nuevamente más tarde.")]
@@ -37,7 +39,8 @@ public sealed class SeguimientoPagesTests
         var navigation = new TestNavigation();
         using var http = new HttpClient(new Handler(request =>
         {
-            Assert.Equal(Acceso.ToString(), Assert.Single(request.Headers.GetValues("X-NexoRuta-Acceso")));
+            Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+            Assert.Equal(ApiToken, request.Headers.Authorization.Parameter);
             if (request.RequestUri!.AbsolutePath == "/api/envios")
                 return Respuesta(200, JsonSerializer.Serialize(new[] { new { id = Envio,
                     operadorNombre = "Operador de prueba", estado = "Admitido", bultos = Array.Empty<object>() } }));
@@ -60,12 +63,18 @@ public sealed class SeguimientoPagesTests
             Assert.Contains("Operador de prueba", root.ToHtmlString());
             Assert.Contains("Ver seguimiento", root.ToHtmlString());
             Assert.DoesNotContain(Token, root.ToHtmlString());
+            Assert.DoesNotContain(ApiToken, root.ToHtmlString());
             // Invoke the same handler bound to the rendered button, without adding a UI test dependency.
             var handler = typeof(MisEnvios).GetMethod("VerSeguimientoAsync",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
             await ((IHandleEvent)page).HandleEventAsync(new EventCallbackWorkItem(
                 (Func<Task>)(() => (Task)handler.Invoke(page, [Envio])!)), null);
-            if (mensaje is null)
+            if (mensaje == "session-expired")
+            {
+                Assert.Equal("/ingresar?expirada=true", navigation.Destination);
+                Assert.True(navigation.ForceLoad);
+            }
+            else if (mensaje is null)
             {
                 Assert.Equal($"http://tracking.test/seguimiento/{Token}", navigation.Destination);
                 Assert.True(navigation.ForceLoad);
@@ -152,7 +161,10 @@ public sealed class SeguimientoPagesTests
     private sealed class TestAuthentication : AuthenticationStateProvider
     {
         public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(
-            new ClaimsPrincipal(new ClaimsIdentity([new Claim(SesionUsuario.ClaimAccesoId, Acceso.ToString())], "test"))));
+            new ClaimsPrincipal(new ClaimsIdentity([
+                new Claim(SesionUsuario.ClaimAccesoId, Acceso.ToString()),
+                new Claim(SesionUsuario.ClaimApiToken, ApiToken)
+            ], "test"))));
     }
 
     private sealed class TestNavigation : NavigationManager

@@ -1,0 +1,140 @@
+@page "/usuarios"
+@model NexoRuta.Commerce.Features.Usuarios.Pages.IndexModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Usuarios del comercio | NexoRuta</title>
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-light">
+    <main class="container py-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <div><p class="text-muted mb-1"><a href="/">NexoRuta · Portal de comercios</a></p><h1 class="h3 mb-0">Usuarios del comercio</h1></div>
+            <form method="post" action="/salir" data-single-submit>
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
+            </form>
+        </header>
+
+        @if (Model.Error is not null)
+        {
+            <p class="alert alert-danger" role="alert">@Model.Error</p>
+        }
+        @if (Model.Confirmacion is not null)
+        {
+            <p class="alert alert-success" role="status">@Model.Confirmacion</p>
+        }
+        @if (Model.HayConflicto)
+        {
+            <p><a class="btn btn-outline-primary" href="/usuarios">Recargar estado</a></p>
+        }
+
+        @if (Model.CanManage)
+        {
+            <section class="card mb-4" aria-labelledby="crear-usuario-heading">
+                <div class="card-body">
+                    <h2 id="crear-usuario-heading" class="h5">Dar de alta un usuario</h2>
+                    @if (Model.Roles.Count == 0)
+                    {
+                        <p class="alert alert-warning" role="status">No hay roles asignables para crear un usuario.</p>
+                    }
+                    <form method="post" asp-page-handler="Crear" data-single-submit>
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label asp-for="Email" class="form-label">Correo electrónico</label>
+                                <input asp-for="Email" class="form-control" type="email" autocomplete="off" maxlength="254" required />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Password" class="form-label">Contraseña inicial</label>
+                                <input asp-for="Password" class="form-control" type="password" autocomplete="new-password" minlength="12" required />
+                                <span asp-validation-for="Password" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-3">
+                                <label asp-for="RolId" class="form-label">Rol asignable</label>
+                                <select asp-for="RolId" class="form-select" required>
+                                    <option value="">Seleccioná un rol</option>
+                                    @foreach (var rol in Model.Roles)
+                                    {
+                                        <option value="@rol.Id">@rol.Nombre</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="RolId" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-1"><button type="submit" class="btn btn-primary" disabled="@(Model.Roles.Count == 0)">Crear</button></div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            @if (Model.Usuarios.Count == 0)
+            {
+                <p role="status">No hay usuarios del comercio para mostrar.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle">
+                        <thead><tr><th scope="col">Correo</th><th scope="col">Rol</th><th scope="col">Estado del acceso</th><th scope="col">Acciones</th></tr></thead>
+                        <tbody>
+                            @foreach (var usuario in Model.Usuarios)
+                            {
+                                var rolSeleccionado = Model.AccesoEditadoId == usuario.AccesoId ? Model.RolIntentado : usuario.RolId;
+                                <tr>
+                                    <td>@usuario.Email</td>
+                                    <td>@(usuario.RolNombre ?? "Sin rol")</td>
+                                    <td>@(usuario.Activo ? "Activo" : "Inactivo")</td>
+                                    <td>
+                                        @if (usuario.UsuarioId == Model.UsuarioActualId)
+                                        {
+                                            <p class="text-muted mb-0">Tu acceso no se puede modificar desde esta pantalla.</p>
+                                        }
+                                        else
+                                        {
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <form method="post" asp-page-handler="Rol" data-single-submit>
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="accesoId" value="@usuario.AccesoId" />
+                                                <label class="visually-hidden" for="rol-@usuario.AccesoId">Rol de @usuario.Email</label>
+                                                <select class="form-select form-select-sm" id="rol-@usuario.AccesoId" name="rolId" aria-label="Rol de @usuario.Email">
+                                                    <option value="" selected="@(rolSeleccionado is null)">Sin rol</option>
+                                                    @foreach (var rol in Model.Roles)
+                                                    {
+                                                        <option value="@rol.Id" selected="@(rolSeleccionado == rol.Id)">@rol.Nombre</option>
+                                                    }
+                                                </select>
+                                                <button type="submit" class="btn btn-sm btn-outline-primary mt-1">Guardar rol</button>
+                                            </form>
+                                            <form method="post" asp-page-handler="Estado" data-single-submit>
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="usuarioId" value="@usuario.UsuarioId" />
+                                                <input type="hidden" name="activo" value="@(!usuario.Activo)" />
+                                                @if (usuario.Activo)
+                                                {
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Confirmás desactivar este acceso?')" disabled="@(usuario.UsuarioId == Model.UsuarioActualId)">Desactivar</button>
+                                                }
+                                                else
+                                                {
+                                                    <button type="submit" class="btn btn-sm btn-outline-success">Activar</button>
+                                                }
+                                            </form>
+                                        </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+    </main>
+    <script src="/js/site.js"></script>
+</body>
+</html>

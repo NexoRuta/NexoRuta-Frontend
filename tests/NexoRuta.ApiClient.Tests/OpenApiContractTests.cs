@@ -5,6 +5,8 @@ using System.Text.Json;
 using NexoRuta.ApiClient.Features.Envios.Contracts.Requests;
 using NexoRuta.ApiClient.Features.Envios.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses;
+using NexoRuta.ApiClient.Features.Auth.Contracts.Responses;
+using NexoRuta.ApiClient.Features.Roles.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
 
 namespace NexoRuta.ApiClient.Tests;
@@ -24,6 +26,13 @@ public sealed class OpenApiContractTests
 
         Assert.True(
             endpoint.TryGetProperty("get", out _));
+    }
+
+    [Fact]
+    public async Task CatalogoGlobalDeAccesosFueRetirado()
+    {
+        using var document = await LoadOpenApiAsync();
+        Assert.False(document.RootElement.GetProperty("paths").TryGetProperty("/api/accesos", out _));
     }
 
 
@@ -56,7 +65,14 @@ public sealed class OpenApiContractTests
 
     [Theory]
     [InlineData("/api/usuarios/actual", "get", "200", typeof(UsuarioActualResponse))]
-    [InlineData("/api/accesos", "get", "200", typeof(IReadOnlyList<UsuarioActualResponse>))]
+    [InlineData("/api/usuarios/actual/permisos", "get", "200", typeof(IReadOnlyList<string>))]
+    [InlineData("/api/usuarios", "get", "200", typeof(IReadOnlyList<UsuarioOrganizacionResponse>))]
+    [InlineData("/api/usuarios", "post", "201", typeof(UsuarioOrganizacionResponse))]
+    [InlineData("/api/auth/login", "post", "200", typeof(LoginResponse))]
+    [InlineData("/api/roles", "get", "200", typeof(IReadOnlyList<RolResponse>))]
+    [InlineData("/api/roles/asignables", "get", "200", typeof(IReadOnlyList<RolResponse>))]
+    [InlineData("/api/roles/permisos", "get", "200", typeof(IReadOnlyList<PermisoResponse>))]
+    [InlineData("/api/roles", "post", "201", typeof(CrearRolResponse))]
     [InlineData("/api/comercio/operadores", "get", "200", typeof(IReadOnlyList<OperadorDisponibleResponse>))]
     [InlineData("/api/envios", "post", "201", typeof(EnvioCreadoResponse))]
     [InlineData("/api/envios", "get", "200", typeof(IReadOnlyList<EnvioResponse>))]
@@ -68,11 +84,26 @@ public sealed class OpenApiContractTests
         AssertSchema(type, schema, document.RootElement);
     }
 
+    [Theory]
+    [InlineData("/api/usuarios", "post")]
+    [InlineData("/api/usuarios/{usuarioId}/estado", "patch")]
+    [InlineData("/api/roles/{id}", "put")]
+    [InlineData("/api/roles/{id}", "delete")]
+    [InlineData("/api/roles/{id}/permisos", "put")]
+    [InlineData("/api/roles/accesos/{accesoId}", "put")]
+    public async Task ProtectedAdministrativeMutationsDocumentForbiddenResponses(string path, string method)
+    {
+        using var document = await LoadOpenApiAsync();
+        Assert.True(document.RootElement.GetProperty("paths").GetProperty(path).GetProperty(method)
+            .GetProperty("responses").TryGetProperty("403", out _));
+    }
+
     private static void AssertSchema(Type type, JsonElement schema, JsonElement document)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
         schema = Resolve(schema, document);
-        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(bool))
+        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(bool) ||
+            type == typeof(DateTime) || type == typeof(DateTimeOffset))
         {
             var expected = type == typeof(decimal) ? "number" : type == typeof(bool) ? "boolean" : "string";
             var declared = schema.GetProperty("type");
@@ -82,6 +113,8 @@ public sealed class OpenApiContractTests
             Assert.Contains(expected, types);
             if (type == typeof(Guid))
                 Assert.Equal("uuid", schema.GetProperty("format").GetString());
+            if (type == typeof(DateTime) || type == typeof(DateTimeOffset))
+                Assert.Equal("date-time", schema.GetProperty("format").GetString());
         }
         else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
         {

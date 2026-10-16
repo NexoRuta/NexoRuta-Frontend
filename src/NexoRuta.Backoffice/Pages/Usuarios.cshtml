@@ -1,0 +1,106 @@
+@page "/usuarios"
+@model NexoRuta.Backoffice.Features.Usuarios.Pages.IndexModel
+@{
+    ViewData["Title"] = "Usuarios | Backoffice NexoRuta";
+}
+
+<h1>Usuarios y accesos</h1>
+<p>La desactivación afecta el acceso a la organización; no elimina la identidad global del usuario.</p>
+@if (Model.Error is not null)
+{
+    <p class="alert alert-danger" role="alert">@Model.Error <a href="/usuarios">Recargar estado</a></p>
+}
+@if (Model.Confirmacion is not null)
+{
+    <p class="alert alert-success" role="status">@Model.Confirmacion</p>
+}
+
+<section aria-labelledby="alta-usuario">
+    <h2 id="alta-usuario">Crear usuario y acceso</h2>
+    @if (Model.Roles.Count == 0)
+    {
+        <p role="status">No hay roles disponibles en esta organización para asignar.</p>
+    }
+    <form method="post" asp-page-handler="Crear" data-single-submit>
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <div class="mb-3">
+            <label asp-for="Email" class="form-label">Correo</label>
+            <input asp-for="Email" type="email" maxlength="254" autocomplete="off" class="form-control" />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Password" class="form-label">Contraseña inicial</label>
+            <input asp-for="Password" type="password" autocomplete="new-password" class="form-control" />
+            <span asp-validation-for="Password" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="RolId" class="form-label">Rol de la organización</label>
+            <select asp-for="RolId" class="form-select">
+                <option value="">Seleccioná un rol</option>
+                @foreach (var rol in Model.Roles)
+                {
+                    <option value="@rol.Id">@rol.Nombre (@rol.Codigo)</option>
+                }
+            </select>
+            <span asp-validation-for="RolId" class="text-danger"></span>
+        </div>
+        <button type="submit" class="btn btn-primary" disabled="@(Model.Roles.Count == 0)">Crear usuario</button>
+    </form>
+</section>
+
+<section class="mt-5" aria-labelledby="listado-usuarios">
+    <h2 id="listado-usuarios">Accesos de la organización</h2>
+    @if (Model.Usuarios.Count == 0 && Model.Error is null)
+    {
+        <p role="status">No hay usuarios en esta organización.</p>
+    }
+    else if (Model.Usuarios.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Identidad</th><th>Acceso</th><th>Rol asignado</th><th>Acciones</th></tr></thead>
+                <tbody>
+                @foreach (var usuario in Model.Usuarios)
+                {
+                    <tr>
+                        <td>@usuario.Email<br /><small>Usuario: @usuario.UsuarioId</small></td>
+                        <td>@(usuario.Activo ? "Activo" : "Inactivo")<br /><small>Acceso: @usuario.AccesoId</small></td>
+                        <td>@(usuario.RolNombre ?? "Sin rol")</td>
+                        <td>
+                            @if (usuario.UsuarioId == Model.UsuarioActualId)
+                            {
+                                <p class="text-muted mb-0">Tu acceso no se puede modificar desde esta pantalla.</p>
+                            }
+                            else
+                            {
+                            <div class="d-flex flex-column gap-2">
+                                <form method="post" asp-page-handler="Estado" data-single-submit>
+                                    <input type="hidden" name="usuarioId" value="@usuario.UsuarioId" />
+                                    <input type="hidden" name="activo" value="@(!usuario.Activo)" />
+                                    <button type="submit" class="btn btn-sm @(usuario.Activo ? "btn-outline-danger" : "btn-outline-success")"
+                                            >
+                                        @(usuario.Activo ? "Desactivar acceso" : "Activar acceso")
+                                    </button>
+                                </form>
+                                <form method="post" asp-page-handler="Rol" data-single-submit class="d-flex gap-2">
+                                    <input type="hidden" name="accesoId" value="@usuario.AccesoId" />
+                                    @{ var rolSeleccionado = Model.AccesoEditadoId == usuario.AccesoId ? Model.RolIntentado : usuario.RolId; }
+                                    <select name="rolId" class="form-select form-select-sm" aria-label="Rol para @usuario.Email">
+                                        <option value="" selected="@(rolSeleccionado is null)">Sin rol</option>
+                                        @foreach (var rol in Model.Roles)
+                                        {
+                                            <option value="@rol.Id" selected="@(rolSeleccionado == rol.Id)">@rol.Nombre</option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Guardar rol</button>
+                                </form>
+                            </div>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

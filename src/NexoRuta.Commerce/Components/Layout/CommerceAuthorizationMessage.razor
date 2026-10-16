@@ -1,0 +1,28 @@
+@inject CommerceAuthorizationState AuthorizationState
+@inject NavigationManager Navigation
+
+@if (AuthorizationState.Failure == CommerceAuthorizationFailure.ApiUnavailable)
+{
+    <div class="nav-item px-3 small text-warning" role="alert">No se pudo verificar el permiso de usuarios. Intentá nuevamente.</div>
+}
+else if (AuthorizationState.Failure == CommerceAuthorizationFailure.SessionExpired)
+{
+    <div class="nav-item px-3 small text-warning" role="alert">
+        La sesión expiró. <a href="/ingresar?expirada=true">Ingresá nuevamente</a>.
+    </div>
+}
+
+@code {
+    private bool redirecting;
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!redirecting && AuthorizationState.Failure == CommerceAuthorizationFailure.SessionExpired)
+        {
+            redirecting = true;
+            Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true);
+        }
+
+        return Task.CompletedTask;
+    }
+}

@@ -1,0 +1,137 @@
+@page "/roles"
+@model NexoRuta.Commerce.Features.Roles.Pages.IndexModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Roles y permisos | NexoRuta Commerce</title>
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-light">
+    <main class="container py-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <div><p class="text-muted mb-1"><a href="/">NexoRuta · Portal de comercios</a></p><h1 class="h3 mb-0">Roles y permisos del comercio</h1></div>
+            <form method="post" action="/salir" data-single-submit>
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
+            </form>
+        </header>
+
+        @if (Model.Error is not null)
+        {
+            <p class="alert alert-danger" role="alert">@Model.Error <a href="/roles">Recargar estado</a></p>
+        }
+        @if (Model.Confirmacion is not null)
+        {
+            <p class="alert alert-success" role="status">@Model.Confirmacion</p>
+        }
+        @if (Model.HayConflicto)
+        {
+            <p><a class="btn btn-outline-primary" href="/roles">Recargar estado</a></p>
+        }
+
+        <section class="card mb-4" aria-labelledby="crear-rol-heading">
+            <div class="card-body">
+                <h2 id="crear-rol-heading" class="h5">Crear rol del comercio</h2>
+                <form method="post" asp-page-handler="Crear" data-single-submit>
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label asp-for="Codigo" class="form-label">Código</label>
+                            <input asp-for="Codigo" class="form-control" maxlength="80" required />
+                            <span asp-validation-for="Codigo" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Nombre" class="form-label">Nombre</label>
+                            <input asp-for="Nombre" class="form-control" maxlength="160" required />
+                            <span asp-validation-for="Nombre" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-2"><button type="submit" class="btn btn-primary">Crear rol</button></div>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section aria-labelledby="roles-heading">
+            <h2 id="roles-heading" class="h5">Roles y permisos asignables</h2>
+            @if (Model.Roles.Count == 0 && Model.Error is null)
+            {
+                <p role="status">No hay roles configurados para este comercio.</p>
+            }
+            @if (Model.Permisos.Count == 0 && Model.Error is null)
+            {
+                <p role="status">El catálogo de permisos aplicables al comercio está vacío.</p>
+            }
+            @foreach (var rol in Model.Roles)
+            {
+                <article class="card mb-4">
+                    <div class="card-body">
+                        <h3 class="h6">@rol.Nombre <small class="text-muted">(@rol.Codigo)</small></h3>
+                        @if (rol.EsPropio || rol.EsProtegidoSistema)
+                        {
+                            <p class="text-muted">Este rol está asignado a tu acceso o protegido por el sistema; solo podés consultarlo.</p>
+                            <h4 class="h6">Permisos asignados</h4>
+                            @if (rol.Permisos.Count == 0)
+                            {
+                                <p>No tiene permisos asignados.</p>
+                            }
+                            else
+                            {
+                                <ul>
+                                    @foreach (var permiso in rol.Permisos)
+                                    {
+                                        <li><code>@permiso</code></li>
+                                    }
+                                </ul>
+                            }
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="Renombrar" data-single-submit class="d-flex gap-2 mb-3">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@rol.Id" />
+                                <label class="visually-hidden" for="nombre-@rol.Id">Nuevo nombre de @rol.Codigo</label>
+                                <input id="nombre-@rol.Id" name="nombre" class="form-control" maxlength="160"
+                                       value="@(Model.RolEditadoId == rol.Id ? Model.NombreIntentado : rol.Nombre)" required />
+                                <button type="submit" class="btn btn-outline-primary">Renombrar</button>
+                            </form>
+                            <form method="post" asp-page-handler="Permisos" data-single-submit>
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@rol.Id" />
+                                <fieldset>
+                                    <legend class="h6">Permisos asignados</legend>
+                                    @foreach (var permiso in Model.Permisos)
+                                    {
+                                        var asignado = Model.RolEditadoId == rol.Id && Model.PermisosIntentados is not null
+                                            ? Model.PermisosIntentados.Contains(permiso.Codigo, StringComparer.Ordinal)
+                                            : rol.Permisos.Contains(permiso.Codigo, StringComparer.Ordinal);
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permisos" value="@permiso.Codigo"
+                                                   id="@rol.Id-@permiso.Id" checked="@(asignado ? "checked" : null)" />
+                                            <label class="form-check-label" for="@rol.Id-@permiso.Id">@permiso.Nombre <code>@permiso.Codigo</code></label>
+                                        </div>
+                                    }
+                                </fieldset>
+                                <button type="submit" class="btn btn-outline-primary mt-2">Guardar permisos</button>
+                            </form>
+                            <form method="post" asp-page-handler="Eliminar" data-single-submit class="mt-3">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@rol.Id" />
+                                <button type="submit" class="btn btn-outline-danger"
+                                        onclick="return confirm('¿Confirmás eliminar este rol? Si está asignado, la API rechazará la operación.')">Eliminar rol</button>
+                            </form>
+                        }
+                    </div>
+                </article>
+            }
+        </section>
+    </main>
+    <script src="/js/site.js"></script>
+</body>
+</html>

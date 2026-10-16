@@ -9,14 +9,24 @@ public static class SesionUsuario
     public const string Comercio = "Comercio";
     public const string ClaimAccesoId = "nexoruta:acceso_id";
     public const string ClaimTipoAcceso = "nexoruta:tipo_acceso";
+    public const string ClaimApiToken = "nexoruta:api_access_token";
 
-    public static ClaimsPrincipal CrearPrincipal(UsuarioActualResponse usuario, string esquema)
-        => new(new ClaimsIdentity([
+    public static ClaimsPrincipal CrearPrincipal(UsuarioActualResponse usuario, string token, string esquema)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
+        return new ClaimsPrincipal(new ClaimsIdentity([
             new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioId.ToString()),
             new Claim(ClaimTypes.Name, usuario.UsuarioEmail),
             new Claim(ClaimTipoAcceso, usuario.Tipo),
-            new Claim(ClaimAccesoId, usuario.AccesoId.ToString())
+            new Claim(ClaimAccesoId, usuario.AccesoId.ToString()),
+            new Claim(ClaimApiToken, token)
         ], esquema));
+    }
+
+    public static string ObtenerToken(ClaimsPrincipal usuario)
+        => usuario.FindFirst(ClaimApiToken)?.Value is { Length: > 0 } token
+            ? token
+            : throw new InvalidOperationException("La sesión no contiene un token de API.");
 
     public static Guid ObtenerAccesoId(ClaimsPrincipal usuario)
         => Guid.TryParse(usuario.FindFirst(ClaimAccesoId)?.Value, out var accesoId) && accesoId != Guid.Empty

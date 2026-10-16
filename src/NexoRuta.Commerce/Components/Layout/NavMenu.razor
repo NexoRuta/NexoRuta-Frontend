@@ -16,6 +16,23 @@
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="envios">Mis envíos</NavLink>
         </div>
+        <AuthorizeView Policy="@ApiPermissionAuthorizationHandler.UsersManagePolicy">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/usuarios">Usuarios</NavLink>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <CommerceAuthorizationMessage />
+            </NotAuthorized>
+        </AuthorizeView>
+        <AuthorizeView Policy="@ApiPermissionAuthorizationHandler.ConfigManagePolicy">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/roles">Roles y permisos</NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
     </nav>
 </div>
 

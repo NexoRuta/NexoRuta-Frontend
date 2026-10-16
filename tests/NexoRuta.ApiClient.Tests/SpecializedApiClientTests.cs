@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text;
 using NexoRuta.ApiClient.Core.Exceptions;
-using NexoRuta.ApiClient.Features.Accesos.Clients;
 using NexoRuta.ApiClient.Features.Envios.Clients;
 using NexoRuta.ApiClient.Features.Envios.Contracts.Requests;
 using NexoRuta.ApiClient.Features.Operadores.Clients;
@@ -11,23 +10,22 @@ namespace NexoRuta.ApiClient.Tests;
 
 public sealed class SpecializedApiClientTests
 {
-    private static readonly Guid AccesoId = Guid.Parse("00000000-0000-0000-0000-000000000005");
+    private const string ApiToken = "session-jwt";
 
     [Theory]
-    [InlineData("accesos", "api/accesos?tipo=Comercio", false)]
-    [InlineData("usuarios", "api/usuarios/actual", true)]
-    [InlineData("operadores", "api/comercio/operadores", true)]
-    [InlineData("listar", "api/envios", true)]
-    [InlineData("crear", "api/envios", true)]
-    public async Task Clients_PreserveEndpointsHeadersAndHttpErrors(string operation, string path, bool hasAccess)
+    [InlineData("usuarios", "api/usuarios/actual")]
+    [InlineData("operadores", "api/comercio/operadores")]
+    [InlineData("listar", "api/envios")]
+    [InlineData("crear", "api/envios")]
+    public async Task Clients_PreserveEndpointsBearerAndHttpErrors(string operation, string path)
     {
         using var http = CreateHttpClient((request, _) =>
         {
             Assert.Equal(new Uri(new Uri("http://api.test/"), path), request.RequestUri);
             Assert.Equal(operation == "crear" ? HttpMethod.Post : HttpMethod.Get, request.Method);
-            Assert.Equal(hasAccess, request.Headers.Contains("X-NexoRuta-Acceso"));
-            if (hasAccess)
-                Assert.Equal(AccesoId.ToString(), Assert.Single(request.Headers.GetValues("X-NexoRuta-Acceso")));
+            Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+            Assert.Equal(ApiToken, request.Headers.Authorization.Parameter);
+            Assert.False(request.Headers.Contains("X-NexoRuta-Acceso"));
             return Task.FromResult(Response(HttpStatusCode.Forbidden, "{\"detail\":\"Access denied\"}"));
         });
         var error = await Assert.ThrowsAsync<NexoRutaApiException>(() => Invoke(operation, http));
@@ -37,9 +35,6 @@ public sealed class SpecializedApiClientTests
 
     public static TheoryData<string, string, string> InvalidResponses => new()
     {
-        { "accesos", "null", "La API devolvió una respuesta vacía." },
-        { "accesos", "not-json", "La API devolvió una respuesta con un formato inesperado." },
-        { "accesos", "", "La API devolvió una respuesta con un formato inesperado." },
         { "usuarios", "null", "La API devolvió una respuesta vacía." },
         { "usuarios", "not-json", "La API devolvió una respuesta con un formato inesperado." },
         { "usuarios", "", "La API devolvió una respuesta con un formato inesperado." },
@@ -64,25 +59,12 @@ public sealed class SpecializedApiClientTests
         Assert.Equal(HttpStatusCode.OK, error.StatusCode);
     }
 
-    [Fact]
-    public async Task AccessClient_EscapesTheTypeWithoutAddingAnAccessHeader()
-    {
-        using var http = CreateHttpClient((request, _) =>
-        {
-            Assert.Equal("?tipo=" + Uri.EscapeDataString("Comercio & operador/á"), request.RequestUri!.Query);
-            Assert.False(request.Headers.Contains("X-NexoRuta-Acceso"));
-            return Task.FromResult(Response(HttpStatusCode.OK, "[]"));
-        });
-        Assert.Empty(await new AccesosApiClient(http).ListarAccesosAsync("Comercio & operador/á"));
-    }
-
     private static Task Invoke(string operation, HttpClient http) => operation switch
     {
-        "accesos" => new AccesosApiClient(http).ListarAccesosAsync("Comercio"),
-        "usuarios" => new UsuariosApiClient(http).ObtenerUsuarioActualAsync(AccesoId),
-        "operadores" => new OperadoresApiClient(http).ListarOperadoresAsync(AccesoId),
-        "listar" => new EnviosApiClient(http).ListarEnviosAsync(AccesoId),
-        "crear" => new EnviosApiClient(http).CrearEnvioAsync(new CrearEnvioRequest(), AccesoId),
+        "usuarios" => new UsuariosApiClient(http).ObtenerUsuarioActualAsync(ApiToken),
+        "operadores" => new OperadoresApiClient(http).ListarOperadoresAsync(ApiToken),
+        "listar" => new EnviosApiClient(http).ListarEnviosAsync(ApiToken),
+        "crear" => new EnviosApiClient(http).CrearEnvioAsync(new CrearEnvioRequest(), ApiToken),
         _ => throw new ArgumentOutOfRangeException(nameof(operation))
     };
 

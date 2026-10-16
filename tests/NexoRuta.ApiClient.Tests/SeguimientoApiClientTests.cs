@@ -74,6 +74,7 @@ public sealed class SeguimientoApiClientTests
 
             Assert.False(
                 request.Headers.Contains("X-NexoRuta-Acceso"));
+            Assert.Null(request.Headers.Authorization);
 
             return Task.FromResult(new HttpResponseMessage(estado)
             {
