@@ -2,7 +2,7 @@
 namespace NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
 
 public sealed record UsuarioActualResponse(
-    Guid AccesoId,
+    Guid? AccesoId,
     Guid UsuarioId,
     Guid? OperadorId,
     Guid? ComercioId,

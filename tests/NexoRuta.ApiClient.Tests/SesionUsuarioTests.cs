@@ -49,6 +49,18 @@ public sealed class SesionUsuarioTests
     }
 
     [Fact]
+    public void IdentityOnlyPrincipalHasNoOrganizationalAccessOrRoles()
+    {
+        var user = new UsuarioActualResponse(null, Guid.NewGuid(), null, null, "person@example.test",
+            null, null, SesionUsuario.SinOrganizacion, null, null);
+        var principal = SesionUsuario.CrearPrincipal(user, "identity-only-token", "Cookies");
+        Assert.True(principal.Identity!.IsAuthenticated);
+        Assert.Null(principal.FindFirst(SesionUsuario.ClaimAccesoId));
+        Assert.Empty(principal.FindAll(ClaimTypes.Role));
+        Assert.Throws<InvalidOperationException>(() => SesionUsuario.ObtenerAccesoId(principal));
+    }
+
+    [Fact]
     public void ObtenerAccesoId_NoInventaUnaIdentidadSiLaSesionEstaVacia()
         => Assert.Throws<InvalidOperationException>(() => SesionUsuario.ObtenerAccesoId(new ClaimsPrincipal()));
 

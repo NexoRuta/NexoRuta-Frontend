@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
 <div class="page">
     <div class="sidebar">
@@ -7,6 +7,7 @@
 
     <main>
         <div class="top-row px-4">
+            <a href="/" class="me-3">Inicio</a>
             <form method="post" action="/salir" data-single-submit>
                 <AntiforgeryToken />
                 <button type="submit" class="btn btn-link">Cerrar sesión</button>

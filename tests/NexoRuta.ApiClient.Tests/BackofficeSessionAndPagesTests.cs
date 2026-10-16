@@ -115,7 +115,7 @@ public sealed class BackofficeSessionAndPagesTests
             ("Email", "commerce@example.test"), ("Password", "correct-password")));
 
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
-        Assert.Equal("/", login.Headers.Location!.OriginalString);
+        Assert.Equal("/envios", login.Headers.Location!.OriginalString);
         var cookie = login.Headers.GetValues("Set-Cookie").Single(value => value.StartsWith("NexoRuta.Commerce=", StringComparison.Ordinal));
         Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("jwt-commerce", cookie, StringComparison.Ordinal);
@@ -131,10 +131,10 @@ public sealed class BackofficeSessionAndPagesTests
         var logoutAntiforgery = await GetAntiforgeryTokenAsync(client, "/envios");
         using var logout = await client.PostAsync("/salir", Form(logoutAntiforgery));
         Assert.Equal(HttpStatusCode.Redirect, logout.StatusCode);
-        Assert.Equal("/ingresar", logout.Headers.Location!.OriginalString);
+        Assert.Equal("/", logout.Headers.Location!.OriginalString);
         using var anonymous = await client.GetAsync("/");
-        Assert.Equal(HttpStatusCode.Redirect, anonymous.StatusCode);
-        Assert.StartsWith("/ingresar", anonymous.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, anonymous.StatusCode);
+        Assert.Contains("/registrarse", await anonymous.Content.ReadAsStringAsync());
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class BackofficeSessionAndPagesTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         await LoginAsync(client, "commerce@example.test");
 
-        using var home = await client.GetAsync("/");
+        using var home = await client.GetAsync("/envios");
         Assert.Equal(HttpStatusCode.OK, home.StatusCode);
         Assert.Contains("href=\"/usuarios\"", await home.Content.ReadAsStringAsync());
 
@@ -179,7 +179,7 @@ public sealed class BackofficeSessionAndPagesTests
         Assert.StartsWith("/ingresar", anonymous.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
         await LoginAsync(client, "commerce@example.test");
 
-        using var home = await client.GetAsync("/");
+        using var home = await client.GetAsync("/envios");
         Assert.Equal(HttpStatusCode.OK, home.StatusCode);
         Assert.DoesNotContain("href=\"/usuarios\"", await home.Content.ReadAsStringAsync());
 
@@ -202,7 +202,7 @@ public sealed class BackofficeSessionAndPagesTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         await LoginAsync(client, "commerce@example.test");
 
-        using var home = await client.GetAsync("/");
+        using var home = await client.GetAsync("/envios");
         Assert.Contains("href=\"/roles\"", await home.Content.ReadAsStringAsync());
         using var response = await client.GetAsync("/roles");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -247,7 +247,7 @@ public sealed class BackofficeSessionAndPagesTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         await LoginAsync(client, "commerce@example.test");
 
-        using var home = await client.GetAsync("/");
+        using var home = await client.GetAsync("/envios");
         Assert.DoesNotContain("href=\"/roles\"", await home.Content.ReadAsStringAsync());
         using var denied = await client.GetAsync("/roles");
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);

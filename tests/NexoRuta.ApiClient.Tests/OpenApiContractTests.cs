@@ -15,6 +15,29 @@ namespace NexoRuta.ApiClient.Tests;
 
 public sealed class OpenApiContractTests
 {
+    [Fact]
+    public async Task SelfServiceContractsExposeIdentityOnlyRegistrationAndNameOnlyOnboarding()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+        var registration = paths.GetProperty("/api/auth/register").GetProperty("post");
+        var schema = Resolve(registration.GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Equal(new[] { "email", "password" }, schema.GetProperty("properties").EnumerateObject().Select(x => x.Name).Order());
+        Assert.Equal(12, schema.GetProperty("properties").GetProperty("password").GetProperty("minLength").GetInt32());
+        foreach (var path in new[] { "/api/alta-propia/comercios", "/api/alta-propia/operadores" })
+        {
+            var operation = paths.GetProperty(path).GetProperty("post");
+            var request = Resolve(operation.GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+            Assert.Equal(new[] { "nombre" }, request.GetProperty("properties").EnumerateObject().Select(x => x.Name));
+            foreach (var status in new[] { "201", "400", "401", "403", "409" })
+                Assert.True(operation.GetProperty("responses").TryGetProperty(status, out _));
+        }
+        var context = Resolve(paths.GetProperty("/api/usuarios/actual").GetProperty("get").GetProperty("responses").GetProperty("200")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Contains("null", context.GetProperty("properties").GetProperty("accesoId").GetProperty("type").EnumerateArray().Select(x => x.GetString()));
+    }
+
     [Theory]
     [InlineData("operadores")]
     [InlineData("comercios")]

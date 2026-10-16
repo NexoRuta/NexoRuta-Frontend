@@ -5,6 +5,7 @@ namespace NexoRuta.ApiClient.Core.Session;
 
 public static class SesionUsuario
 {
+    public const string SinOrganizacion = "SinOrganizacion";
     public const string Plataforma = "Plataforma";
     public const string Operador = "Operador";
     public const string Comercio = "Comercio";
@@ -15,13 +16,16 @@ public static class SesionUsuario
     public static ClaimsPrincipal CrearPrincipal(UsuarioActualResponse usuario, string token, string esquema)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
-        return new ClaimsPrincipal(new ClaimsIdentity([
+        var claims = new List<Claim>
+        {
             new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioId.ToString()),
             new Claim(ClaimTypes.Name, usuario.UsuarioEmail),
             new Claim(ClaimTipoAcceso, usuario.Tipo),
-            new Claim(ClaimAccesoId, usuario.AccesoId.ToString()),
             new Claim(ClaimApiToken, token)
-        ], esquema));
+        };
+        if (usuario.AccesoId is Guid accessId)
+            claims.Add(new Claim(ClaimAccesoId, accessId.ToString()));
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, esquema));
     }
 
     public static string ObtenerToken(ClaimsPrincipal usuario)

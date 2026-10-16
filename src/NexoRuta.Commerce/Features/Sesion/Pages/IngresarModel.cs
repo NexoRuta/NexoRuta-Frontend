@@ -47,7 +47,7 @@ public sealed class IngresarModel(AuthApiClient authClient, UsuariosApiClient us
                 throw new NexoRutaApiException("La API devolvió un tipo de sesión no compatible.", System.Net.HttpStatusCode.BadGateway);
 
             var usuario = await usuariosClient.ObtenerUsuarioActualAsync(login.AccessToken, HttpContext.RequestAborted);
-            if (usuario.Tipo != SesionUsuario.Comercio)
+            if (usuario.Tipo is not (SesionUsuario.Comercio or SesionUsuario.SinOrganizacion))
                 Error = "Esta cuenta no tiene acceso a Commerce.";
             else
             {
@@ -59,11 +59,12 @@ public sealed class IngresarModel(AuthApiClient authClient, UsuariosApiClient us
                     CookieAuthenticationDefaults.AuthenticationScheme,
                     SesionUsuario.CrearPrincipal(usuario, login.AccessToken, CookieAuthenticationDefaults.AuthenticationScheme),
                     new AuthenticationProperties { IsPersistent = false, AllowRefresh = false, ExpiresUtc = expiry });
-                return LocalRedirect("/");
+                return LocalRedirect(usuario.Tipo == SesionUsuario.SinOrganizacion ? "/organizacion" : "/envios");
             }
         }
         catch (NexoRutaApiException exception) { Error = exception.Message; }
         catch (HttpRequestException) { Error = "No se pudo conectar con la API de NexoRuta."; }
+        catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested) { Error = "La API no respondió a tiempo. Intentá nuevamente."; }
 
         Password = "";
         ModelState.Remove(nameof(Password));

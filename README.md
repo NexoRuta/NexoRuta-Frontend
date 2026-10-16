@@ -132,3 +132,7 @@ de la ruta pública; no ejecuta un circuito con PostgreSQL/RabbitMQ reales.
 ## Pendiente
 
 Completar las pantallas y flujos propios de cada actor, incorporar autenticación por credenciales y permisos por perfil laboral y ampliar las pruebas de extremo a extremo. Las pruebas con API simulada no validan por sí solas persistencia ni servicios de mensajería reales.
+
+Commerce hosts the public entry at `/registrarse`, `/ingresar` and `/organizacion`. Operator creation ends with a fresh Backoffice login configured by `Portales:BackofficeLoginUrl`; no JWT is transferred between applications. See `../docs/registro-alta-propia.md`.
+
+Commerce public entry: `/` (Blazor welcome) → `/registrarse` → `/ingresar` → `/organizacion`. Commerce accounts land at `/envios`; shipment creation remains protected at `/envios/crear`. Backoffice/Admin links come from `Portales:BackofficeLoginUrl` and `Portales:AdminLoginUrl`. Logout returns to the public home.

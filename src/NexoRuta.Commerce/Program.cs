@@ -72,6 +72,15 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.Use(async (context, next) =>
+{
+    // Do not re-execute identity-only form errors through a commerce-only page.
+    if (HttpMethods.IsPost(context.Request.Method) && context.Request.Path is var path &&
+        (path == "/registrarse" || path == "/organizacion") &&
+        context.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodePagesFeature>() is { } statusPages)
+        statusPages.Enabled = false;
+    await next(context);
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
