@@ -81,6 +81,7 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
         }
         catch (HttpRequestException) { Error = "No se pudo conectar con la API de usuarios."; }
 
+        ModelState.Clear();
         var loaded = await CargarAsync();
         return loaded is PageResult ? Page() : loaded;
     }

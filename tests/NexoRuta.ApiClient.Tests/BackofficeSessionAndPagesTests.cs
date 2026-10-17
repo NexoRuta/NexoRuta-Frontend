@@ -375,6 +375,113 @@ public sealed class BackofficeSessionAndPagesTests
         Assert.DoesNotContain(api.Calls, call => call.Path == "/api/usuarios" && call.Method == HttpMethod.Post);
     }
 
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public async Task StateFormsPostRequestedStateAndReloadWithoutCreationValidation(bool commerce, bool desiredActive)
+    {
+        var api = new FakeApi { TargetActive = !desiredActive };
+        if (commerce)
+        {
+            using var factory = new CommerceFactory(api);
+            using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+            await LoginAsync(client, "commerce@example.test");
+            await AssertStateFormAsync(client, api, desiredActive, "jwt-commerce");
+        }
+        else
+        {
+            using var factory = new BackofficeFactory(api);
+            using var client = Client(factory);
+            await LoginAsync(client, "user@example.test");
+            await AssertStateFormAsync(client, api, desiredActive, "jwt-user");
+        }
+    }
+
+    private static async Task AssertStateFormAsync(HttpClient client, FakeApi api, bool desiredActive, string token)
+    {
+        using var listing = await client.GetAsync("/usuarios");
+        Assert.Equal(HttpStatusCode.OK, listing.StatusCode);
+        var listingHtml = WebUtility.HtmlDecode(await listing.Content.ReadAsStringAsync());
+        var inputs = Regex.Matches(listingHtml, "<input\\b[^>]*>", RegexOptions.IgnoreCase).Select(input => input.Value).ToArray();
+        var userInput = inputs.FirstOrDefault(input => Regex.IsMatch(input, "name=\\\"usuarioId\\\"", RegexOptions.IgnoreCase));
+        var userIdValue = userInput is null ? Match.Empty : Regex.Match(userInput, "value=\\\"([^\\\"]+)\\\"");
+        Assert.True(userIdValue.Success, $"The rendered state form must include its target id; found '{userInput}'.");
+        var formUserId = Guid.Parse(userIdValue.Groups[1].Value);
+        Assert.Equal(TargetUserId, formUserId);
+
+        var stateInput = inputs.FirstOrDefault(input => Regex.IsMatch(input, "name=\\\"activo\\\"", RegexOptions.IgnoreCase));
+        var stateValue = stateInput is null ? Match.Empty : Regex.Match(stateInput, "value=\\\"([^\\\"]+)\\\"");
+        Assert.True(stateValue.Success && bool.TryParse(stateValue.Groups[1].Value, out var formActive) && formActive == desiredActive,
+            $"Expected requested state {desiredActive} in hidden form input; found '{stateInput}'.");
+        Assert.Contains(desiredActive ? "Activar" : "Desactivar", listingHtml);
+
+        var antiforgery = await GetAntiforgeryTokenAsync(client, "/usuarios");
+        using var missingAntiforgery = await client.PostAsync("/usuarios?handler=Estado",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["usuarioId"] = TargetUserId.ToString(),
+                ["activo"] = desiredActive.ToString()
+            }));
+        Assert.Equal(HttpStatusCode.BadRequest, missingAntiforgery.StatusCode);
+        Assert.Empty(api.StateRequests);
+
+        using var response = await client.PostAsync("/usuarios?handler=Estado", Form(antiforgery,
+            ("usuarioId", formUserId.ToString()), ("activo", stateValue.Groups[1].Value)));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.Contains(desiredActive ? "Acceso activado." : "Acceso desactivado; la identidad del usuario se conserva.", html);
+        Assert.Contains(desiredActive ? ">Activo<" : ">Inactivo<", html);
+
+        var renderedText = Regex.Replace(html, "<[^>]+>", " ");
+        Assert.DoesNotContain("The Email field is required.", renderedText);
+        Assert.DoesNotContain("The Password field is required.", renderedText);
+        Assert.DoesNotContain("The RolId field is required.", renderedText);
+
+        var stateCall = Assert.Single(api.StateRequests);
+        Assert.Equal($"/api/usuarios/{TargetUserId}/estado", stateCall.Path);
+        Assert.Equal(desiredActive, stateCall.Activo);
+        Assert.Equal(token, stateCall.Token);
+        Assert.Contains(api.Calls, call => call.Path == stateCall.Path && call.Method == HttpMethod.Patch && call.Token == token);
+        Assert.Equal(desiredActive, api.TargetActive);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StateApiFailureNeverRendersSuccess(bool commerce)
+    {
+        var api = new FakeApi { TargetActive = false, StateMutationStatusOverride = HttpStatusCode.Conflict };
+        if (commerce)
+        {
+            using var factory = new CommerceFactory(api);
+            using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+            await LoginAsync(client, "commerce@example.test");
+            await AssertStateFailureAsync(client, api);
+        }
+        else
+        {
+            using var factory = new BackofficeFactory(api);
+            using var client = Client(factory);
+            await LoginAsync(client, "user@example.test");
+            await AssertStateFailureAsync(client, api);
+        }
+    }
+
+    private static async Task AssertStateFailureAsync(HttpClient client, FakeApi api)
+    {
+        var antiforgery = await GetAntiforgeryTokenAsync(client, "/usuarios");
+        using var response = await client.PostAsync("/usuarios?handler=Estado", Form(antiforgery,
+            ("usuarioId", TargetUserId.ToString()), ("activo", "true")));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Conflicto", html);
+        Assert.DoesNotContain("Acceso activado", html);
+        Assert.DoesNotContain("Acceso desactivado", html);
+        Assert.False(api.TargetActive);
+    }
+
     [Fact]
     public async Task CommerceUserAdministrationLoadsOnlyAfterCurrentPermissionCheck()
     {
@@ -627,11 +734,13 @@ public sealed class BackofficeSessionAndPagesTests
         using var activated = await client.PostAsync("/usuarios?handler=Estado", Form(antiforgery,
             ("usuarioId", TargetUserId.ToString()), ("activo", "true")));
         Assert.Contains("Acceso activado", await activated.Content.ReadAsStringAsync());
+        api.StateMutationStatusOverride = HttpStatusCode.Conflict;
         using var conflict = await client.PostAsync("/usuarios?handler=Estado", Form(antiforgery,
             ("usuarioId", TargetUserId.ToString()), ("activo", "false")));
         var conflictHtml = await conflict.Content.ReadAsStringAsync();
         Assert.Contains("Conflicto", conflictHtml);
         Assert.Contains("Recargar estado", conflictHtml);
+        Assert.DoesNotContain("Acceso desactivado", conflictHtml);
     }
 
     [Fact]
@@ -803,12 +912,14 @@ public sealed class BackofficeSessionAndPagesTests
         Assert.Equal(HttpStatusCode.OK, activated.StatusCode);
         Assert.Contains("Acceso activado", await activated.Content.ReadAsStringAsync());
 
+        api.StateMutationStatusOverride = HttpStatusCode.Conflict;
         using var conflict = await client.PostAsync("/usuarios?handler=Estado", Form(antiforgery,
             ("usuarioId", TargetUserId.ToString()), ("activo", "false")));
         Assert.Equal(HttpStatusCode.OK, conflict.StatusCode);
         var conflictHtml = await conflict.Content.ReadAsStringAsync();
         Assert.Contains("Conflicto:", conflictHtml);
         Assert.Contains("Recargar estado", conflictHtml);
+        Assert.DoesNotContain("Acceso desactivado", conflictHtml);
         Assert.Contains("Activo", conflictHtml);
     }
 
@@ -943,6 +1054,9 @@ public sealed class BackofficeSessionAndPagesTests
         public bool IncludeOwnAccessRow { get; init; }
         public bool IncludeOwnerRows { get; init; }
         public HttpStatusCode? RoleMutationStatusOverride { get; set; }
+        public HttpStatusCode? StateMutationStatusOverride { get; set; }
+        public bool TargetActive { get; set; } = true;
+        public ConcurrentQueue<StateCall> StateRequests { get; } = new();
         public bool OrganizationHasOwner { get; init; } = true;
         public bool IsOrganizationOwner { get; init; } = true;
         public HttpStatusCode? OrganizationUpdateStatusOverride { get; init; }
@@ -1046,7 +1160,7 @@ public sealed class BackofficeSessionAndPagesTests
             {
                 var users = new List<object> { new { usuarioId = TargetUserId, accesoId = TargetAccessId,
                     email = "target@example.test", rolId = RoleId, rolCodigo = "dynamic", rolNombre = "Dynamic role",
-                    activo = true, version = 0L, rolProtegido = false, esPropietario = IncludeOwnerRows } };
+                    activo = TargetActive, version = 0L, rolProtegido = false, esPropietario = IncludeOwnerRows } };
                 if (IncludeOwnAccessRow)
                     users.Add(new { usuarioId = CurrentUserId, accesoId = OwnAccessId,
                         email = "admin@example.test", rolId = OwnRoleId, rolCodigo = "own", rolNombre = "Own role",
@@ -1066,9 +1180,12 @@ public sealed class BackofficeSessionAndPagesTests
             if (path.EndsWith("/estado", StringComparison.Ordinal) && request.Method == HttpMethod.Patch)
             {
                 var body = await request.Content!.ReadFromJsonAsync<JsonElement>(ct);
-                return body.GetProperty("activo").GetBoolean()
-                    ? new HttpResponseMessage(HttpStatusCode.NoContent)
-                    : Json(HttpStatusCode.Conflict, new { message = "El estado cambió durante la operación." });
+                var activo = body.GetProperty("activo").GetBoolean();
+                StateRequests.Enqueue(new(path, activo, token));
+                if (StateMutationStatusOverride is { } status)
+                    return Json(status, new { message = "El estado cambió durante la operación." });
+                TargetActive = activo;
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
             }
             if ((path == "/api/roles/asignables" || path == "/api/roles") && request.Method == HttpMethod.Get)
             {
@@ -1169,6 +1286,7 @@ public sealed class BackofficeSessionAndPagesTests
             });
 
         public sealed record ApiCall(string Path, HttpMethod Method, string? Token);
+        public sealed record StateCall(string Path, bool Activo, string? Token);
 
         private sealed class ApiHandler(FakeApi api) : HttpMessageHandler
         {

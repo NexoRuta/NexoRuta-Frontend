@@ -80,7 +80,7 @@
                             <div class="d-flex flex-column gap-2">
                                 <form method="post" asp-page-handler="Estado" data-single-submit>
                                     <input type="hidden" name="usuarioId" value="@usuario.UsuarioId" />
-                                    <input type="hidden" name="activo" value="@(!usuario.Activo)" />
+                                    <input type="hidden" name="activo" value="@(usuario.Activo ? "false" : "true")" />
                                     <button type="submit" class="btn btn-sm @(usuario.Activo ? "btn-outline-danger" : "btn-outline-success")"
                                             >
                                         @(usuario.Activo ? "Desactivar acceso" : "Activar acceso")
