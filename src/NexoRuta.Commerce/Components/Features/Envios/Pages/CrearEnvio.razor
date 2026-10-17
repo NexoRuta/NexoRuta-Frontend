@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/envios/crear"
 
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Requests
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
@@ -10,6 +10,7 @@
 @using NexoRuta.ApiClient.Features.Operadores.Clients
 @using NexoRuta.ApiClient.Features.Usuarios.Clients
 @using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
 @inject EnviosApiClient ApiClient
 @inject UsuariosApiClient UsuariosClient
 @inject OperadoresApiClient OperadoresClient
@@ -22,7 +23,7 @@
 @if (usuarioActual is not null)
 {
     <p>Comercio: <strong>@usuarioActual.ComercioNombre</strong> · Cuenta:
-        @usuarioActual.UsuarioEmail@(usuarioActual.EsPropietario ? " (dueño)" : "")</p>
+        @usuarioActual.UsuarioEmail · Rol: @usuarioActual.RolCodigo</p>
     }
 
     @if (!string.IsNullOrWhiteSpace(error))
@@ -94,19 +95,23 @@
     private EnvioCreadoResponse? creado;
     private string? error;
     private bool enviando;
-    private Guid accesoId;
+    private string token = "";
 
     protected override async Task OnInitializedAsync()
     {
         var cancellationToken = cancelacion.Token;
         try
         {
-            accesoId = SesionUsuario.ObtenerAccesoId((await AuthenticationState.GetAuthenticationStateAsync()).User);
+            token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
             cancellationToken.ThrowIfCancellationRequested();
-            usuarioActual = await UsuariosClient.ObtenerUsuarioActualAsync(accesoId, cancellationToken);
-            operadores = await OperadoresClient.ListarOperadoresAsync(accesoId, cancellationToken);
+            usuarioActual = await UsuariosClient.ObtenerUsuarioActualAsync(token, cancellationToken);
+            operadores = await OperadoresClient.ListarOperadoresAsync(token, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        { error = "No tenés permiso para crear envíos."; }
         catch (NexoRutaApiException exception) { error = exception.Message; }
         catch (HttpRequestException) { error = "No se pudo conectar con el servicio de envíos."; }
     }
@@ -117,9 +122,15 @@
         enviando = true; error = null; creado = null;
         try
         {
-            creado = await ApiClient.CrearEnvioAsync(formulario, accesoId, cancellationToken);
+            creado = await ApiClient.CrearEnvioAsync(formulario, token, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        { error = "No tenés permiso para crear envíos."; }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Conflict)
+        { error = "El envío entró en conflicto con el estado actual. Recargá e intentá nuevamente."; }
         catch (NexoRutaApiException exception) { error = exception.Message; }
         catch (HttpRequestException) { error = "No se pudo guardar el envío porque el servicio no está disponible."; }
         finally { enviando = false; }

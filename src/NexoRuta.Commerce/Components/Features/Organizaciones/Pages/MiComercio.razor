@@ -1,0 +1,215 @@
+@page "/mi-comercio"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
+@using NexoRuta.ApiClient.Core.Exceptions
+@using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Features.Organizaciones.Clients
+@using NexoRuta.ApiClient.Features.Organizaciones.Contracts.Requests
+@using NexoRuta.ApiClient.Features.Organizaciones.Contracts.Responses
+@inject OrganizacionPropiaApiClient ApiClient
+@inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Mi comercio | NexoRuta</PageTitle>
+<h1>Mi comercio</h1>
+@if (error is not null)
+{
+    <p class="alert alert-danger" role="alert">@error</p>
+}
+@if (confirmacion is not null)
+{
+    <p class="alert alert-success" role="status">@confirmacion</p>
+}
+@if (cargando)
+{
+    <p role="status">Cargando datos del comercio…</p>
+}
+else if (organizacion is not null)
+{
+    <dl>
+        <dt>Nombre</dt>
+        <dd>@organizacion.Nombre</dd>
+        <dt>Estado</dt>
+        <dd>@organizacion.Estado</dd>
+    </dl>
+    @if (organizacion.EsPropietario)
+    {
+        <EditForm Model="formulario" OnValidSubmit="GuardarAsync" FormName="editar-mi-comercio" data-single-submit>
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <fieldset disabled="@guardando">
+                <label for="nombre-comercio">Nombre del comercio</label>
+                <InputText id="nombre-comercio" @bind-Value="formulario.Nombre" maxlength="160" />
+                <ValidationMessage For="() => formulario.Nombre" />
+                <button class="btn btn-primary" type="submit">@(guardando ? "Guardando…" : "Guardar cambios")</button>
+            </fieldset>
+        </EditForm>
+    }
+    else if (!organizacion.TieneDuenoRegistrado)
+    {
+        <p class="alert alert-warning" role="status">Este comercio no tiene un dueño registrado. Podés consultar sus datos, pero la edición está deshabilitada hasta resolver su propiedad.</p>
+    }
+    else
+    {
+        <p class="text-secondary">Solo el dueño registrado puede editar los datos del comercio.</p>
+    }
+}
+
+@if (organizacion is { } organization)
+{
+    <section class="mt-5" aria-labelledby="baja-heading">
+        <h2 id="baja-heading">Solicitud de baja</h2>
+        <p>La solicitud requiere una resolución de plataforma. Mientras esté pendiente, el comercio continúa activo. No se borran organizaciones, accesos, envíos ni historial.</p>
+        @if (solicitudes.Any(x => x.Estado == "Pendiente"))
+        { <p class="alert alert-info" role="status">Hay una solicitud pendiente. El comercio sigue activo mientras plataforma la resuelve.</p> }
+        @if (solicitudes.Count > 0)
+        {
+            <h3 class="h5">Historial de solicitudes</h3>
+            <ul>@foreach (var request in solicitudes)
+            { <li>@request.Estado · @request.SolicitadaEnUtc.ToLocalTime(): @request.Motivo @if (request.MotivoResolucion is not null) { <span>· Resolución: @request.MotivoResolucion</span> }</li> }</ul>
+        }
+        @if (organization.EsPropietario && organization.Estado == "Activa" && !solicitudes.Any(x => x.Estado == "Pendiente"))
+        {
+            <EditForm Model="formularioBaja" OnValidSubmit="SolicitarBajaAsync" FormName="solicitar-baja-comercio" data-single-submit>
+                <DataAnnotationsValidator /><ValidationSummary />
+                <fieldset disabled="@solicitandoBaja" class="card p-3">
+                    <label for="motivo-baja-comercio">Motivo</label>
+                    <InputTextArea id="motivo-baja-comercio" @bind-Value="formularioBaja.Motivo" maxlength="2000" />
+                    <ValidationMessage For="() => formularioBaja.Motivo" />
+                    <label class="mt-3"><InputCheckbox @bind-Value="formularioBaja.Confirmar" /> Entiendo que la solicitud no suspende inmediatamente y requiere resolución de plataforma.</label>
+                    <button class="btn btn-outline-danger mt-3" type="submit">@(solicitandoBaja ? "Enviando…" : "Solicitar baja")</button>
+                </fieldset>
+            </EditForm>
+        }
+        else if (!organization.EsPropietario)
+        { <p class="text-secondary">Solo el dueño registrado puede solicitar la baja.</p> }
+    </section>
+}
+
+@code {
+    private readonly CancellationTokenSource cancelacion = new();
+    private readonly NombreComercioFormulario formulario = new();
+    private readonly SolicitudBajaFormulario formularioBaja = new();
+    private OrganizacionPropiaResponse? organizacion;
+    private IReadOnlyList<SolicitudBajaResponse> solicitudes = [];
+    private string token = "";
+    private string? error;
+    private string? confirmacion;
+    private bool cargando = true;
+    private bool guardando;
+    private bool solicitandoBaja;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
+            organizacion = await ApiClient.ObtenerAsync(token, cancelacion.Token);
+            formulario.Nombre = organizacion.Nombre;
+            await CargarSolicitudesAsync();
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        { error = "Esta sesión no pertenece a un comercio autorizado."; }
+        catch (NexoRutaApiException exception) { error = exception.Message; }
+        catch (InvalidOperationException) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (HttpRequestException) { error = "No pudimos consultar el comercio porque la API no está disponible."; }
+        catch (OperationCanceledException) when (!cancelacion.IsCancellationRequested)
+        { error = "La consulta tardó demasiado. Intentá nuevamente."; }
+        finally { cargando = false; }
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (guardando || organizacion is not { EsPropietario: true }) return;
+        guardando = true;
+        error = null;
+        confirmacion = null;
+        try
+        {
+            organizacion = await ApiClient.ActualizarNombreAsync(
+                new ActualizarNombreOrganizacionRequest(formulario.Nombre.Trim(), organizacion.Version), token, cancelacion.Token);
+            formulario.Nombre = organizacion.Nombre;
+            confirmacion = "Nombre del comercio actualizado.";
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        { error = exception.Message; }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        { error = "El comercio cambió desde la última consulta. Recargá la página antes de volver a guardar."; }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
+        { error = exception.Message; }
+        catch (NexoRutaApiException) { error = "No pudimos guardar el comercio porque la API no está disponible."; }
+        catch (InvalidOperationException) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (HttpRequestException) { error = "No pudimos guardar el comercio porque la API no está disponible."; }
+        catch (OperationCanceledException) when (!cancelacion.IsCancellationRequested)
+        { error = "La actualización tardó demasiado. Volvé a consultar antes de reintentar."; }
+        finally { guardando = false; }
+    }
+
+    private async Task SolicitarBajaAsync()
+    {
+        if (solicitandoBaja || organizacion is not { EsPropietario: true, Estado: "Activa" }) return;
+        if (!formularioBaja.Confirmar) { error = "Confirmá que entendés que la solicitud no suspende inmediatamente."; return; }
+        solicitandoBaja = true;
+        error = null;
+        confirmacion = null;
+        try
+        {
+            await ApiClient.SolicitarBajaAsync(new SolicitarBajaRequest(formularioBaja.Motivo.Trim()), token, cancelacion.Token);
+            confirmacion = "La solicitud quedó pendiente de resolución por plataforma. El comercio continúa activo.";
+            formularioBaja.Motivo = "";
+            formularioBaja.Confirmar = false;
+            await CargarSolicitudesAsync();
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        { error = "Solo el dueño registrado puede solicitar la baja."; }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
+        { error = exception.Message; }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        { error = "Ya existe una solicitud pendiente. Actualizamos el estado de la página."; await CargarSolicitudesAsync(); }
+        catch (NexoRutaApiException) { error = "No pudimos completar la solicitud porque la API no está disponible."; }
+        catch (InvalidOperationException) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (HttpRequestException) { error = "No pudimos completar la solicitud porque la API no está disponible."; }
+        catch (OperationCanceledException) when (!cancelacion.IsCancellationRequested) { error = "La API tardó demasiado. Intentá nuevamente."; }
+        finally { solicitandoBaja = false; }
+    }
+
+    private async Task CargarSolicitudesAsync()
+    {
+        try { solicitudes = await ApiClient.ListarSolicitudesBajaAsync(token, cancelacion.Token); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) { error ??= exception.Message; }
+        catch (HttpRequestException) { error ??= "No pudimos consultar el historial porque la API no está disponible."; }
+        catch (OperationCanceledException) when (!cancelacion.IsCancellationRequested) { error ??= "La consulta tardó demasiado."; }
+    }
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+
+    private sealed class NombreComercioFormulario
+    {
+        [Required(ErrorMessage = "El nombre es obligatorio.")]
+        [StringLength(160, ErrorMessage = "El nombre no puede superar los 160 caracteres.")]
+        public string Nombre { get; set; } = "";
+    }
+
+    private sealed class SolicitudBajaFormulario
+    {
+        [Required(ErrorMessage = "El motivo es obligatorio.")]
+        [StringLength(2000, ErrorMessage = "El motivo no puede superar los 2000 caracteres.")]
+        public string Motivo { get; set; } = "";
+        public bool Confirmar { get; set; }
+    }
+}

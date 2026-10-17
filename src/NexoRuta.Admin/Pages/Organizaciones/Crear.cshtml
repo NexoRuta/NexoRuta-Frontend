@@ -1,0 +1,23 @@
+@page "/{tipo:regex(^(operadores|comercios)$)}/crear"
+@model NexoRuta.Admin.Features.Organizaciones.Pages.CrearModel
+@{ ViewData["Title"] = $"Create {Model.Titulo}"; }
+<a href="/@Model.Tipo">Back to list</a>
+<h1 class="my-3">Create @Model.Titulo</h1>
+<p>The organization and its first administrator are created together. This does not sign in as that administrator.</p>
+@if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+<form method="post" data-single-submit class="card form-card"><div class="card-body p-4">
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <label asp-for="Nombre" class="form-label">Organization name</label>
+    <input asp-for="Nombre" class="form-control mb-4" maxlength="160" required autocomplete="organization" />
+    <fieldset><legend class="h5">First administrator</legend>
+        <label asp-for="Email" class="form-label">Administrator email</label>
+        <input asp-for="Email" type="email" class="form-control mb-3" maxlength="254" required autocomplete="off" />
+        <label for="Password" class="form-label">Password</label>
+        <input id="Password" name="Password" type="password" class="form-control mb-3" required minlength="12" autocomplete="new-password" aria-describedby="password-help" />
+        <p id="password-help" class="form-text">At least 12 characters. Never reuse your own password.</p>
+        <label for="ConfirmPassword" class="form-label">Confirm password</label>
+        <input id="ConfirmPassword" name="ConfirmPassword" type="password" class="form-control mb-4" required minlength="12" autocomplete="new-password" />
+    </fieldset>
+    <button type="submit" class="btn btn-primary">Create organization</button>
+    <a href="/@Model.Tipo" class="btn btn-link">Cancel</a>
+</div></form>

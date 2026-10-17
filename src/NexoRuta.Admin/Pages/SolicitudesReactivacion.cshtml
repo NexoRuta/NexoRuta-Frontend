@@ -1,0 +1,37 @@
+@page "/solicitudes-reactivacion"
+@model NexoRuta.Admin.Features.Organizaciones.Pages.SolicitudesReactivacionModel
+@{ ViewData["Title"] = "Solicitudes de reactivación"; }
+<h1>Solicitudes de reactivación</h1>
+<form method="get" class="d-flex flex-wrap gap-2 align-items-end mb-3">
+    <div><label class="form-label" for="request-state">Estado</label><select id="request-state" name="Estado" class="form-select">
+        <option value="">Todos</option><option value="Pendiente" selected="@(Model.Estado == "Pendiente")">Pendiente</option>
+        <option value="Aprobada" selected="@(Model.Estado == "Aprobada")">Aprobada</option><option value="Rechazada" selected="@(Model.Estado == "Rechazada")">Rechazada</option><option value="AtendidaPorSoporte" selected="@(Model.Estado == "AtendidaPorSoporte")">Atendida por soporte</option>
+    </select></div>
+    <div><label class="form-label" for="request-type">Tipo de organización</label><select id="request-type" name="Tipo" class="form-select">
+        <option value="">Todos</option><option value="Comercio" selected="@(Model.Tipo == "Comercio")">Comercio</option>
+        <option value="Operador" selected="@(Model.Tipo == "Operador")">Operador</option>
+    </select></div>
+    <button type="submit" class="btn btn-outline-primary">Filtrar</button>
+</form>
+@if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+@if (Model.Resultado is { } result)
+{
+    <p class="text-muted">@result.Total solicitudes · Página @result.Pagina</p>
+    @if (result.Items.Count == 0) { <p class="alert alert-info">No hay solicitudes para estos filtros.</p> }
+    else
+    {
+        <div class="table-responsive bg-white rounded border"><table class="table mb-0">
+            <caption class="visually-hidden">Solicitudes de reactivación</caption>
+            <thead><tr><th scope="col">Organización</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Solicitada</th><th scope="col">Detalle</th></tr></thead>
+            <tbody>@foreach (var request in result.Items)
+            { <tr><th scope="row">@request.NombreOrganizacion</th><td>@request.TipoOrganizacion</td><td>@request.Estado</td><td>@request.SolicitadaEnUtc.ToLocalTime()</td><td><a href="/solicitudes-reactivacion/@request.Id">Revisar</a></td></tr> }</tbody>
+        </table></div>
+    }
+}
+@if (Model.Resultado is { } page)
+{
+    <nav class="d-flex gap-3 mt-3" aria-label="Pagination">
+        @if (Model.Pagina > 1) { <a href="/solicitudes-reactivacion?pagina=@(Model.Pagina - 1)&amp;tamanoPagina=@Model.TamanoPagina&amp;Estado=@Model.Estado&amp;Tipo=@Model.Tipo">Anterior</a> }
+        @if ((long)Model.Pagina * Model.TamanoPagina < page.Total) { <a href="/solicitudes-reactivacion?pagina=@(Model.Pagina + 1)&amp;tamanoPagina=@Model.TamanoPagina&amp;Estado=@Model.Estado&amp;Tipo=@Model.Tipo">Siguiente</a> }
+    </nav>
+}

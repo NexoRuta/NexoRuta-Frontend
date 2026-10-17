@@ -1,0 +1,25 @@
+@page "/registrarse"
+@model NexoRuta.Commerce.Features.Sesion.Pages.RegistrarseModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Registrarse | NexoRuta</title><link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" /></head>
+<body class="bg-light">
+<main class="container py-5" style="max-width: 520px">
+    <h1>Crear tu cuenta</h1>
+    <p>Registrate como persona. Después podés crear tu comercio o tu operador.</p>
+    @if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+    <form method="post" asp-page="/Registrarse" data-single-submit>
+        <label asp-for="Email" class="form-label">Correo electrónico</label>
+        <input asp-for="Email" class="form-control mb-3" type="email" autocomplete="username" required maxlength="254" />
+        <label for="Password" class="form-label">Contraseña (mínimo 12 caracteres)</label>
+        <input id="Password" name="Password" class="form-control mb-3" type="password" autocomplete="new-password" required minlength="12" />
+        <label for="ConfirmPassword" class="form-label">Confirmar contraseña</label>
+        <input id="ConfirmPassword" name="ConfirmPassword" class="form-control mb-3" type="password" autocomplete="new-password" required minlength="12" />
+        <button type="submit" class="btn btn-primary">Registrarme</button>
+    </form>
+    <p class="mt-3"><a href="/ingresar">¿Ya tenés cuenta? Ingresá</a></p>
+    <p><a href="/">Volver al inicio</a></p>
+</main><script src="/js/site.js"></script>
+</body></html>

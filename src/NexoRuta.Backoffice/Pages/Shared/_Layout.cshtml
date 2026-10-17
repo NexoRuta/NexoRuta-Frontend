@@ -9,6 +9,11 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/NexoRuta.Backoffice.styles.css" asp-append-version="true" />
 </head>
+@{
+    var permisos = Context.Items.TryGetValue(NexoRuta.Backoffice.Core.Security.ApiPermissionAuthorizationHandler.PermissionsCacheKey, out var granted)
+        ? granted as IReadOnlyList<string> ?? []
+        : [];
+}
 <body>
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
@@ -20,14 +25,29 @@
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
+                        @if (!User.HasClaim(NexoRuta.ApiClient.Core.Session.SesionUsuario.ClaimTipoAcceso, NexoRuta.ApiClient.Core.Session.SesionUsuario.OrganizacionSuspendida))
+                        {
+                        <li class="nav-item"><a class="nav-link text-dark" asp-page="/MiOperador">Mi operador</a></li>
+                        @if (permisos.Contains("envios.consultar", StringComparer.Ordinal))
+                        {
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-page="/Index">Envíos</a>
                         </li>
+                        }
+                        @if (permisos.Contains("usuarios.gestionar", StringComparer.Ordinal))
+                        {
+                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Usuarios">Usuarios</a></li>
+                        }
+                        @if (permisos.Contains("configuracion.gestionar", StringComparer.Ordinal))
+                        {
+                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Roles">Roles y permisos</a></li>
+                        }
+                        }
                     </ul>
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <form method="post" asp-page="/Salir">
-                            <button type="submit" class="btn btn-link">Cambiar usuario</button>
+                        <form method="post" asp-page="/Salir" data-single-submit>
+                            <button type="submit" class="btn btn-link">Cerrar sesión</button>
                         </form>
                     }
                 </div>

@@ -7,7 +7,7 @@ namespace NexoRuta.ApiClient.Tests;
 
 public sealed class EnlaceSeguimientoTests
 {
-    private static readonly Guid Acceso = Guid.NewGuid();
+    private const string ApiToken = "session-jwt";
     private static readonly Guid Envio = Guid.NewGuid();
     private static readonly string Token = new('a', 64);
     private static readonly Uri Tracking = new("http://tracking.test/portal/");
@@ -16,7 +16,7 @@ public sealed class EnlaceSeguimientoTests
     public async Task Vigente_AbreTrackingConTokenOriginal()
     {
         using var http = Cliente(HttpStatusCode.OK, Enlace());
-        var url = await new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, Acceso, Tracking);
+        var url = await new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, ApiToken, Tracking);
         Assert.Equal($"http://tracking.test/portal/seguimiento/{Token}", url!.AbsoluteUri);
     }
 
@@ -26,7 +26,7 @@ public sealed class EnlaceSeguimientoTests
     public async Task Pendiente_NoAbreEnlace(string body)
     {
         using var http = Cliente(HttpStatusCode.Accepted, body);
-        Assert.Null(await new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, Acceso, Tracking));
+        Assert.Null(await new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, ApiToken, Tracking));
     }
 
     [Theory]
@@ -38,7 +38,7 @@ public sealed class EnlaceSeguimientoTests
     {
         using var http = Cliente(status, "{}");
         var error = await Assert.ThrowsAnyAsync<HttpRequestException>(() =>
-            new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, Acceso, Tracking));
+            new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, ApiToken, Tracking));
         Assert.Equal(status, error.StatusCode);
     }
 
@@ -52,7 +52,7 @@ public sealed class EnlaceSeguimientoTests
     {
         using var http = Cliente(HttpStatusCode.OK, Enlace(estado, prefix, expirada));
         await Assert.ThrowsAnyAsync<HttpRequestException>(() =>
-            new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, Acceso, Tracking));
+            new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, ApiToken, Tracking));
     }
 
     [Theory]
@@ -63,7 +63,7 @@ public sealed class EnlaceSeguimientoTests
     {
         using var http = Cliente(HttpStatusCode.OK, body);
         await Assert.ThrowsAnyAsync<HttpRequestException>(() =>
-            new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, Acceso, Tracking));
+            new EnviosApiClient(http).ObtenerSeguimientoAsync(Envio, ApiToken, Tracking));
     }
 
     private static string Enlace(string estado = "vigente",
@@ -80,7 +80,8 @@ public sealed class EnlaceSeguimientoTests
         {
             Assert.Equal(HttpMethod.Get, request.Method);
             Assert.Equal($"/api/envios/{Envio}/seguimiento", request.RequestUri!.AbsolutePath);
-            Assert.Equal(Acceso.ToString(), Assert.Single(request.Headers.GetValues("X-NexoRuta-Acceso")));
+            Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+            Assert.Equal(ApiToken, request.Headers.Authorization.Parameter);
             return Task.FromResult(new HttpResponseMessage(status)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json")

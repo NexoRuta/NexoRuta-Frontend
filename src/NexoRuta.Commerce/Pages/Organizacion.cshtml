@@ -1,0 +1,27 @@
+@page "/organizacion"
+@model NexoRuta.Commerce.Features.Sesion.Pages.OrganizacionModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Tu organización | NexoRuta</title><link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" /></head>
+<body class="bg-light">
+<main class="container py-5" style="max-width: 600px">
+    <h1>Tu organización</h1>
+    @if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+    @if (Model.PuedeCrear)
+    {
+        <p>Todavía no pertenecés a una organización.</p>
+        <p>Elegí qué querés crear. Tu cuenta solo puede pertenecer a una organización.</p>
+        <form method="post" asp-page="/Organizacion" data-single-submit>
+            <label asp-for="Tipo" class="form-label">Tipo de organización</label>
+            <select asp-for="Tipo" class="form-select mb-3"><option value="comercio">Comercio</option><option value="operador">Operador</option></select>
+            <label asp-for="Nombre" class="form-label">Nombre</label>
+            <input asp-for="Nombre" class="form-control mb-3" required maxlength="160" autocomplete="organization" />
+            <button type="submit" class="btn btn-primary">Crear mi organización</button>
+        </form>
+    }
+    <a href="/organizacion" class="d-block mt-3">Actualizar contexto</a>
+    <form method="post" asp-page="/Salir" class="mt-3" data-single-submit><button type="submit" class="btn btn-outline-secondary">Salir</button></form>
+</main><script src="/js/site.js"></script>
+</body></html>

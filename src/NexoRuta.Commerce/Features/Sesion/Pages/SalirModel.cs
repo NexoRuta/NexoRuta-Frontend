@@ -14,6 +14,6 @@ public sealed class SalirModel : PageModel
     public async Task<IActionResult> OnPostAsync()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return LocalRedirect("/ingresar");
+        return LocalRedirect("/");
     }
 }

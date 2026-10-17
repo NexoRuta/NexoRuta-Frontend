@@ -1,10 +1,14 @@
 # NexoRuta Frontend
 
-Repositorio de las tres aplicaciones web de NexoRuta: backoffice, portal de comercios y portal de seguimiento. Las tres están construidas con ASP.NET Core sobre .NET 10; Backoffice usa Razor Pages, Commerce usa componentes Blazor con InteractiveServer y Tracking consulta el estado público de un envío mediante un enlace anónimo.
+Repositorio de las cuatro aplicaciones web de NexoRuta: Admin de plataforma, Backoffice, Commerce y Tracking. Las cuatro están construidas con ASP.NET Core sobre .NET 10; Backoffice usa Razor Pages, Commerce usa componentes Blazor con InteractiveServer y Tracking consulta el estado público de un envío mediante un enlace anónimo.
+
+Admin independiente: [configuracion, rutas, seguridad y preparacion local pendiente](docs/admin.md). Puerto local y Compose: `5104`. No completa CU-01.
 
 ## Estado actual
 
-Commerce permite el alta individual de un envío con su bulto y Backoffice consulta los registros persistidos por la API. `/ingresar` selecciona una cuenta propia del comercio en Commerce o una cuenta del operador en Backoffice. El usuario del comercio elige el operador desde el formulario de cada envío; las opciones incluyen todos los operadores registrados y la cuenta se lee de PostgreSQL. La API valida que el operador exista y toma el comercio desde la cuenta, sin exigir un vínculo previo. Las aplicaciones usan cookies independientes y `NexoRuta.ApiClient`. El selector es sin credenciales para este monitoreo; no se implementaron CRUD ni perfiles laborales. Commerce lista sus envíos en `/envios` y recupera el seguimiento bajo demanda; Tracking muestra únicamente el estado público.
+Commerce permite el alta individual de un envío con su bulto y Backoffice consulta los registros persistidos por la API. `/ingresar` autentica por correo y contraseña en ambos portales. Cada aplicación conserva su JWT dentro de una cookie de autenticación protegida e independiente; las llamadas servidor-a-servidor adjuntan Bearer por request. Backoffice administra usuarios/accesos en `/usuarios` y roles/permisos en `/roles`, sujeto a capacidades consultadas dinámicamente y autorización efectiva de la API. Commerce conserva el alta/listado de envíos en `/` y `/envios`; Tracking muestra únicamente el estado público. No hay edición de identidad de usuarios, ABM completo de comercios ni administración desde Commerce en este corte.
+
+La sesión local usa cookies HttpOnly, antiforgery en formularios y expiración no posterior al JWT. La migración a ASP.NET Identity/OIDC sigue pendiente y no forma parte de este corte.
 
 La solución incluye pruebas del cliente HTTP, validación del formulario y compatibilidad de contratos con OpenAPI. El workflow de frontend ejecuta build y tests en PRs de `develop` hacia `main`; su presencia no acredita una ejecución remota.
 
@@ -13,6 +17,7 @@ La solución incluye pruebas del cliente HTTP, validación del formulario y comp
 ```text
 NexoRuta.sln
 src/
+  NexoRuta.Admin/       # Razor Pages, plataforma
   NexoRuta.Backoffice/  # Razor Pages
   NexoRuta.Commerce/    # Blazor Server interactivo
   NexoRuta.Tracking/    # seguimiento público Blazor
@@ -127,3 +132,9 @@ de la ruta pública; no ejecuta un circuito con PostgreSQL/RabbitMQ reales.
 ## Pendiente
 
 Completar las pantallas y flujos propios de cada actor, incorporar autenticación por credenciales y permisos por perfil laboral y ampliar las pruebas de extremo a extremo. Las pruebas con API simulada no validan por sí solas persistencia ni servicios de mensajería reales.
+
+Commerce hosts the public entry at `/registrarse`, `/ingresar` and `/organizacion`. Operator creation ends with a fresh Backoffice login configured by `Portales:BackofficeLoginUrl`; no JWT is transferred between applications. See `../docs/registro-alta-propia.md`.
+
+Commerce public entry: `/` (Blazor welcome) → `/registrarse` → `/ingresar` → `/organizacion`. Commerce accounts land at `/envios`; shipment creation remains protected at `/envios/crear`. Backoffice/Admin links come from `Portales:BackofficeLoginUrl` and `Portales:AdminLoginUrl`. Logout returns to the public home.
+
+Commerce administrative navigation: `/usuarios` and `/roles` share permission-aware links to home, shipments, users and roles. Existing role/permission CRUD and assignment are reused; own/protected roles remain read-only and the permission catalog remains centralized. See `../docs/registro-alta-propia.md` for the diagnosis and verification.

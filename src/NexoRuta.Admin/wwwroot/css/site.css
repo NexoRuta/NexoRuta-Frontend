@@ -1,0 +1,9 @@
+html { min-height: 100%; }
+body { color: #1e293b; }
+a { text-underline-offset: .18em; }
+.navbar-brand { color: #142d54; }
+.login-card { max-width: 30rem; margin-top: 3rem; }
+.form-card { max-width: 44rem; }
+td, th { padding: 1rem !important; vertical-align: middle; }
+input:focus-visible, a:focus-visible, button:focus-visible { outline: 3px solid #155fc7; outline-offset: 3px; }
+@media (max-width: 575px) { .login-card { margin-top: 1rem; } .container { padding-left: 1rem; padding-right: 1rem; } }
