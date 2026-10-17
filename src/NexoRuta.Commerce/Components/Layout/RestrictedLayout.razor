@@ -1,0 +1,11 @@
+@inherits LayoutComponentBase
+
+<main class="container py-5" style="max-width:720px">
+    <h1>Organización suspendida</h1>
+    <p>La organización sigue suspendida mientras plataforma resuelve la solicitud. Tras aprobarla, cerrá sesión e ingresá nuevamente.</p>
+    @Body
+    <form method="post" action="/salir" data-single-submit class="mt-4">
+        <AntiforgeryToken />
+        <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
+    </form>
+</main>

@@ -8,6 +8,7 @@ document.querySelectorAll("form[data-single-submit]").forEach((form) => {
             return;
         }
         form.dataset.submitted = "true";
-        form.querySelectorAll('button[type="submit"]').forEach((button) => { button.disabled = true; });
+        const submitter = event.submitter;
+        form.querySelectorAll('button[type="submit"]').forEach((button) => { if (button !== submitter) button.disabled = true; });
     });
 });

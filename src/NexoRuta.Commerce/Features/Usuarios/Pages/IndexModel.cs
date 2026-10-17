@@ -49,7 +49,7 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
         {
             Error = "Revisá el correo, la contraseña (12 caracteres como mínimo) y el rol.";
             LimpiarPassword();
-            return await VolverACargarAsync();
+            return await VolverACargarAsync(preservarAlta: true);
         }
 
         try
@@ -81,7 +81,7 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
             LimpiarPassword();
         }
 
-        return await VolverACargarAsync();
+        return await VolverACargarAsync(preservarAlta: true);
     }
 
     public async Task<IActionResult> OnPostEstadoAsync(Guid usuarioId, bool activo)
@@ -136,8 +136,16 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
         return await VolverACargarAsync();
     }
 
-    private async Task<IActionResult> VolverACargarAsync()
+    private async Task<IActionResult> VolverACargarAsync(bool preservarAlta = false)
     {
+        if (!preservarAlta)
+        {
+            ModelState.Remove(nameof(Email));
+            ModelState.Remove(nameof(RolId));
+            LimpiarPassword();
+            Email = "";
+            RolId = null;
+        }
         var redirect = await CargarAsync();
         return redirect ?? Page();
     }

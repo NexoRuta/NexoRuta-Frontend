@@ -9,6 +9,7 @@ public static class SesionUsuario
     public const string Plataforma = "Plataforma";
     public const string Operador = "Operador";
     public const string Comercio = "Comercio";
+    public const string OrganizacionSuspendida = "OrganizacionSuspendida";
     public const string ClaimAccesoId = "nexoruta:acceso_id";
     public const string ClaimTipoAcceso = "nexoruta:tipo_acceso";
     public const string ClaimApiToken = "nexoruta:api_access_token";
@@ -26,6 +27,13 @@ public static class SesionUsuario
         if (usuario.AccesoId is Guid accessId)
             claims.Add(new Claim(ClaimAccesoId, accessId.ToString()));
         return new ClaimsPrincipal(new ClaimsIdentity(claims, esquema));
+    }
+
+    public static ClaimsPrincipal CrearPrincipalSuspendido(string token, string esquema)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
+        return new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTipoAcceso, OrganizacionSuspendida), new Claim(ClaimApiToken, token)], esquema));
     }
 
     public static string ObtenerToken(ClaimsPrincipal usuario)

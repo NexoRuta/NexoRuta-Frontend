@@ -21,6 +21,7 @@ public sealed class AdminSessionAndPagesTests
     private const string Password = "Correct-admin-password-2026!";
     private const string NewPassword = "New-admin-secret-2026!";
     private static readonly Guid OrganizationId = Guid.Parse("00000000-0000-0000-0000-000000000101");
+    private static readonly Guid CancellationRequestId = Guid.Parse("00000000-0000-0000-0000-000000000102");
 
     [Fact]
     public void AdminReferencesApiClientWithoutBackendOrOtherPortalAssemblies()
@@ -392,6 +393,95 @@ public sealed class AdminSessionAndPagesTests
         Assert.DoesNotContain(NewPassword, await response.Content.ReadAsStringAsync());
     }
 
+    [Theory]
+    [InlineData("Aprobar", "Aprobada")]
+    [InlineData("Rechazar", "Rechazada")]
+    public async Task RenderedCancellationDecisionButtonsResolveTheRequest(string decision, string expectedState)
+    {
+        var api = new FakeApi();
+        using var factory = Factory(api);
+        using var client = Client(factory);
+        using var login = await Login(client);
+        Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+
+        var path = $"/solicitudes-baja/{CancellationRequestId}";
+        using var rendered = await client.GetAsync(path);
+        var html = await rendered.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, rendered.StatusCode);
+        Assert.Contains("name=\"decision\" value=\"Aprobar\"", html);
+        Assert.Contains("name=\"decision\" value=\"Rechazar\"", html);
+        Assert.Contains("name=\"Version\"", html);
+        Assert.Contains("name=\"Confirmar\"", html);
+        Assert.Contains("name=\"__RequestVerificationToken\"", html);
+        Assert.Contains("Aprobar y suspender", html);
+        Assert.Contains("Rechazar solicitud", html);
+
+        var csrf = await Csrf(client, path);
+        using var response = await client.PostAsync(path + "?handler=Resolver", Form(csrf,
+            ("Version", "0"), ("Motivo", "Resolución validada desde el formulario"),
+            ("Confirmar", "true"), ("decision", decision)));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var resolution = Assert.Single(api.Calls, call => call.Path == $"/api/admin/solicitudes-baja/{CancellationRequestId}/resolver");
+        Assert.Equal(HttpMethod.Post, resolution.Method);
+        Assert.Equal("jwt-platform", resolution.Token);
+        using var json = JsonDocument.Parse(resolution.Body!);
+        Assert.Equal(decision, json.RootElement.GetProperty("decision").GetString());
+        Assert.Equal("Resolución validada desde el formulario", json.RootElement.GetProperty("motivo").GetString());
+        Assert.Equal(0, json.RootElement.GetProperty("version").GetInt64());
+
+        using var result = await client.GetAsync(path);
+        var resultHtml = WebUtility.HtmlDecode(await result.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+        Assert.Contains(expectedState, resultHtml);
+        Assert.Contains(decision == "Aprobar"
+            ? "La solicitud fue aprobada y la organización quedó suspendida."
+            : "La solicitud fue rechazada; el estado de la organización no cambió.", resultHtml);
+    }
+
+    [Fact]
+    public async Task CancellationResolutionKeepsFieldValidationAndAuthorization()
+    {
+        var api = new FakeApi();
+        using var factory = Factory(api);
+        using var client = Client(factory);
+        using var login = await Login(client);
+        var path = $"/solicitudes-baja/{CancellationRequestId}";
+
+        var invalidSubmissions = new[]
+        {
+            (Decision: (string?)null, Reason: "Motivo válido", Confirm: "true", Field: "Decision", Message: "Elegí aprobar o rechazar la solicitud."),
+            (Decision: "Aprobar", Reason: "", Confirm: "true", Field: "Motivo", Message: "Ingresá un motivo."),
+            (Decision: "Aprobar", Reason: new string('x', 2001), Confirm: "true", Field: "Motivo", Message: "El motivo no puede superar los 2000 caracteres."),
+            (Decision: "Rechazar", Reason: "Motivo válido", Confirm: "false", Field: "Confirmar", Message: "Confirmá que entendés el efecto de esta decisión.")
+        };
+
+        foreach (var invalid in invalidSubmissions)
+        {
+            var csrf = await Csrf(client, path);
+            var fields = new List<(string, string)>
+            {
+                ("Version", "0"), ("Motivo", invalid.Reason), ("Confirmar", invalid.Confirm)
+            };
+            if (invalid.Decision is not null) fields.Add(("decision", invalid.Decision));
+            using var response = await client.PostAsync(path + "?handler=Resolver", Form(csrf, fields.ToArray()));
+            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains($"data-valmsg-for=\"{invalid.Field}\"", html);
+            Assert.Contains(invalid.Message, html);
+            Assert.DoesNotContain("Choose a decision, confirm it, and provide a reason", html);
+            Assert.DoesNotContain(api.Calls, call => call.Path.EndsWith("/resolver", StringComparison.Ordinal));
+        }
+
+        var anonymous = factory.CreateClient(new() { AllowAutoRedirect = false, HandleCookies = true });
+        var anonymousCsrf = await Csrf(anonymous, "/ingresar");
+        using var unauthorized = await anonymous.PostAsync(path + "?handler=Resolver", Form(anonymousCsrf,
+            ("Version", "0"), ("Motivo", "Intento sin sesión"), ("Confirmar", "true"), ("decision", "Aprobar")));
+        Assert.Equal(HttpStatusCode.Redirect, unauthorized.StatusCode);
+        Assert.Equal("/ingresar", unauthorized.Headers.Location!.AbsolutePath);
+        Assert.DoesNotContain(api.Calls, call => call.Path.EndsWith("/resolver", StringComparison.Ordinal));
+    }
+
     private static PortalFactory<ApiPermissionAuthorizationHandler> Factory(FakeApi api) => new(api);
     private static HttpClient Client<T>(WebApplicationFactory<T> factory) where T : class
         => factory.CreateClient(new() { AllowAutoRedirect = false, HandleCookies = true });
@@ -437,6 +527,11 @@ public sealed class AdminSessionAndPagesTests
         public DateTime Expiry { get; set; } = DateTime.UtcNow.AddMinutes(5);
         public Guid CreatedId { get; } = Guid.NewGuid();
         public ConcurrentQueue<Call> Calls { get; } = new();
+        private string CancellationState { get; set; } = "Pendiente";
+        private long CancellationVersion { get; set; }
+        private Guid? ResolvedBy { get; set; }
+        private DateTimeOffset? ResolvedAt { get; set; }
+        private string? ResolutionReason { get; set; }
         private bool created;
         public async Task<HttpResponseMessage> Send(HttpRequestMessage request, CancellationToken ct)
         {
@@ -446,7 +541,11 @@ public sealed class AdminSessionAndPagesTests
             if (uri.AbsolutePath == "/api/auth/login")
             {
                 if (JsonDocument.Parse(body!).RootElement.GetProperty("password").GetString() != Password) return Json(401, new { message = "Invalid credentials" });
-                return Json(200, new { accessToken = "jwt-platform", tokenType = "Bearer", expiresAtUtc = Expiry });
+                return Json(200, new
+                {
+                    accessToken = "jwt-platform", tokenType = "Bearer", expiresAtUtc = Expiry,
+                    contexto = Type, tipoOrganizacion = Type is "Comercio" or "Operador" ? Type : null
+                });
             }
             if (uri.AbsolutePath == "/api/usuarios/actual") return Json(200, new
             {
@@ -456,6 +555,19 @@ public sealed class AdminSessionAndPagesTests
             });
             if (uri.AbsolutePath == "/api/usuarios/actual/permisos")
                 return PermissionStatus is { } permissionStatus ? Failure(permissionStatus) : Json(200, Permissions);
+            if (uri.AbsolutePath == $"/api/admin/solicitudes-baja/{CancellationRequestId}/resolver" && request.Method == HttpMethod.Post)
+            {
+                using var resolution = JsonDocument.Parse(body!);
+                var decision = resolution.RootElement.GetProperty("decision").GetString()!;
+                CancellationState = decision == "Aprobar" ? "Aprobada" : "Rechazada";
+                CancellationVersion++;
+                ResolvedBy = Guid.Parse("00000000-0000-0000-0000-000000000999");
+                ResolvedAt = DateTimeOffset.UtcNow;
+                ResolutionReason = resolution.RootElement.GetProperty("motivo").GetString();
+                return Json(200, CancellationResponse());
+            }
+            if (uri.AbsolutePath == $"/api/admin/solicitudes-baja/{CancellationRequestId}")
+                return Json(200, CancellationResponse());
             if (ResourceStatus is { } status) return Failure(status);
             if (request.Method == HttpMethod.Post)
             {
@@ -470,6 +582,21 @@ public sealed class AdminSessionAndPagesTests
             var items = new[] { new { id = OrganizationId, nombre = "First organization" }, new { id = Guid.NewGuid(), nombre = "Second organization" }, new { id = Guid.NewGuid(), nombre = "Third organization" } };
             return Json(200, new { items = items.Skip((page - 1) * size).Take(size), pagina = page, tamanoPagina = size, total = 3 });
         }
+        private object CancellationResponse() => new
+        {
+            id = CancellationRequestId,
+            tipoOrganizacion = "Comercio",
+            organizacionId = OrganizationId,
+            nombreOrganizacion = "Comercio de prueba",
+            estado = CancellationState,
+            motivo = "Solicitud de prueba",
+            solicitadaPorUsuarioId = Guid.Parse("00000000-0000-0000-0000-000000000998"),
+            solicitadaEnUtc = DateTimeOffset.UtcNow,
+            resueltaPorUsuarioId = ResolvedBy,
+            resueltaEnUtc = ResolvedAt,
+            motivoResolucion = ResolutionReason,
+            version = CancellationVersion
+        };
         private static HttpResponseMessage Failure(int status) => status switch
         {
             0 => throw new HttpRequestException("Simulated transport failure"),

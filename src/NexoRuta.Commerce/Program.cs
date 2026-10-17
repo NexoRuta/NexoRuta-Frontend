@@ -7,6 +7,7 @@ using NexoRuta.ApiClient.Features.Auth.Clients;
 using NexoRuta.ApiClient.Features.Operadores.Clients;
 using NexoRuta.ApiClient.Features.Roles.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
+using NexoRuta.ApiClient.Features.Organizaciones.Clients;
 using NexoRuta.Commerce.Components;
 using NexoRuta.Commerce.Core.Security;
 
@@ -32,7 +33,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     options.SlidingExpiration = false;
     options.Events.OnRedirectToAccessDenied = async context =>
     {
-        if (context.HttpContext.Items.ContainsKey(ApiPermissionAuthorizationHandler.ExpiredSessionItemKey))
+        if (context.HttpContext.User.HasClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.OrganizacionSuspendida))
+            context.Response.Redirect("/organizacion-suspendida");
+        else if (context.HttpContext.Items.ContainsKey(ApiPermissionAuthorizationHandler.ExpiredSessionItemKey))
         {
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             context.Response.Redirect("/ingresar?expirada=true");
@@ -62,6 +65,8 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<AuthApiClient>()
     .AddTypedClient<UsuariosApiClient>()
     .AddTypedClient<RolesApiClient>()
+    .AddTypedClient<OrganizacionPropiaApiClient>()
+    .AddTypedClient<OrganizacionSuspendidaApiClient>()
     .AddTypedClient<OperadoresApiClient>();
 
 var app = builder.Build();

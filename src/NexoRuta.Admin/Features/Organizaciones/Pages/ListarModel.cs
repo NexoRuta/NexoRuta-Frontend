@@ -17,15 +17,18 @@ public sealed class ListarModel(OrganizacionesAdminApiClient organizations) : Pa
     public int Pagina { get; set; } = 1;
     [BindProperty(SupportsGet = true), Range(1, 100)]
     public int TamanoPagina { get; set; } = 20;
+    [BindProperty(SupportsGet = true)]
+    public string? Estado { get; set; }
     public PaginaOrganizacionesResponse? Resultado { get; private set; }
     public string? Error { get; private set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
-        if (!ModelState.IsValid) { Response.StatusCode = 400; Error = "Invalid pagination. Page size must be between 1 and 100."; return Page(); }
+        if (!ModelState.IsValid || !string.IsNullOrWhiteSpace(Estado) && Estado is not ("Activa" or "Suspendida"))
+        { Response.StatusCode = 400; Error = "Choose a valid state and page size between 1 and 100."; return Page(); }
         try
         {
-            Resultado = await organizations.ListarAsync(Tipo, Pagina, TamanoPagina, SesionUsuario.ObtenerToken(User), HttpContext.RequestAborted);
+            Resultado = await organizations.ListarAsync(Tipo, Pagina, TamanoPagina, SesionUsuario.ObtenerToken(User), Estado, HttpContext.RequestAborted);
             return Page();
         }
         catch (NexoRutaApiException error)

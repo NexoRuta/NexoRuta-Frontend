@@ -14,7 +14,7 @@
             <a class="navbar-brand fw-bold me-auto" href="/">NexoRuta <span class="badge text-bg-dark">Admin</span></a>
             @if (Context.Items.ContainsKey(NexoRuta.Admin.Core.Security.ApiPermissionAuthorizationHandler.PermissionsCacheKey))
             {
-                <a href="/operadores">Operators</a><a href="/comercios">Commerces</a>
+                <a href="/operadores">Operators</a><a href="/comercios">Commerces</a><a href="/solicitudes-baja">Cancellation requests</a><a href="/solicitudes-reactivacion">Solicitudes de reactivación</a>
             }
             @if (User.Identity?.IsAuthenticated == true)
             {

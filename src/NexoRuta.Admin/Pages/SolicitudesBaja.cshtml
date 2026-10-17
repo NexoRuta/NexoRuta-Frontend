@@ -1,0 +1,37 @@
+@page "/solicitudes-baja"
+@model NexoRuta.Admin.Features.Organizaciones.Pages.SolicitudesBajaModel
+@{ ViewData["Title"] = "Cancellation requests"; }
+<h1>Cancellation requests</h1>
+<form method="get" class="d-flex flex-wrap gap-2 align-items-end mb-3">
+    <div><label class="form-label" for="request-state">State</label><select id="request-state" name="Estado" class="form-select">
+        <option value="">All</option><option value="Pendiente" selected="@(Model.Estado == "Pendiente")">Pending</option>
+        <option value="Aprobada" selected="@(Model.Estado == "Aprobada")">Approved</option><option value="Rechazada" selected="@(Model.Estado == "Rechazada")">Rejected</option>
+    </select></div>
+    <div><label class="form-label" for="request-type">Organization type</label><select id="request-type" name="Tipo" class="form-select">
+        <option value="">All</option><option value="Comercio" selected="@(Model.Tipo == "Comercio")">Commerce</option>
+        <option value="Operador" selected="@(Model.Tipo == "Operador")">Operator</option>
+    </select></div>
+    <button type="submit" class="btn btn-outline-primary">Filter</button>
+</form>
+@if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+@if (Model.Resultado is { } result)
+{
+    <p class="text-muted">@result.Total requests · Page @result.Pagina</p>
+    @if (result.Items.Count == 0) { <p class="alert alert-info">No requests match these filters.</p> }
+    else
+    {
+        <div class="table-responsive bg-white rounded border"><table class="table mb-0">
+            <caption class="visually-hidden">Organization cancellation requests</caption>
+            <thead><tr><th scope="col">Organization</th><th scope="col">Type</th><th scope="col">State</th><th scope="col">Requested</th><th scope="col">Details</th></tr></thead>
+            <tbody>@foreach (var request in result.Items)
+            { <tr><th scope="row">@request.NombreOrganizacion</th><td>@request.TipoOrganizacion</td><td>@request.Estado</td><td>@request.SolicitadaEnUtc.ToLocalTime()</td><td><a href="/solicitudes-baja/@request.Id">Review</a></td></tr> }</tbody>
+        </table></div>
+    }
+}
+@if (Model.Resultado is { } page)
+{
+    <nav class="d-flex gap-3 mt-3" aria-label="Pagination">
+        @if (Model.Pagina > 1) { <a href="/solicitudes-baja?pagina=@(Model.Pagina - 1)&amp;tamanoPagina=@Model.TamanoPagina&amp;Estado=@Model.Estado&amp;Tipo=@Model.Tipo">Previous</a> }
+        @if ((long)Model.Pagina * Model.TamanoPagina < page.Total) { <a href="/solicitudes-baja?pagina=@(Model.Pagina + 1)&amp;tamanoPagina=@Model.TamanoPagina&amp;Estado=@Model.Estado&amp;Tipo=@Model.Tipo">Next</a> }
+    </nav>
+}

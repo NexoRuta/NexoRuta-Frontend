@@ -40,7 +40,7 @@ public sealed class IndexModel(RolesApiClient rolesClient) : PageModel
         if (!ModelState.IsValid)
         {
             Error = "Revisá el código y el nombre del rol.";
-            return await VolverACargarAsync();
+            return await VolverACargarAsync(preservarAlta: true);
         }
 
         try
@@ -69,7 +69,7 @@ public sealed class IndexModel(RolesApiClient rolesClient) : PageModel
             Error = "La API tardó demasiado en responder. Intentá nuevamente.";
         }
 
-        return await VolverACargarAsync();
+        return await VolverACargarAsync(preservarAlta: true);
     }
 
     public async Task<IActionResult> OnPostRenombrarAsync(Guid id, string nombre)
@@ -166,8 +166,16 @@ public sealed class IndexModel(RolesApiClient rolesClient) : PageModel
         return await VolverACargarAsync();
     }
 
-    private async Task<IActionResult> VolverACargarAsync()
-        => await CargarAsync() ?? Page();
+    private async Task<IActionResult> VolverACargarAsync(bool preservarAlta = false)
+    {
+        if (!preservarAlta)
+        {
+            ModelState.Remove(nameof(Codigo));
+            ModelState.Remove(nameof(Nombre));
+            Codigo = Nombre = "";
+        }
+        return await CargarAsync() ?? Page();
+    }
 
     private async Task<IActionResult?> CargarAsync()
     {

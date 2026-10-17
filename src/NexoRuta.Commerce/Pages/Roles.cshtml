@@ -14,13 +14,14 @@
 </head>
 <body class="bg-light">
     <main class="container py-4">
-        <header class="d-flex justify-content-between align-items-center mb-4">
+        <header class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
             <div><p class="text-muted mb-1"><a href="/">NexoRuta · Portal de comercios</a></p><h1 class="h3 mb-0">Roles y permisos del comercio</h1></div>
             <form method="post" action="/salir" data-single-submit>
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
             </form>
         </header>
+        <partial name="_CommerceNavigation" />
 
         @if (Model.Error is not null)
         {

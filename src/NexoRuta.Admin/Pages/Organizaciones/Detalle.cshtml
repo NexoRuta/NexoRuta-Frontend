@@ -7,7 +7,21 @@
     @if (Model.Confirmacion is not null) { <p class="alert alert-success mt-3" role="status">@Model.Confirmacion</p> }
     <h1 class="mt-3">@organization.Nombre</h1>
     <p class="text-muted">@Model.Titulo details</p>
-    <dl class="card p-4"><dt>Organization ID</dt><dd class="text-break">@organization.Id</dd><dt>Name</dt><dd>@organization.Nombre</dd></dl>
-    <p>No editing, deletion or administrator impersonation is available in this slice.</p>
+    @if (Model.Confirmacion is not null) { <p class="alert alert-success" role="status">@Model.Confirmacion</p> }
+    @if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+    <dl class="card p-4"><dt>Organization ID</dt><dd class="text-break">@organization.Id</dd><dt>Name</dt><dd>@organization.Nombre</dd><dt>State</dt><dd>@organization.Estado</dd></dl>
+    <form method="post" asp-page-handler="CambiarEstado" data-single-submit class="card p-4 mt-4">
+        <input type="hidden" name="estado" value="@(organization.Estado == "Activa" ? "Suspendida" : "Activa")" />
+        <input type="hidden" asp-for="Version" />
+        <p>@(organization.Estado == "Activa"
+            ? "Suspension blocks new organizational operations and revokes existing organization sessions. Existing shipments and history are preserved."
+            : "Reactivation enables new logins. Previously issued sessions remain revoked, and individually disabled accesses stay disabled.")</p>
+        <label asp-for="Motivo" class="form-label">Reason</label>
+        <textarea asp-for="Motivo" class="form-control" maxlength="2000" required></textarea>
+        <span asp-validation-for="Motivo" class="text-danger"></span>
+        <div class="form-check mt-3"><input class="form-check-input" type="checkbox" id="Confirmar" name="Confirmar" value="true" required />
+            <label class="form-check-label" for="Confirmar">I understand the effect described above.</label></div>
+        <button type="submit" class="btn btn-warning mt-3">@(organization.Estado == "Activa" ? "Suspend organization" : "Reactivate organization")</button>
+    </form>
 }
 else { <h1 class="mt-3">Organization not found</h1><p>The organization does not exist or is no longer available.</p> }

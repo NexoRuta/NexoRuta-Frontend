@@ -40,6 +40,13 @@ public sealed class IngresarModel(AuthApiClient auth, UsuariosApiClient users) :
             var login = await auth.LoginAsync(new LoginRequest(Email.Trim(), Password), HttpContext.RequestAborted);
             if (string.IsNullOrWhiteSpace(login.AccessToken) || !string.Equals(login.TokenType, "Bearer", StringComparison.OrdinalIgnoreCase))
                 throw new NexoRutaApiException("Unsupported API session.", HttpStatusCode.BadGateway);
+            if (login.Contexto != SesionUsuario.Plataforma)
+            {
+                Error = "This account does not have platform administration access.";
+                Password = "";
+                ModelState.Remove(nameof(Password));
+                return Page();
+            }
             var actor = await users.ObtenerUsuarioActualAsync(login.AccessToken, HttpContext.RequestAborted);
             if (actor.Tipo != SesionUsuario.Plataforma || actor.OperadorId is not null || actor.ComercioId is not null ||
                 actor.AccesoId == Guid.Empty || actor.UsuarioId == Guid.Empty)

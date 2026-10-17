@@ -46,6 +46,22 @@ public sealed class IngresarModel(AuthApiClient authClient, UsuariosApiClient us
             if (!string.Equals(login.TokenType, "Bearer", StringComparison.OrdinalIgnoreCase))
                 throw new NexoRutaApiException("La API devolvió un tipo de sesión no compatible.", System.Net.HttpStatusCode.BadGateway);
 
+            if (login.Contexto == SesionUsuario.OrganizacionSuspendida)
+            {
+                if (login.TipoOrganizacion != "Comercio")
+                {
+                    Error = "Esta cuenta no tiene acceso a Commerce.";
+                    return LimpiarPassword();
+                }
+                var restrictedExpiry = new DateTimeOffset(DateTime.SpecifyKind(login.ExpiresAtUtc, DateTimeKind.Utc));
+                if (restrictedExpiry <= DateTimeOffset.UtcNow)
+                    throw new NexoRutaApiException("La sesiÃ³n devuelta ya expirÃ³. IngresÃ¡ nuevamente.", System.Net.HttpStatusCode.Unauthorized);
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                    SesionUsuario.CrearPrincipalSuspendido(login.AccessToken, CookieAuthenticationDefaults.AuthenticationScheme),
+                    new AuthenticationProperties { IsPersistent = false, AllowRefresh = false, ExpiresUtc = restrictedExpiry });
+                return LocalRedirect("/organizacion-suspendida");
+            }
+
             var usuario = await usuariosClient.ObtenerUsuarioActualAsync(login.AccessToken, HttpContext.RequestAborted);
             if (usuario.Tipo is not (SesionUsuario.Comercio or SesionUsuario.SinOrganizacion))
                 Error = "Esta cuenta no tiene acceso a Commerce.";
@@ -66,6 +82,11 @@ public sealed class IngresarModel(AuthApiClient authClient, UsuariosApiClient us
         catch (HttpRequestException) { Error = "No se pudo conectar con la API de NexoRuta."; }
         catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested) { Error = "La API no respondió a tiempo. Intentá nuevamente."; }
 
+        return LimpiarPassword();
+    }
+
+    private IActionResult LimpiarPassword()
+    {
         Password = "";
         ModelState.Remove(nameof(Password));
         return Page();

@@ -46,6 +46,22 @@ public sealed class IngresarModel(AuthApiClient authClient, UsuariosApiClient us
             if (!string.Equals(login.TokenType, "Bearer", StringComparison.OrdinalIgnoreCase))
                 throw new NexoRutaApiException("La API devolvió un tipo de sesión no compatible.", System.Net.HttpStatusCode.BadGateway);
 
+            if (login.Contexto == SesionUsuario.OrganizacionSuspendida)
+            {
+                if (login.TipoOrganizacion != "Operador")
+                {
+                    Error = "Esta cuenta no tiene acceso a Backoffice.";
+                    return LimpiarPassword();
+                }
+                var restrictedExpiry = new DateTimeOffset(DateTime.SpecifyKind(login.ExpiresAtUtc, DateTimeKind.Utc));
+                if (restrictedExpiry <= DateTimeOffset.UtcNow)
+                    throw new NexoRutaApiException("La sesiÃ³n devuelta ya expirÃ³. IngresÃ¡ nuevamente.", System.Net.HttpStatusCode.Unauthorized);
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                    SesionUsuario.CrearPrincipalSuspendido(login.AccessToken, CookieAuthenticationDefaults.AuthenticationScheme),
+                    new AuthenticationProperties { IsPersistent = false, AllowRefresh = false, ExpiresUtc = restrictedExpiry });
+                return LocalRedirect("/OrganizacionSuspendida");
+            }
+
             var usuario = await usuariosClient.ObtenerUsuarioActualAsync(login.AccessToken, HttpContext.RequestAborted);
             if (usuario.Tipo != SesionUsuario.Operador)
                 Error = "Esta cuenta no tiene acceso al Backoffice.";
@@ -65,6 +81,11 @@ public sealed class IngresarModel(AuthApiClient authClient, UsuariosApiClient us
         catch (NexoRutaApiException exception) { Error = exception.Message; }
         catch (HttpRequestException) { Error = "No se pudo conectar con la API de NexoRuta."; }
 
+        return LimpiarPassword();
+    }
+
+    private IActionResult LimpiarPassword()
+    {
         Password = "";
         ModelState.Remove(nameof(Password));
         return Page();

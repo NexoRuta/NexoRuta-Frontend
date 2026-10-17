@@ -6,6 +6,7 @@ using NexoRuta.ApiClient.Features.Envios.Clients;
 using NexoRuta.ApiClient.Features.Auth.Clients;
 using NexoRuta.ApiClient.Features.Roles.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
+using NexoRuta.ApiClient.Features.Organizaciones.Clients;
 using NexoRuta.Backoffice.Core.Security;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Error");
     options.Conventions.AllowAnonymousToPage("/AccesoDenegado");
     options.Conventions.AllowAnonymousToPage("/ApiIndisponible");
+    options.Conventions.AllowAnonymousToPage("/OrganizacionSuspendida");
+    options.Conventions.AllowAnonymousToPage("/Salir");
 });
 builder.Services.AddAntiforgery(options => options.Cookie.Name = "NexoRuta.Backoffice.Antiforgery");
 builder.Services.AddHttpContextAccessor();
@@ -36,7 +39,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     options.SlidingExpiration = false;
     options.Events.OnRedirectToAccessDenied = async context =>
     {
-        if (context.HttpContext.Items.ContainsKey(ApiPermissionAuthorizationHandler.ExpiredSessionItemKey))
+        if (context.HttpContext.User.HasClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.OrganizacionSuspendida))
+            context.Response.Redirect("/OrganizacionSuspendida");
+        else if (context.HttpContext.Items.ContainsKey(ApiPermissionAuthorizationHandler.ExpiredSessionItemKey))
         {
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             context.Response.Redirect("/ingresar?expirada=true");
@@ -59,7 +64,9 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<EnviosApiClient>()
     .AddTypedClient<AuthApiClient>()
     .AddTypedClient<RolesApiClient>()
-    .AddTypedClient<UsuariosApiClient>();
+    .AddTypedClient<UsuariosApiClient>()
+    .AddTypedClient<OrganizacionPropiaApiClient>()
+    .AddTypedClient<OrganizacionSuspendidaApiClient>();
 
 var app = builder.Build();
 

@@ -25,6 +25,9 @@
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
+                        @if (!User.HasClaim(NexoRuta.ApiClient.Core.Session.SesionUsuario.ClaimTipoAcceso, NexoRuta.ApiClient.Core.Session.SesionUsuario.OrganizacionSuspendida))
+                        {
+                        <li class="nav-item"><a class="nav-link text-dark" asp-page="/MiOperador">Mi operador</a></li>
                         @if (permisos.Contains("envios.consultar", StringComparer.Ordinal))
                         {
                         <li class="nav-item">
@@ -38,6 +41,7 @@
                         @if (permisos.Contains("configuracion.gestionar", StringComparer.Ordinal))
                         {
                             <li class="nav-item"><a class="nav-link text-dark" asp-page="/Roles">Roles y permisos</a></li>
+                        }
                         }
                     </ul>
                     @if (User.Identity?.IsAuthenticated == true)

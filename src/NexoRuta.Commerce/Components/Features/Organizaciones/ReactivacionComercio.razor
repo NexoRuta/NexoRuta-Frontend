@@ -1,0 +1,116 @@
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
+@using NexoRuta.ApiClient.Core.Exceptions
+@using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Features.Organizaciones.Clients
+@using NexoRuta.ApiClient.Features.Organizaciones.Contracts.Responses
+@inject OrganizacionSuspendidaApiClient Api
+@inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<section aria-labelledby="reactivacion-heading">
+    <h2 id="reactivacion-heading">Solicitudes de reactivación</h2>
+    @if (error is not null) { <p class="alert alert-danger" role="alert">@error</p> }
+    @if (confirmacion is not null) { <p class="alert alert-success" role="status">@confirmacion</p> }
+    @if (cargando) { <p>Cargando solicitudes…</p> }
+    else
+    {
+        @if (solicitudes.Count == 0) { <p>Aún no hay solicitudes.</p> }
+        else
+        {
+            <ul>@foreach (var solicitud in solicitudes)
+            { <li>@solicitud.Estado · @solicitud.SolicitadaEnUtc.ToLocalTime(): @solicitud.Motivo
+                @if (solicitud.MotivoResolucion is not null) { <span>· Resolución: @solicitud.MotivoResolucion</span> }
+            </li> }</ul>
+        }
+        @if (estado is { EsPropietario: true } && !solicitudes.Any(x => x.Estado == "Pendiente"))
+        {
+            <EditForm Model="formulario" OnValidSubmit="SolicitarAsync" FormName="solicitar-reactivacion-comercio" data-single-submit>
+                <DataAnnotationsValidator />
+                <fieldset disabled="@enviando" class="card p-3">
+                    <p>La solicitud no activa el comercio inmediatamente. Plataforma debe resolverla.</p>
+                    <label for="motivo-reactivacion">Motivo</label>
+                    <InputTextArea id="motivo-reactivacion" @bind-Value="formulario.Motivo" maxlength="2000" />
+                    <ValidationMessage For="() => formulario.Motivo" />
+                    <label class="mt-3"><InputCheckbox @bind-Value="formulario.Confirmar" /> Confirmo que deseo solicitar la reactivación.</label>
+                    <button type="submit" class="btn btn-primary mt-3">@(enviando ? "Enviando…" : "Solicitar reactivación")</button>
+                </fieldset>
+            </EditForm>
+        }
+        else if (estado is { EsPropietario: false }) { <p>Solo el dueño registrado puede solicitar la reactivación.</p> }
+    }
+</section>
+
+@code {
+    private sealed class Formulario
+    {
+        [Required(ErrorMessage = "Ingresá un motivo.")]
+        [StringLength(2000, ErrorMessage = "El motivo no puede superar los 2000 caracteres.")]
+        public string Motivo { get; set; } = "";
+        public bool Confirmar { get; set; }
+    }
+    private readonly CancellationTokenSource cancellation = new();
+    [SupplyParameterFromForm(FormName = "solicitar-reactivacion-comercio")]
+    private Formulario formulario { get; set; } = default!;
+    private OrganizacionSuspendidaResponse? estado;
+    private IReadOnlyList<SolicitudReactivacionResponse> solicitudes = [];
+    private string token = "";
+    private string? error;
+    private string? confirmacion;
+    private bool cargando = true;
+    private bool enviando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        formulario ??= new();
+        try
+        {
+            var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+            if (!user.HasClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.OrganizacionSuspendida))
+            { Navigation.NavigateTo("/ingresar", forceLoad: true); return; }
+            token = SesionUsuario.ObtenerToken(user);
+            estado = await Api.ObtenerAsync(token, cancellation.Token);
+            if (estado.EsPropietario)
+                solicitudes = await Api.ListarReactivacionesAsync(token, cancellation.Token);
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) { error = exception.Message; }
+        catch (InvalidOperationException) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (HttpRequestException) { error = "La API no está disponible."; }
+        finally { cargando = false; }
+    }
+
+    private async Task SolicitarAsync()
+    {
+        if (enviando || estado is not { EsPropietario: true }) return;
+        if (!formulario.Confirmar) { error = "Confirmá que querés solicitar la reactivación."; return; }
+        enviando = true;
+        error = null;
+        try
+        {
+            await Api.SolicitarReactivacionAsync(formulario.Motivo.Trim(), token, cancellation.Token);
+            solicitudes = await Api.ListarReactivacionesAsync(token, cancellation.Token);
+            confirmacion = "La solicitud quedó pendiente. El comercio sigue suspendido hasta la resolución de plataforma.";
+            formulario.Motivo = "";
+            formulario.Confirmar = false;
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        { error = "Solo el dueño registrado puede solicitar la reactivación."; }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        { error = "La solicitud o la organización cambiaron. Recargá la página."; }
+        catch (NexoRutaApiException exception) { error = exception.Message; }
+        catch (HttpRequestException) { error = "La API no está disponible."; }
+        finally { enviando = false; }
+    }
+
+    public void Dispose() { cancellation.Cancel(); cancellation.Dispose(); }
+}
+@page "/reactivacion"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@layout NexoRuta.Commerce.Components.Layout.RestrictedLayout

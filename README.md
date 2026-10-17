@@ -136,3 +136,5 @@ Completar las pantallas y flujos propios de cada actor, incorporar autenticació
 Commerce hosts the public entry at `/registrarse`, `/ingresar` and `/organizacion`. Operator creation ends with a fresh Backoffice login configured by `Portales:BackofficeLoginUrl`; no JWT is transferred between applications. See `../docs/registro-alta-propia.md`.
 
 Commerce public entry: `/` (Blazor welcome) → `/registrarse` → `/ingresar` → `/organizacion`. Commerce accounts land at `/envios`; shipment creation remains protected at `/envios/crear`. Backoffice/Admin links come from `Portales:BackofficeLoginUrl` and `Portales:AdminLoginUrl`. Logout returns to the public home.
+
+Commerce administrative navigation: `/usuarios` and `/roles` share permission-aware links to home, shipments, users and roles. Existing role/permission CRUD and assignment are reused; own/protected roles remain read-only and the permission catalog remains centralized. See `../docs/registro-alta-propia.md` for the diagnosis and verification.

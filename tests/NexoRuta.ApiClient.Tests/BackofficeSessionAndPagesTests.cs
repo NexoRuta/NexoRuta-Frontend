@@ -137,6 +137,244 @@ public sealed class BackofficeSessionAndPagesTests
         Assert.Contains("/registrarse", await anonymous.Content.ReadAsStringAsync());
     }
 
+    [Theory]
+    [InlineData("/usuarios")]
+    [InlineData("/roles")]
+    public async Task CommerceRazorAdministrationHasNavigationOnDirectEntry(string path)
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-commerce"] = ["usuarios.gestionar", "configuracion.gestionar"];
+        using var factory = new CommerceFactory(api);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        await LoginAsync(client, "commerce@example.test");
+        var before = api.Calls.Count(x => x.Path == "/api/usuarios/actual/permisos");
+        using var response = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.Contains("aria-label=\"Navegación del comercio\"", html);
+        foreach (var target in new[] { "/", "/envios", "/envios/crear", "/mi-comercio", "/usuarios", "/roles" })
+            Assert.Contains($"href=\"{target}\"", html);
+        Assert.Contains("Roles y permisos", html);
+        Assert.DoesNotContain("jwt-commerce", html);
+        Assert.Equal(before + 1, api.Calls.Count(x => x.Path == "/api/usuarios/actual/permisos"));
+    }
+
+    [Fact]
+    public async Task OwnOrganizationPagesAreReachableDirectlyAndUseTheAuthenticatedContext()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-commerce"] = ["envios.consultar", "usuarios.gestionar", "configuracion.gestionar"];
+        using var commerceFactory = new CommerceFactory(api);
+        using var commerce = commerceFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        await LoginAsync(commerce, "commerce@example.test");
+        using var commercePage = await commerce.GetAsync("/mi-comercio");
+        var commerceHtml = await commercePage.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, commercePage.StatusCode);
+        Assert.Contains("Mi comercio", commerceHtml);
+        Assert.Contains("Integration commerce", commerceHtml);
+        Assert.Contains("Solicitud de baja", commerceHtml);
+        Assert.Contains("resolución de plataforma", commerceHtml);
+        Assert.Contains("maxlength=\"160\"", commerceHtml);
+        Assert.Contains("__RequestVerificationToken", commerceHtml);
+        Assert.DoesNotContain("jwt-commerce", commerceHtml);
+        foreach (var path in new[] { "/usuarios", "/roles" })
+        {
+            using var page = await commerce.GetAsync(path);
+            Assert.Contains("href=\"/mi-comercio\"", await page.Content.ReadAsStringAsync());
+        }
+        Assert.Contains(api.Calls, call => call.Path == "/api/organizacion/actual" && call.Method == HttpMethod.Get && call.Token == "jwt-commerce");
+
+        using var backofficeFactory = new BackofficeFactory(api);
+        using var backoffice = Client(backofficeFactory);
+        await LoginAsync(backoffice, "operator@example.test");
+        using var operatorPage = await backoffice.GetAsync("/mi-operador");
+        var operatorHtml = await operatorPage.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, operatorPage.StatusCode);
+        Assert.Contains("Mi operador", operatorHtml);
+        Assert.Contains("Operator", operatorHtml);
+        Assert.Contains("maxlength=\"160\"", operatorHtml);
+        Assert.Contains("name=\"Version\"", operatorHtml);
+        Assert.Contains("__RequestVerificationToken", operatorHtml);
+        Assert.DoesNotContain("jwt-user", operatorHtml);
+        Assert.Contains("href=\"/mi-operador\"", operatorHtml);
+        Assert.Contains(api.Calls, call => call.Path == "/api/organizacion/actual" && call.Method == HttpMethod.Get && call.Token == "jwt-user");
+
+        var antiforgery = await GetAntiforgeryTokenAsync(backoffice, "/mi-operador");
+        using var updated = await backoffice.PostAsync("/mi-operador?handler=Guardar", Form(antiforgery,
+            ("Nombre", "Updated operator"), ("Version", "0")));
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        Assert.Contains("Nombre del operador actualizado", await updated.Content.ReadAsStringAsync());
+        Assert.Contains(api.Calls, call => call.Path == "/api/organizacion/actual" && call.Method == HttpMethod.Put && call.Token == "jwt-user");
+    }
+
+    [Fact]
+    public async Task OwnerlessOrganizationPagesRemainReadOnlyAndExplainWhy()
+    {
+        var api = new FakeApi { OrganizationHasOwner = false, IsOrganizationOwner = false };
+        using var commerceFactory = new CommerceFactory(api);
+        using var commerce = commerceFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        await LoginAsync(commerce, "commerce@example.test");
+        using var commercePage = await commerce.GetAsync("/mi-comercio");
+        var commerceHtml = await commercePage.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, commercePage.StatusCode);
+        Assert.Contains("no tiene un dueño registrado", commerceHtml);
+        Assert.DoesNotContain("id=\"nombre-comercio\"", commerceHtml);
+
+        using var backofficeFactory = new BackofficeFactory(api);
+        using var backoffice = Client(backofficeFactory);
+        await LoginAsync(backoffice, "operator@example.test");
+        using var operatorPage = await backoffice.GetAsync("/mi-operador");
+        var operatorHtml = await operatorPage.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, operatorPage.StatusCode);
+        Assert.Contains("no tiene un dueño registrado", operatorHtml);
+        Assert.DoesNotContain("name=\"Nombre\"", operatorHtml);
+        Assert.DoesNotContain(api.Calls, call => call.Method == HttpMethod.Put && call.Path == "/api/organizacion/actual");
+    }
+
+    [Fact]
+    public async Task SuspensionLoginUsesOnlyTheRestrictedStatusEndpointAndKeepsLogoutAvailable()
+    {
+        var api = new FakeApi();
+        using var commerceFactory = new CommerceFactory(api);
+        using var commerce = commerceFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        var commerceLogin = await LoginAsync(commerce, "suspended-commerce@example.test");
+        Assert.Equal("/organizacion-suspendida", commerceLogin.Headers.Location!.OriginalString);
+        using var commerceStatus = await commerce.GetAsync("/organizacion-suspendida");
+        Assert.Equal(HttpStatusCode.OK, commerceStatus.StatusCode);
+        Assert.Contains("Organización suspendida", await commerceStatus.Content.ReadAsStringAsync());
+        Assert.Contains(api.Calls, x => x.Path == "/api/organizacion/suspendida" && x.Token == "jwt-suspended-commerce");
+        Assert.DoesNotContain(api.Calls, x => x.Token == "jwt-suspended-commerce" && x.Path != "/api/organizacion/suspendida");
+        var commerceXsrf = await GetAntiforgeryTokenAsync(commerce, "/organizacion-suspendida");
+        using var commerceLogout = await commerce.PostAsync("/salir", Form(commerceXsrf));
+        Assert.Equal(HttpStatusCode.Redirect, commerceLogout.StatusCode);
+
+        using var backofficeFactory = new BackofficeFactory(api);
+        using var backoffice = Client(backofficeFactory);
+        var operatorLogin = await LoginAsync(backoffice, "suspended-operator@example.test");
+        Assert.Equal("/OrganizacionSuspendida", operatorLogin.Headers.Location!.OriginalString);
+        using var operatorStatus = await backoffice.GetAsync("/OrganizacionSuspendida");
+        Assert.Equal(HttpStatusCode.OK, operatorStatus.StatusCode);
+        Assert.Contains("Organización suspendida", await operatorStatus.Content.ReadAsStringAsync());
+        using var blockedWork = await backoffice.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, blockedWork.StatusCode);
+        Assert.Equal("/OrganizacionSuspendida", blockedWork.Headers.Location!.OriginalString);
+    }
+
+    [Fact]
+    public async Task BackofficeOwnerCanSubmitCancellationWithAntiforgeryAndSeePendingState()
+    {
+        var api = new FakeApi();
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "operator@example.test");
+        var antiforgery = await GetAntiforgeryTokenAsync(client, "/mi-operador");
+        using var response = await client.PostAsync("/mi-operador?handler=SolicitarBaja", Form(antiforgery,
+            ("MotivoBaja", "Cierre del operador"), ("ConfirmarBaja", "true")));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(api.Calls, call => call.Path == "/api/organizacion/actual/solicitudes-baja" && call.Method == HttpMethod.Post && call.Token == "jwt-user");
+        Assert.True(api.CancellationRequestPending);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Pendiente", html);
+        Assert.Contains("activo", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PlatformCanFilterOrganizationsAndResolveCancellationRequestsThroughAntiforgeryForms()
+    {
+        var api = new FakeApi { CancellationRequestPending = true, OrganizationState = "Suspendida" };
+        using var factory = new AdminFactory(api);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        var login = await LoginAsync(client, "platform@example.test");
+        Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+
+        using var listing = await client.GetAsync("/comercios?Estado=Suspendida");
+        Assert.Equal(HttpStatusCode.OK, listing.StatusCode);
+        Assert.Contains("Suspendida", await listing.Content.ReadAsStringAsync());
+        using var detail = await client.GetAsync("/comercios/00000000-0000-0000-0000-000000000203");
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        var organizationXsrf = await GetAntiforgeryTokenAsync(client, "/comercios/00000000-0000-0000-0000-000000000203");
+        using var reactivate = await client.PostAsync("/comercios/00000000-0000-0000-0000-000000000203?handler=CambiarEstado",
+            Form(organizationXsrf, ("estado", "Activa"), ("Version", "0"), ("Motivo", "Reactivated by support"), ("Confirmar", "true")));
+        Assert.Equal(HttpStatusCode.Redirect, reactivate.StatusCode);
+        Assert.Equal("Activa", api.OrganizationState);
+
+        using var requests = await client.GetAsync("/solicitudes-baja?Estado=Pendiente");
+        Assert.Equal(HttpStatusCode.OK, requests.StatusCode);
+        Assert.Contains("Cancellation requests", await requests.Content.ReadAsStringAsync());
+        using var requestDetail = await client.GetAsync("/solicitudes-baja/00000000-0000-0000-0000-000000000301");
+        Assert.Equal(HttpStatusCode.OK, requestDetail.StatusCode);
+        var requestXsrf = await GetAntiforgeryTokenAsync(client, "/solicitudes-baja/00000000-0000-0000-0000-000000000301");
+        using var resolution = await client.PostAsync("/solicitudes-baja/00000000-0000-0000-0000-000000000301?handler=Resolver",
+            Form(requestXsrf, ("Decision", "Rechazar"), ("Version", "0"), ("Motivo", "Rejected by support"), ("Confirmar", "true")));
+        Assert.Equal(HttpStatusCode.Redirect, resolution.StatusCode);
+        Assert.Contains(api.Calls, x => x.Path == "/api/admin/solicitudes-baja" && x.Method == HttpMethod.Get && x.Token == "jwt-platform");
+        Assert.Contains(api.Calls, x => x.Path.EndsWith("/resolver", StringComparison.Ordinal) && x.Method == HttpMethod.Post && x.Token == "jwt-platform");
+    }
+
+    [Fact]
+    public async Task OrganizationProfileConflictReloadsCurrentDataInsteadOfRenderingServerError()
+    {
+        var api = new FakeApi { OrganizationUpdateStatusOverride = HttpStatusCode.Conflict };
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "operator@example.test");
+        var antiforgery = await GetAntiforgeryTokenAsync(client, "/mi-operador");
+
+        using var response = await client.PostAsync("/mi-operador?handler=Guardar", Form(antiforgery,
+            ("Nombre", "Stale operator name"), ("Version", "0")));
+
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("cambió desde la última consulta", html);
+        Assert.Contains("name=\"Nombre\"", html);
+        Assert.Contains("Operator", html);
+        Assert.DoesNotContain("Stale operator name</dd>", html);
+    }
+
+    [Theory]
+    [InlineData("/usuarios", "usuarios.gestionar", "/roles")]
+    [InlineData("/roles", "configuracion.gestionar", "/usuarios")]
+    public async Task CommerceRazorNavigationHidesLinksWithoutCurrentPermission(string path, string permission, string hidden)
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-commerce"] = [permission];
+        using var factory = new CommerceFactory(api);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        await LoginAsync(client, "commerce@example.test");
+        using var response = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains($"href=\"{path}\"", html);
+        Assert.DoesNotContain($"href=\"{hidden}\"", html);
+        using var denied = await client.GetAsync(hidden);
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.Equal("/acceso-denegado", denied.Headers.Location!.AbsolutePath);
+        api.PermissionOverrides["jwt-commerce"] = ["usuarios.gestionar", "configuracion.gestionar"];
+        using var granted = await client.GetAsync(path);
+        Assert.Contains($"href=\"{hidden}\"", await granted.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task CommerceUserAssignmentDoesNotValidateTheUnsubmittedCreationForm()
+    {
+        var api = new FakeApi();
+        using var factory = new CommerceFactory(api);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        await LoginAsync(client, "commerce@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/usuarios");
+        using var assigned = await client.PostAsync("/usuarios?handler=Rol", Form(token, ("accesoId", TargetAccessId.ToString()), ("rolId", RoleId.ToString())));
+        var html = await assigned.Content.ReadAsStringAsync();
+        Assert.Contains("Rol asignado al acceso.", html);
+        Assert.DoesNotContain("The Email field is required.", Regex.Replace(html, "<[^>]+>", ""));
+        Assert.DoesNotContain("The Password field is required.", Regex.Replace(html, "<[^>]+>", ""));
+        using var invalid = await client.PostAsync("/usuarios?handler=Crear", Form(token));
+        var invalidHtml = await invalid.Content.ReadAsStringAsync();
+        Assert.Contains("The Email field is required.", Regex.Replace(invalidHtml, "<[^>]+>", ""));
+        Assert.Contains("The RolId field is required.", Regex.Replace(invalidHtml, "<[^>]+>", ""));
+        Assert.Contains("12 caracteres", invalidHtml);
+        Assert.DoesNotContain(api.Calls, call => call.Path == "/api/usuarios" && call.Method == HttpMethod.Post);
+    }
+
     [Fact]
     public async Task CommerceUserAdministrationLoadsOnlyAfterCurrentPermissionCheck()
     {
@@ -230,12 +468,19 @@ public sealed class BackofficeSessionAndPagesTests
         Assert.Contains("Rol renombrado", await renamed.Content.ReadAsStringAsync());
         using var grants = await client.PostAsync("/roles?handler=Permisos", Form(antiforgery,
             ("id", RoleId.ToString()), ("permisos", "envios.crear")));
-        Assert.Contains("Permisos del rol actualizados", await grants.Content.ReadAsStringAsync());
+        var grantHtml = await grants.Content.ReadAsStringAsync();
+        Assert.Contains("Permisos del rol actualizados", grantHtml);
+        Assert.DoesNotContain("The Codigo field is required.", Regex.Replace(grantHtml, "<[^>]+>", ""));
+        Assert.DoesNotContain("The Nombre field is required.", Regex.Replace(grantHtml, "<[^>]+>", ""));
         using var withdrawn = await client.PostAsync("/roles?handler=Permisos", Form(antiforgery,
             ("id", RoleId.ToString())));
         Assert.Contains("Permisos del rol actualizados", await withdrawn.Content.ReadAsStringAsync());
         using var deleted = await client.PostAsync("/roles?handler=Eliminar", Form(antiforgery, ("id", RoleId.ToString())));
         Assert.Contains("Rol eliminado", await deleted.Content.ReadAsStringAsync());
+        using var invalidCreate = await client.PostAsync("/roles?handler=Crear", Form(antiforgery));
+        var invalidText = Regex.Replace(await invalidCreate.Content.ReadAsStringAsync(), "<[^>]+>", "");
+        Assert.Contains("The Codigo field is required.", invalidText);
+        Assert.Contains("The Nombre field is required.", invalidText);
     }
 
     [Fact]
@@ -640,6 +885,16 @@ public sealed class BackofficeSessionAndPagesTests
         }
     }
 
+    private sealed class AdminFactory(FakeApi api) : WebApplicationFactory<NexoRuta.Admin.Core.Security.ApiPermissionAuthorizationHandler>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.UseEnvironment("Development");
+            builder.ConfigureTestServices(services => services.Configure<HttpClientFactoryOptions>("NexoRuta", options =>
+                options.HttpMessageHandlerBuilderActions.Add(handlerBuilder => handlerBuilder.PrimaryHandler = api.CreateHandler())));
+        }
+    }
+
     private sealed class FakeApi
     {
         public ConcurrentQueue<ApiCall> Calls { get; } = new();
@@ -648,6 +903,11 @@ public sealed class BackofficeSessionAndPagesTests
         public Exception? PermissionFailure { get; init; }
         public bool IncludeOwnAccessRow { get; init; }
         public HttpStatusCode? RoleMutationStatusOverride { get; set; }
+        public bool OrganizationHasOwner { get; init; } = true;
+        public bool IsOrganizationOwner { get; init; } = true;
+        public HttpStatusCode? OrganizationUpdateStatusOverride { get; init; }
+        public bool CancellationRequestPending { get; set; }
+        public string OrganizationState { get; set; } = "Activa";
         public HttpMessageHandler CreateHandler() => new ApiHandler(this);
 
         private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
@@ -661,11 +921,29 @@ public sealed class BackofficeSessionAndPagesTests
                 if (body.GetProperty("password").GetString() != "correct-password")
                     return Json(HttpStatusCode.Unauthorized, new { message = "El correo o la contraseña no son válidos." });
                 var email = body.GetProperty("email").GetString()!;
-                var accessToken = email.StartsWith("commerce", StringComparison.Ordinal) ? "jwt-commerce"
+                var accessToken = email.StartsWith("suspended-commerce", StringComparison.Ordinal) ? "jwt-suspended-commerce"
+                    : email.StartsWith("suspended-operator", StringComparison.Ordinal) ? "jwt-suspended-operator"
+                    : email.StartsWith("platform", StringComparison.Ordinal) ? "jwt-platform"
+                    : email.StartsWith("commerce", StringComparison.Ordinal) ? "jwt-commerce"
                     : email.StartsWith("admin", StringComparison.Ordinal) ? "jwt-admin"
                     : email.StartsWith("roles", StringComparison.Ordinal) ? "jwt-roles"
                     : email.StartsWith("revoked", StringComparison.Ordinal) ? "jwt-revoked" : "jwt-user";
-                return Json(HttpStatusCode.OK, new { accessToken, tokenType = "Bearer", expiresAtUtc = DateTime.UtcNow.AddMinutes(5) });
+                var context = accessToken switch
+                {
+                    "jwt-platform" => "Plataforma",
+                    "jwt-suspended-commerce" or "jwt-suspended-operator" => "OrganizacionSuspendida",
+                    "jwt-commerce" => "Comercio",
+                    _ => "Operador"
+                };
+                var organizationType = accessToken switch
+                {
+                    "jwt-suspended-commerce" => "Comercio",
+                    "jwt-suspended-operator" => "Operador",
+                    "jwt-commerce" => "Comercio",
+                    "jwt-user" or "jwt-admin" or "jwt-roles" or "jwt-revoked" => "Operador",
+                    _ => (string?)null
+                };
+                return Json(HttpStatusCode.OK, new { accessToken, tokenType = "Bearer", expiresAtUtc = DateTime.UtcNow.AddMinutes(5), contexto = context, tipoOrganizacion = organizationType });
             }
 
             if (token == "jwt-revoked" && path == "/api/usuarios/actual/permisos")
@@ -678,6 +956,52 @@ public sealed class BackofficeSessionAndPagesTests
                 return Json(HttpStatusCode.OK, Permissions(token));
             }
             if (path == "/api/usuarios/actual") return Json(HttpStatusCode.OK, CurrentUser(token));
+            if (path == "/api/organizacion/suspendida")
+                return Json(HttpStatusCode.OK, new { organizacionId = Guid.NewGuid(), tipoOrganizacion = token == "jwt-suspended-commerce" ? "Comercio" : "Operador", nombre = "Suspended organization", estado = "Suspendida", mensaje = "Sign in again after reactivation." });
+            if (path == "/api/organizacion/actual" && request.Method == HttpMethod.Get)
+                return OrganizationResponse(token, token == "jwt-commerce" ? "Integration commerce" : "Operator", 0);
+            if (path == "/api/organizacion/actual" && request.Method == HttpMethod.Put)
+            {
+                if (OrganizationUpdateStatusOverride is { } status)
+                    return Json(status, new { message = "The organization changed since it was loaded." });
+                var body = await request.Content!.ReadFromJsonAsync<JsonElement>(ct);
+                return OrganizationResponse(token, body.GetProperty("nombre").GetString()!, body.GetProperty("version").GetInt64() + 1);
+            }
+            if (path == "/api/organizacion/actual/solicitudes-baja" && request.Method == HttpMethod.Get)
+                return Json(HttpStatusCode.OK, CancellationRequestPending ? new[] { CancellationRequest("Pendiente") } : []);
+            if (path == "/api/organizacion/actual/solicitudes-baja" && request.Method == HttpMethod.Post)
+            {
+                CancellationRequestPending = true;
+                return Json(HttpStatusCode.Created, CancellationRequest("Pendiente"));
+            }
+            if (path == "/api/admin/solicitudes-baja" && request.Method == HttpMethod.Get)
+            {
+                var requests = CancellationRequestPending ? new[] { CancellationRequest("Pendiente") } : [];
+                return Json(HttpStatusCode.OK, new { items = requests, pagina = 1, tamanoPagina = 20, total = requests.Length });
+            }
+            if (path.StartsWith("/api/admin/solicitudes-baja/", StringComparison.Ordinal) && request.Method == HttpMethod.Get)
+                return Json(HttpStatusCode.OK, CancellationRequest(CancellationRequestPending ? "Pendiente" : "Rechazada"));
+            if (path.StartsWith("/api/admin/solicitudes-baja/", StringComparison.Ordinal) && path.EndsWith("/resolver", StringComparison.Ordinal))
+            {
+                var body = await request.Content!.ReadFromJsonAsync<JsonElement>(ct);
+                var state = body.GetProperty("decision").GetString() == "Aprobar" ? "Aprobada" : "Rechazada";
+                CancellationRequestPending = false;
+                return Json(HttpStatusCode.OK, CancellationRequest(state));
+            }
+            if ((path == "/api/admin/comercios" || path == "/api/admin/operadores") && request.Method == HttpMethod.Get)
+                return Json(HttpStatusCode.OK, new { items = new[] { OrganizationAdminResponse() }, pagina = 1, tamanoPagina = 20, total = 1 });
+            if ((path == "/api/admin/comercios" || path == "/api/admin/operadores") && request.Method == HttpMethod.Post)
+                return Json(HttpStatusCode.Created, new { organizacion = OrganizationAdminResponse(), usuarioId = CurrentUserId, accesoId = OwnAccessId, rolId = RoleId });
+            if (path.StartsWith("/api/admin/comercios/", StringComparison.Ordinal) || path.StartsWith("/api/admin/operadores/", StringComparison.Ordinal))
+            {
+                if (path.EndsWith("/estado", StringComparison.Ordinal) && request.Method == HttpMethod.Put)
+                {
+                    var body = await request.Content!.ReadFromJsonAsync<JsonElement>(ct);
+                    OrganizationState = body.GetProperty("estado").GetString()!;
+                    return Json(HttpStatusCode.OK, OrganizationAdminResponse(body.GetProperty("version").GetInt64() + 1));
+                }
+                if (request.Method == HttpMethod.Get) return Json(HttpStatusCode.OK, OrganizationAdminResponse());
+            }
             if (path == "/api/usuarios" && request.Method == HttpMethod.Get)
             {
                 var users = new List<object> { new { usuarioId = TargetUserId, accesoId = TargetAccessId,
@@ -745,6 +1069,7 @@ public sealed class BackofficeSessionAndPagesTests
             {
                 "jwt-roles" => ["envios.consultar", "configuracion.gestionar"],
                 "jwt-admin" => ["envios.consultar", "usuarios.gestionar", "configuracion.gestionar"],
+                "jwt-platform" => ["plataforma.organizaciones.gestionar"],
                 _ => ["envios.consultar", "usuarios.gestionar"]
             };
         }
@@ -752,24 +1077,52 @@ public sealed class BackofficeSessionAndPagesTests
         private static object CurrentUser(string? token)
         {
             var commerce = token == "jwt-commerce";
+            var platform = token == "jwt-platform";
             var roles = token == "jwt-roles";
             return new
             {
-                accesoId = TargetAccessId,
+                accesoId = platform ? (Guid?)null : TargetAccessId,
                 usuarioId = CurrentUserId,
-                operadorId = commerce ? (Guid?)null : Guid.Parse("00000000-0000-0000-0000-000000000202"),
+                operadorId = commerce || platform ? (Guid?)null : Guid.Parse("00000000-0000-0000-0000-000000000202"),
                 comercioId = commerce ? Guid.Parse("00000000-0000-0000-0000-000000000203") : (Guid?)null,
-                usuarioEmail = commerce ? "commerce@example.test" : roles ? "roles@example.test" : "user@example.test",
-                operadorNombre = commerce ? null : "Operator",
+                usuarioEmail = commerce ? "commerce@example.test" : platform ? "platform@example.test" : roles ? "roles@example.test" : "user@example.test",
+                operadorNombre = commerce || platform ? null : "Operator",
                 comercioNombre = commerce ? "Commerce" : null,
-                tipo = commerce ? "Comercio" : "Operador",
-                rolId = RoleId,
-                rolCodigo = "dynamic"
+                tipo = platform ? "Plataforma" : commerce ? "Comercio" : "Operador",
+                rolId = platform ? (Guid?)null : RoleId,
+                rolCodigo = platform ? null : "dynamic"
             };
         }
 
+        private static object CancellationRequest(string state) => new
+        {
+            id = Guid.Parse("00000000-0000-0000-0000-000000000301"),
+            tipoOrganizacion = "Comercio", organizacionId = Guid.Parse("00000000-0000-0000-0000-000000000203"),
+            nombreOrganizacion = "Integration commerce", estado = state, motivo = "Cierre del comercio",
+            solicitadaPorUsuarioId = CurrentUserId, solicitadaEnUtc = DateTimeOffset.UtcNow,
+            resueltaPorUsuarioId = (Guid?)null, resueltaEnUtc = (DateTimeOffset?)null,
+            motivoResolucion = (string?)null, version = 0L
+        };
+
+        private object OrganizationAdminResponse(long version = 0) => new
+        {
+            id = Guid.Parse("00000000-0000-0000-0000-000000000203"),
+            nombre = "Integration commerce", estado = OrganizationState, version
+        };
+
         private static HttpResponseMessage Json(HttpStatusCode status, object value)
             => new(status) { Content = JsonContent.Create(value) };
+
+        private HttpResponseMessage OrganizationResponse(string? token, string name, long version)
+            => Json(HttpStatusCode.OK, new
+            {
+                id = token == "jwt-commerce" ? Guid.Parse("00000000-0000-0000-0000-000000000203") : Guid.Parse("00000000-0000-0000-0000-000000000202"),
+                nombre = name,
+                version,
+                estado = OrganizationState,
+                esPropietario = IsOrganizationOwner,
+                tieneDuenoRegistrado = OrganizationHasOwner
+            });
 
         public sealed record ApiCall(string Path, HttpMethod Method, string? Token);
 
