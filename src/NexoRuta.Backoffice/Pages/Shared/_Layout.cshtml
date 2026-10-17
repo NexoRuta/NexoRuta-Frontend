@@ -37,9 +37,11 @@
                         @if (permisos.Contains("usuarios.gestionar", StringComparer.Ordinal))
                         {
                             <li class="nav-item"><a class="nav-link text-dark" asp-page="/Usuarios">Usuarios</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Repartidores">Repartidores</a></li>
                         }
                         @if (permisos.Contains("configuracion.gestionar", StringComparer.Ordinal))
                         {
+                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/ConfiguracionReparto">Configuración de reparto</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-page="/Roles">Roles y permisos</a></li>
                         }
                         }
