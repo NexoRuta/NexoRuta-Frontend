@@ -4,4 +4,5 @@ public sealed record RolResponse(Guid Id, string Codigo, string Nombre, IReadOnl
 {
     public bool EsProtegidoSistema { get; init; }
     public bool EsPropio { get; init; }
+    public bool EsRolPropietario { get; init; }
 }

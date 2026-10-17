@@ -103,6 +103,44 @@ try {
         return response.json();
     }
     const platformToken = (await call('/api/auth/login', { email: platformEmail, password: platformPassword })).accessToken;
+    if (process.argv.includes('--email-edit') || process.argv.includes('--email-edit-operator')) {
+        const kind = process.argv.includes('--email-edit-operator') ? 'operador' : 'comercio';
+        const portal = kind === 'operador' ? operator : base;
+        const email = `owner-${randomUUID()}@browser.example.test`;
+        const employeeEmail = `employee-${randomUUID()}@browser.example.test`;
+        const changedEmail = `changed-${randomUUID()}@browser.example.test`;
+        await call('/api/auth/register', { email, password });
+        const identityToken = (await call('/api/auth/login', { email, password })).accessToken;
+        await call(`/api/alta-propia/${kind === 'operador' ? 'operadores' : 'comercios'}`, { nombre: 'Organización efímera de prueba' }, identityToken);
+        const ownerToken = (await call('/api/auth/login', { email, password })).accessToken;
+        const role = await call('/api/roles', { codigo: `empleado_${randomUUID().replaceAll('-', '')}`, nombre: 'Empleado' }, ownerToken);
+        const grant = await fetch(`${api}/api/roles/${role.id}/permisos`, {
+            method: 'PUT', headers: { Authorization: `Bearer ${ownerToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permisos: ['envios.consultar'] })
+        });
+        assert(grant.ok, `Could not grant employee permission: ${grant.status}`);
+        await navigate(`${portal}/ingresar`);
+        await submit({ Email: email, Password: password });
+        await until("location.pathname === '/' || location.pathname === '/envios'");
+        await navigate(`${portal}/usuarios`);
+        await until("document.querySelector('form[action*=Crear]') !== null");
+        await evaluate(`(() => { const form = document.querySelector('form[action*=Crear]'); form.querySelector('[name=Email]').value=${JSON.stringify(employeeEmail)}; form.querySelector('[name=Password]').value=${JSON.stringify(password)}; form.querySelector('[name=RolId]').value=${JSON.stringify(role.id)}; form.requestSubmit(); })()`);
+        await until(`document.body.innerText.includes(${JSON.stringify(employeeEmail)})`);
+        const employeeToken = (await call('/api/auth/login', { email: employeeEmail, password })).accessToken;
+        await evaluate(`(() => { const form = [...document.querySelectorAll('form[action*=Email]')].find(x => x.closest('tr').innerText.includes(${JSON.stringify(employeeEmail)})); if (!form) throw new Error('Email edit form not rendered'); form.querySelector('[name=nuevoEmail]').value=${JSON.stringify(changedEmail)}; form.requestSubmit(); form.requestSubmit(); })()`);
+        await until(`document.body.innerText.includes(${JSON.stringify(changedEmail)})`);
+        const revoked = await fetch(`${api}/api/usuarios/actual`, { headers: { Authorization: `Bearer ${employeeToken}` } });
+        assert(revoked.status === 401, `Old employee session remained valid: ${revoked.status}`);
+        await evaluate("document.querySelector('form[action*=" + JSON.stringify('salir') + " i]')?.requestSubmit()");
+        await until("location.pathname !== '/usuarios'");
+        await delay(60_000); // Login limiter is fixed-window per IP in the ephemeral API.
+        await navigate(`${portal}/ingresar`);
+        await submit({ Email: changedEmail, Password: password });
+        try { await until("location.pathname !== '/ingresar' && !document.body.innerText.includes('Demasiadas solicitudes')"); }
+        catch (error) { console.log('After changed-email login:', await evaluate('location.href + "\\n" + document.body.innerText')); throw error; }
+        assert(!(await evaluate('document.documentElement.outerHTML')).includes(password), 'Password leaked into HTML');
+        console.log(`PASS: real ${kind} browser created employee, edited email, revoked old session and logged in with new email.`);
+    } else {
     for (const kind of ['comercio', 'operador']) {
         if (kind === 'operador') await delay(60_000); // Existing login limiter is fixed-window per IP.
         await cdp.send('Network.clearBrowserCookies');
@@ -175,6 +213,7 @@ try {
         catch (error) { console.log('Fresh login:', await evaluate('location.href + "\\n" + document.body.innerText')); throw error; }
         assert(!(await evaluate('document.documentElement.outerHTML')).includes(password), 'Password rendered after login');
         console.log(`PASS: ${kind} suspended owner -> request -> rejection reason -> retry -> platform approval -> fresh operational login.`);
+    }
     }
     console.log(`Browser evidence: ${scratch}`);
 } finally {

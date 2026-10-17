@@ -67,7 +67,11 @@
                         <td>@(usuario.Activo ? "Activo" : "Inactivo")<br /><small>Acceso: @usuario.AccesoId</small></td>
                         <td>@(usuario.RolNombre ?? "Sin rol")</td>
                         <td>
-                            @if (usuario.UsuarioId == Model.UsuarioActualId)
+                            @if (usuario.EsPropietario)
+                            {
+                                <p class="text-muted mb-0">Es la cuenta propietaria de la organización y solo puede consultarse; no se puede cambiar su correo, acceso ni rol.</p>
+                            }
+                            else if (usuario.UsuarioId == Model.UsuarioActualId)
                             {
                                 <p class="text-muted mb-0">Tu acceso no se puede modificar desde esta pantalla.</p>
                             }
@@ -94,6 +98,23 @@
                                     </select>
                                     <button type="submit" class="btn btn-sm btn-outline-primary">Guardar rol</button>
                                 </form>
+                                @if (!usuario.EsPropietario && !usuario.RolProtegido)
+                                {
+                                    <details open="@(Model.EmailEditadoId == usuario.UsuarioId ? "open" : null)">
+                                        <summary class="btn btn-sm btn-outline-secondary">Editar correo</summary>
+                                        <form method="post" asp-page-handler="Email" data-single-submit class="mt-2">
+                                            <input type="hidden" name="usuarioId" value="@usuario.UsuarioId" />
+                                            <input type="hidden" name="version" value="@usuario.Version" />
+                                            <p class="mb-1">Correo actual: @usuario.Email</p>
+                                            <label for="email-@usuario.UsuarioId">Nuevo correo</label>
+                                            <input id="email-@usuario.UsuarioId" name="nuevoEmail" type="email" maxlength="254" required class="form-control form-control-sm"
+                                                   value="@(Model.EmailEditadoId == usuario.UsuarioId ? Model.EmailIntentado : usuario.Email)" />
+                                            <p class="form-text">El usuario deberá iniciar sesión nuevamente después del cambio.</p>
+                                            <button type="submit" class="btn btn-sm btn-primary">Guardar correo</button>
+                                            <a href="/usuarios" class="btn btn-sm btn-link">Cancelar</a>
+                                        </form>
+                                    </details>
+                                }
                             </div>
                             }
                         </td>

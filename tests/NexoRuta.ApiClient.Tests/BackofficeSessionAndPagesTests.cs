@@ -406,6 +406,45 @@ public sealed class BackofficeSessionAndPagesTests
     }
 
     [Fact]
+    public async Task OwnerAccessAndRoleAreReadOnlyInBackofficeAndCommerce()
+    {
+        var api = new FakeApi { IncludeOwnerRows = true };
+        api.PermissionOverrides["jwt-user"] = ["usuarios.gestionar", "configuracion.gestionar"];
+        api.PermissionOverrides["jwt-commerce"] = ["usuarios.gestionar", "configuracion.gestionar"];
+
+        using var backofficeFactory = new BackofficeFactory(api);
+        using var backoffice = Client(backofficeFactory);
+        await LoginAsync(backoffice, "user@example.test");
+        using var backofficeUsers = await backoffice.GetAsync("/usuarios");
+        var backofficeUsersHtml = WebUtility.HtmlDecode(await backofficeUsers.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, backofficeUsers.StatusCode);
+        Assert.Contains("cuenta propietaria de la organización", backofficeUsersHtml);
+        Assert.DoesNotContain($"name=\"usuarioId\" value=\"{TargetUserId}\"", backofficeUsersHtml);
+        Assert.DoesNotContain($"name=\"accesoId\" value=\"{TargetAccessId}\"", backofficeUsersHtml);
+        using var backofficeRoles = await backoffice.GetAsync("/roles");
+        var backofficeRolesHtml = WebUtility.HtmlDecode(await backofficeRoles.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, backofficeRoles.StatusCode);
+        Assert.Contains("asignado al propietario de la organización", backofficeRolesHtml);
+        Assert.DoesNotContain($"name=\"id\" value=\"{RoleId}\"", backofficeRolesHtml);
+
+        using var commerceFactory = new CommerceFactory(api);
+        using var commerce = commerceFactory.CreateClient(new WebApplicationFactoryClientOptions
+        { AllowAutoRedirect = false, HandleCookies = true });
+        await LoginAsync(commerce, "commerce@example.test");
+        using var commerceUsers = await commerce.GetAsync("/usuarios");
+        var commerceUsersHtml = WebUtility.HtmlDecode(await commerceUsers.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, commerceUsers.StatusCode);
+        Assert.Contains("cuenta propietaria del comercio", commerceUsersHtml);
+        Assert.DoesNotContain($"name=\"usuarioId\" value=\"{TargetUserId}\"", commerceUsersHtml);
+        Assert.DoesNotContain($"name=\"accesoId\" value=\"{TargetAccessId}\"", commerceUsersHtml);
+        using var commerceRoles = await commerce.GetAsync("/roles");
+        var commerceRolesHtml = WebUtility.HtmlDecode(await commerceRoles.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, commerceRoles.StatusCode);
+        Assert.Contains("asignado al propietario del comercio", commerceRolesHtml);
+        Assert.DoesNotContain($"name=\"id\" value=\"{RoleId}\"", commerceRolesHtml);
+    }
+
+    [Fact]
     public async Task CommerceUserAdministrationHidesLinkAndDeniesDirectPageWithoutPermission()
     {
         var api = new FakeApi();
@@ -902,6 +941,7 @@ public sealed class BackofficeSessionAndPagesTests
         public HttpStatusCode? PermissionStatusOverride { get; init; }
         public Exception? PermissionFailure { get; init; }
         public bool IncludeOwnAccessRow { get; init; }
+        public bool IncludeOwnerRows { get; init; }
         public HttpStatusCode? RoleMutationStatusOverride { get; set; }
         public bool OrganizationHasOwner { get; init; } = true;
         public bool IsOrganizationOwner { get; init; } = true;
@@ -1005,10 +1045,12 @@ public sealed class BackofficeSessionAndPagesTests
             if (path == "/api/usuarios" && request.Method == HttpMethod.Get)
             {
                 var users = new List<object> { new { usuarioId = TargetUserId, accesoId = TargetAccessId,
-                    email = "target@example.test", rolId = RoleId, rolCodigo = "dynamic", rolNombre = "Dynamic role", activo = true } };
+                    email = "target@example.test", rolId = RoleId, rolCodigo = "dynamic", rolNombre = "Dynamic role",
+                    activo = true, version = 0L, rolProtegido = false, esPropietario = IncludeOwnerRows } };
                 if (IncludeOwnAccessRow)
                     users.Add(new { usuarioId = CurrentUserId, accesoId = OwnAccessId,
-                        email = "admin@example.test", rolId = OwnRoleId, rolCodigo = "own", rolNombre = "Own role", activo = true });
+                        email = "admin@example.test", rolId = OwnRoleId, rolCodigo = "own", rolNombre = "Own role",
+                        activo = true, version = 0L, rolProtegido = false, esPropietario = false });
                 return Json(HttpStatusCode.OK, users);
             }
             if (path == "/api/usuarios" && request.Method == HttpMethod.Post)
@@ -1030,11 +1072,13 @@ public sealed class BackofficeSessionAndPagesTests
             }
             if ((path == "/api/roles/asignables" || path == "/api/roles") && request.Method == HttpMethod.Get)
             {
-                var roles = new List<object> { new { id = RoleId, codigo = "dynamic", nombre = "Dynamic role", permisos = new[] { "envios.consultar" }, esProtegidoSistema = false, esPropio = false } };
+                var roles = new List<object> { new { id = RoleId, codigo = "dynamic", nombre = "Dynamic role",
+                    permisos = new[] { "envios.consultar" }, esProtegidoSistema = false, esPropio = false,
+                    esRolPropietario = IncludeOwnerRows } };
                 if (IncludeOwnAccessRow && path == "/api/roles")
                 {
-                    roles.Add(new { id = OwnRoleId, codigo = "own", nombre = "Own role", permisos = new[] { "configuracion.gestionar" }, esProtegidoSistema = false, esPropio = true });
-                    roles.Add(new { id = ProtectedRoleId, codigo = "system", nombre = "System role", permisos = new[] { "configuracion.gestionar" }, esProtegidoSistema = true, esPropio = false });
+                    roles.Add(new { id = OwnRoleId, codigo = "own", nombre = "Own role", permisos = new[] { "configuracion.gestionar" }, esProtegidoSistema = false, esPropio = true, esRolPropietario = false });
+                    roles.Add(new { id = ProtectedRoleId, codigo = "system", nombre = "System role", permisos = new[] { "configuracion.gestionar" }, esProtegidoSistema = true, esPropio = false, esRolPropietario = false });
                 }
                 return Json(HttpStatusCode.OK, roles);
             }

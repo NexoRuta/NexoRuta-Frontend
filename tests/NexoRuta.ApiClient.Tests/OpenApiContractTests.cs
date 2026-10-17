@@ -18,6 +18,21 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task EmailEditUsesOnlyEmailAndVersionAndPublishesControlledResponses()
+    {
+        using var document = await LoadOpenApiAsync();
+        var operation = document.RootElement.GetProperty("paths")
+            .GetProperty("/api/usuarios/{usuarioId}/email").GetProperty("patch");
+        var request = Resolve(operation.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), document.RootElement);
+        Assert.Equal(new[] { "email", "version" }, request.GetProperty("properties")
+            .EnumerateObject().Select(x => x.Name).Order());
+        Assert.Equal(254, request.GetProperty("properties").GetProperty("email").GetProperty("maxLength").GetInt32());
+        foreach (var status in new[] { "204", "400", "401", "403", "404", "409" })
+            Assert.True(operation.GetProperty("responses").TryGetProperty(status, out _));
+    }
+
+    [Fact]
     public async Task SelfServiceContractsExposeIdentityOnlyRegistrationAndNameOnlyOnboarding()
     {
         using var document = await LoadOpenApiAsync();

@@ -48,8 +48,12 @@
         <article class="card mb-4">
             <div class="card-body">
                 <h3 class="h5">@rol.Nombre <small class="text-muted">(@rol.Codigo)</small></h3>
-                @if (rol.EsPropio || rol.EsProtegidoSistema)
+                @if (rol.EsRolPropietario || rol.EsPropio || rol.EsProtegidoSistema)
                 {
+                    @if (rol.EsRolPropietario)
+                    {
+                        <p class="text-muted">Este rol está asignado al propietario de la organización; solo podés consultarlo.</p>
+                    }
                     <p class="text-muted">Este rol es propio o está protegido por el sistema; solo podés consultarlo.</p>
                     <h4 class="h6">Permisos asignados</h4>
                     <ul>

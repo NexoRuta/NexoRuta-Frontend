@@ -42,4 +42,13 @@ public sealed class UsuariosApiClient(HttpClient httpClient)
         }, token);
         return ApiHttp.SendNoContentAsync(httpClient, request, ct);
     }
+
+    public Task CambiarEmailAsync(Guid usuarioId, CambiarEmailUsuarioRequest cambio,
+        string token, CancellationToken ct = default)
+    {
+        using var request = ApiHttp.WithBearerToken(
+            new HttpRequestMessage(HttpMethod.Patch, $"api/usuarios/{usuarioId}/email")
+            { Content = JsonContent.Create(cambio) }, token);
+        return ApiHttp.SendNoContentAsync(httpClient, request, ct);
+    }
 }

@@ -23,6 +23,8 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
     public Guid UsuarioActualId { get; private set; }
     public Guid? AccesoEditadoId { get; private set; }
     public Guid? RolIntentado { get; private set; }
+    public Guid? EmailEditadoId { get; private set; }
+    public string? EmailIntentado { get; private set; }
     public string? Error { get; private set; }
     public string? Confirmacion { get; private set; }
     public bool CanManage { get; private set; }
@@ -136,6 +138,36 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
         return await VolverACargarAsync();
     }
 
+    public async Task<IActionResult> OnPostEmailAsync(Guid usuarioId, string nuevoEmail, long version)
+    {
+        EmailEditadoId = usuarioId;
+        EmailIntentado = nuevoEmail;
+        var normalizado = nuevoEmail?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizado) || normalizado.Length > 254 ||
+            !new EmailAddressAttribute().IsValid(normalizado) || version < 0)
+            Error = "Ingresá un correo válido de hasta 254 caracteres.";
+        else
+        {
+            try
+            {
+                await usuariosClient.CambiarEmailAsync(usuarioId,
+                    new CambiarEmailUsuarioRequest(normalizado, version), Token(), HttpContext.RequestAborted);
+                Confirmacion = "Correo actualizado. El usuario afectado deberá iniciar sesión nuevamente con el nuevo correo y su contraseña actual.";
+                EmailEditadoId = null;
+            }
+            catch (NexoRutaApiException exception)
+            {
+                var redirect = await ManejarApiExceptionAsync(exception);
+                if (redirect is not null) return redirect;
+                if (exception.StatusCode == System.Net.HttpStatusCode.Conflict) EmailEditadoId = null;
+            }
+            catch (HttpRequestException) { Error = "No pudimos comunicarnos con la API de usuarios."; }
+            catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
+            { Error = "La API tardó demasiado en responder."; }
+        }
+        return await VolverACargarAsync();
+    }
+
     private async Task<IActionResult> VolverACargarAsync(bool preservarAlta = false)
     {
         if (!preservarAlta)
@@ -200,6 +232,7 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
         {
             System.Net.HttpStatusCode.BadRequest => exception.Message,
             System.Net.HttpStatusCode.Forbidden => "No tenés permiso para realizar esta operación.",
+            System.Net.HttpStatusCode.NotFound => "El usuario no pertenece a este comercio o ya no existe.",
             System.Net.HttpStatusCode.Conflict => $"Conflicto: {exception.Message} Recargá el estado actual antes de volver a intentar.",
             _ => "No pudimos completar la operación porque la API no está disponible. Intentá más tarde."
         };

@@ -19,6 +19,8 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
     public Guid UsuarioActualId { get; private set; }
     public Guid? AccesoEditadoId { get; private set; }
     public Guid? RolIntentado { get; private set; }
+    public Guid? EmailEditadoId { get; private set; }
+    public string? EmailIntentado { get; private set; }
     public string? Error { get; private set; }
     public string? Confirmacion { get; private set; }
 
@@ -107,6 +109,36 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
         return loaded is PageResult ? Page() : loaded;
     }
 
+    public async Task<IActionResult> OnPostEmailAsync(Guid usuarioId, string nuevoEmail, long version)
+    {
+        EmailEditadoId = usuarioId;
+        EmailIntentado = nuevoEmail;
+        var normalizado = nuevoEmail?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizado) || normalizado.Length > 254 ||
+            !new EmailAddressAttribute().IsValid(normalizado) || version < 0)
+            Error = "Ingresá un correo válido de hasta 254 caracteres.";
+        else
+        {
+            try
+            {
+                await usuariosClient.CambiarEmailAsync(usuarioId,
+                    new CambiarEmailUsuarioRequest(normalizado, version), Token(), HttpContext.RequestAborted);
+                Confirmacion = "Correo actualizado. El usuario afectado deberá iniciar sesión nuevamente con el nuevo correo y su contraseña actual.";
+                EmailEditadoId = null;
+            }
+            catch (NexoRutaApiException exception)
+            {
+                var expired = await ApiSession.RedirectIfExpiredAsync(this, exception);
+                if (expired is not null) return expired;
+                Error = MensajeError(exception);
+                if (exception.StatusCode == System.Net.HttpStatusCode.Conflict) EmailEditadoId = null;
+            }
+            catch (HttpRequestException) { Error = "No se pudo conectar con la API de usuarios."; }
+        }
+        var loaded = await CargarAsync();
+        return loaded is PageResult ? Page() : loaded;
+    }
+
     private async Task<IActionResult> CargarAsync()
     {
         try
@@ -135,6 +167,7 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
     {
         System.Net.HttpStatusCode.BadRequest => exception.Message,
         System.Net.HttpStatusCode.Forbidden => "No tenés permiso para realizar esta operación.",
+        System.Net.HttpStatusCode.NotFound => "El usuario no pertenece a esta organización o ya no existe.",
         System.Net.HttpStatusCode.Conflict => $"Conflicto: {exception.Message} Recargá el estado actual antes de volver a intentar.",
         _ => exception.Message
     };
