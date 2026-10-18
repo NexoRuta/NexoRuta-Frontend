@@ -1,6 +1,6 @@
 # Run the independent platform Admin portal
 
-`src/NexoRuta.Admin` is a fourth web application, alongside Backoffice, Commerce and Tracking. It uses .NET 10 Razor Pages, feature-owned PageModels and the shared `NexoRuta.ApiClient`. It is **not another API** and does not complete CU-01.
+`src/NexoRuta.Admin` is a fourth web application, alongside Backoffice, Commerce and Tracking. It uses .NET 10 Razor Pages, feature-owned PageModels and the shared `NexoRuta.ApiClient`. It is **not another API** and is only the platform-support portion of CU-01; the adopted Commerce self-service model and traceability matrix are in the [current audit](../../backend/docs/cu/CU-01-comercios-usuarios.md).
 
 ## Run locally
 
@@ -88,6 +88,6 @@ git diff --check
 
 Tests exercise the real Razor/cookie/antiforgery pipeline through TestServer with an in-memory HTTP API double. They cover both resources, return URLs, expiry, current permission failures, cross-portal cookie isolation, safe passwords, error states, PRG and no impersonation. Contract tests compare the DTOs with the real backend OpenAPI, then its refreshed versioned snapshot. Backend self-context/security regression tests use fixture-owned ephemeral PostgreSQL, never local persistent PostgreSQL.
 
-**HTTP tests are not visual/browser validation.** No browser tools were exposed during implementation; mobile rendering, focus interaction, password-manager behavior and JavaScript double-submit interaction need browser verification. Markup includes responsive Bootstrap layout, labelled fields, semantic tables, skip navigation and visible keyboard focus.
+**Historical verification note:** the original Admin slice had HTTP tests but no visual/browser run. The current CU-01 audit records its own browser/HTTP evidence separately. Markup includes responsive Bootstrap layout, labelled fields, semantic tables, skip navigation and visible keyboard focus.
 
-Still outside this slice: Identity/OIDC, RLS, identity editing, organization edit/delete and the remaining CU-01 administration. Remote Admin publishing and production routing/TLS require their own explicit deployment scope.
+Identity's EF Core store, email management and PostgreSQL RLS now exist in the current checkout. Admin remains the platform support portal; Commerce self-manages its own users/roles and Backoffice manages the operator's. Physical deletion, password recovery and remote Admin publishing/production routing/TLS are not claimed as CU-01 requirements; consult the [current CU-01 matrix](../../backend/docs/cu/CU-01-comercios-usuarios.md).

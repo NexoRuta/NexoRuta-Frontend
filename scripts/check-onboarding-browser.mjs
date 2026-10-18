@@ -9,6 +9,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
+import { initializePlatformAccount } from './browser-platform-bootstrap.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = mkdtempSync(join(tmpdir(), 'nexoruta-onboarding-'));
@@ -37,6 +38,7 @@ async function connect(url) {
     return { close: () => ws.close(), send: (method, params = {}) => new Promise((resolve, reject) => { const id = ++sequence; pending.set(id, { resolve, reject }); ws.send(JSON.stringify({ id, method, params })); }) };
 }
 try {
+    assert(process.stdin.isTTY && typeof process.stdin.setRawMode === 'function', 'Run this browser smoke from an interactive terminal; platform bootstrap uses hidden terminal input.');
     const dbPassword = randomBytes(24).toString('hex');
     execFileSync('docker', ['run', '--rm', '-d', '--name', name, '-e', `POSTGRES_PASSWORD=${dbPassword}`, '-e', 'POSTGRES_USER=onboarding', '-e', 'POSTGRES_DB=onboarding', '-p', '127.0.0.1::5432', 'postgres:18-alpine'], { stdio: 'pipe' });
     ownedContainer = true;
@@ -50,15 +52,17 @@ try {
     const apiPort = await port(), commercePort = await port(), operatorPort = await port(), adminPort = await port();
     const base = `http://127.0.0.1:${commercePort}`, operator = `http://127.0.0.1:${operatorPort}`, admin = `http://127.0.0.1:${adminPort}`;
     const platformEmail = `platform-${randomUUID()}@browser.example.test`;
-    const platformPassword = randomBytes(24).toString('hex');
-    start('dotnet', ['bin/Release/net10.0/NexoRuta.Api.dll'], {
+    const apiDirectory = resolve(root, '../backend/src/NexoRuta.Api');
+    const apiEnvironment = {
         ASPNETCORE_ENVIRONMENT: 'Development', ASPNETCORE_URLS: `http://127.0.0.1:${apiPort}`,
         ConnectionStrings__Postgres: `Host=127.0.0.1;Port=${dbPort};Database=onboarding;Username=onboarding;Password=${dbPassword}`,
-        DatabaseInitialization__ApplyMigrations: 'true', DatabaseInitialization__SeedData: 'false', PlatformInitialization__Enabled: 'true',
-        PlatformInitialization__Email: platformEmail, PlatformInitialization__Password: platformPassword,
+        DatabaseInitialization__ApplyMigrations: 'true', DatabaseInitialization__SeedData: 'false',
         OpenTelemetry__Enabled: 'false', Jwt__Issuer: 'browser-check', Jwt__Audience: 'browser-check', Jwt__SigningKeyBase64: randomBytes(32).toString('base64')
-    }, resolve(root, '../backend/src/NexoRuta.Api'), 'api');
+    };
+    start('dotnet', ['bin/Release/net10.0/NexoRuta.Api.dll'], apiEnvironment, apiDirectory, 'api');
     await waitFor(`http://127.0.0.1:${apiPort}/health/ready`);
+    // Health-ready follows ephemeral migration completion; the explicit one-shot CLI creates only platform authority.
+    const platformPassword = await initializePlatformAccount({ email: platformEmail, apiDirectory, environment: apiEnvironment });
     for (const [app, appPort] of [['Commerce', commercePort], ['Backoffice', operatorPort]]) {
         start('dotnet', [`bin/Release/net10.0/NexoRuta.${app}.dll`], {
             ASPNETCORE_ENVIRONMENT: 'Development', ASPNETCORE_URLS: `http://127.0.0.1:${appPort}`,
@@ -241,6 +245,8 @@ try {
             await until("document.body.innerText.includes('Organization state updated.') && document.body.innerText.includes('Activa')");
             writeFileSync(join(scratch, 'admin-commerce-reactivated.png'), Buffer.from((await cdp.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
 
+            await delay(60_000); // The full journey has already used the five-per-minute login budget from this IP.
+            await cdp.send('Network.clearBrowserCookies'); // Reactivation requires a fresh operational portal session.
             await navigate(`${base}/ingresar`);
             await submit({ Email: email, Password: password });
             await until("location.pathname !== '/ingresar' && document.body.innerText.includes('envíos')");
