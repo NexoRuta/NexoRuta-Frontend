@@ -72,6 +72,8 @@ public sealed class AdminSessionAndPagesTests
         var html = await home.Content.ReadAsStringAsync();
         Assert.Contains("/operadores", html);
         Assert.Contains("/comercios", html);
+        Assert.Contains("/solicitudes-baja", html);
+        Assert.Contains("/solicitudes-reactivacion", html);
         Assert.DoesNotContain("jwt-platform", html);
         Assert.DoesNotContain(Password, html);
         Assert.All(api.Calls.Where(x => x.Path != "/api/auth/login"), x => Assert.Equal("jwt-platform", x.Token));
