@@ -1,0 +1,38 @@
+@page "/restablecer-contrasena"
+@model NexoRuta.Commerce.Features.Sesion.Pages.RestablecerContrasenaModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{ Layout = null; }
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Restablecer contraseña | NexoRuta</title>
+</head>
+<body>
+<main>
+    <h1>Guardá tu contraseña nueva</h1>
+    @if (Model.Guardada)
+    {
+        <p role="status">La contraseña se guardó. Ingresá con la nueva contraseña en el portal correspondiente.</p>
+        <p><a href="/ingresar">Ingresar a Commerce</a></p>
+    }
+    else
+    {
+        <p>Usá al menos 12 caracteres. El enlace vence a los 15 minutos.</p>
+        @if (Model.Error is not null) { <p role="alert">@Model.Error</p> }
+        @if (Model.PuedeRestablecer)
+        {
+            <form method="post" asp-page="/RestablecerContrasena" data-single-submit>
+                <label asp-for="NuevaPassword">Contraseña nueva</label>
+                <input asp-for="NuevaPassword" type="password" autocomplete="new-password" required maxlength="1024" />
+                <span asp-validation-for="NuevaPassword" role="alert"></span>
+                <button type="submit">Guardar contraseña</button>
+            </form>
+        }
+        <p><a href="/recuperar-contrasena">Solicitar otro enlace</a></p>
+    }
+</main>
+</body>
+</html>

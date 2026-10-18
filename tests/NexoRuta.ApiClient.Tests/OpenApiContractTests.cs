@@ -6,6 +6,7 @@ using NexoRuta.ApiClient.Features.Envios.Contracts.Requests;
 using NexoRuta.ApiClient.Features.Envios.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Auth.Contracts.Responses;
+using NexoRuta.ApiClient.Features.Auth.Contracts.Requests;
 using NexoRuta.ApiClient.Features.Roles.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Usuarios.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Plataforma.Contracts.Responses;
@@ -17,6 +18,37 @@ namespace NexoRuta.ApiClient.Tests;
 
 public sealed class OpenApiContractTests
 {
+    [Fact]
+    public async Task PasswordRecoveryIsPublicWithoutAdministrativePasswordRoutes()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+        var request = paths.GetProperty("/api/auth/password-recovery/request").GetProperty("post");
+        var requestSchema = Resolve(request.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(SolicitarRecuperacionPasswordRequest), requestSchema, root);
+        var responseSchema = Resolve(request.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(SolicitarRecuperacionPasswordResponse), responseSchema, root);
+        Assert.Equal(new[] { "message" }, responseSchema.GetProperty("properties").EnumerateObject().Select(x => x.Name));
+        Assert.DoesNotContain("token", responseSchema.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        Assert.True(request.GetProperty("responses").TryGetProperty("429", out _));
+
+        var reset = paths.GetProperty("/api/auth/password-recovery/reset").GetProperty("post");
+        var resetSchema = Resolve(reset.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(RestablecerPasswordRequest), resetSchema, root);
+        Assert.Equal(new[] { "nuevaPassword", "token", "usuarioId" },
+            resetSchema.GetProperty("properties").EnumerateObject().Select(x => x.Name).Order());
+        Assert.True(reset.GetProperty("responses").TryGetProperty("204", out _));
+        Assert.True(reset.GetProperty("responses").TryGetProperty("400", out _));
+        Assert.True(reset.GetProperty("responses").TryGetProperty("429", out _));
+
+        Assert.DoesNotContain(paths.EnumerateObject(), path => path.Name.Contains("password", StringComparison.OrdinalIgnoreCase)
+            && !path.Name.StartsWith("/api/auth/", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task EmailEditUsesOnlyEmailAndVersionAndPublishesControlledResponses()
     {

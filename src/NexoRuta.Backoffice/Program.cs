@@ -25,6 +25,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/ApiIndisponible");
     options.Conventions.AllowAnonymousToPage("/OrganizacionSuspendida");
     options.Conventions.AllowAnonymousToPage("/Salir");
+    options.Conventions.AllowAnonymousToPage("/SolicitarRecuperacion");
 });
 builder.Services.AddAntiforgery(options => options.Cookie.Name = "NexoRuta.Backoffice.Antiforgery");
 builder.Services.AddHttpContextAccessor();

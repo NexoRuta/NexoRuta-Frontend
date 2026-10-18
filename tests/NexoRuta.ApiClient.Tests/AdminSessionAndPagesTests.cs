@@ -50,6 +50,21 @@ public sealed class AdminSessionAndPagesTests
     }
 
     [Fact]
+    public async Task RecoveryPageIsPublicAndLinkedFromPlatformLogin()
+    {
+        using var factory = Factory(new FakeApi());
+        using var client = Client(factory);
+        using var login = await client.GetAsync("/ingresar");
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        Assert.Contains("href=\"/recuperar-contrasena\"", await login.Content.ReadAsStringAsync());
+        using var recovery = await client.GetAsync("/recuperar-contrasena");
+        Assert.Equal(HttpStatusCode.OK, recovery.StatusCode);
+        var html = await recovery.Content.ReadAsStringAsync();
+        Assert.Contains("correo registrado", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("no-referrer", recovery.Headers.GetValues("Referrer-Policy").Single());
+    }
+
+    [Fact]
     public async Task PlatformLoginUsesProtectedNonpersistentCookieBoundToJwtAndServerSideBearer()
     {
         var api = new FakeApi();

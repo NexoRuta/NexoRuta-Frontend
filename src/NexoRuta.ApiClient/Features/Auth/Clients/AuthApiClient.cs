@@ -36,4 +36,23 @@ public sealed class AuthApiClient(HttpClient httpClient)
         return await response.Content.ReadFromJsonAsync<LoginResponse>(ct)
             ?? throw new NexoRutaApiException("La API devolvió una respuesta de ingreso vacía.", response.StatusCode);
     }
+
+    public async Task SolicitarRecuperacionAsync(SolicitarRecuperacionPasswordRequest request, CancellationToken ct = default)
+    {
+        using var response = await httpClient.PostAsJsonAsync("api/auth/password-recovery/request", request, ct);
+        if (response.IsSuccessStatusCode) return;
+        var message = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
+            ? "Se alcanzó el límite de solicitudes. Probá nuevamente más tarde."
+            : "No se pudo procesar la solicitud. Intentá nuevamente más tarde.";
+        throw new NexoRutaApiException(message, response.StatusCode);
+    }
+
+    public async Task RestablecerPasswordAsync(RestablecerPasswordRequest request, CancellationToken ct = default)
+    {
+        using var response = await httpClient.PostAsJsonAsync("api/auth/password-recovery/reset", request, ct);
+        if (response.IsSuccessStatusCode) return;
+
+        var error = await response.Content.ReadFromJsonAsync<ErrorAuthResponse>(ct);
+        throw new NexoRutaApiException(error?.Message ?? "No se pudo guardar la contraseña nueva.", response.StatusCode);
+    }
 }
