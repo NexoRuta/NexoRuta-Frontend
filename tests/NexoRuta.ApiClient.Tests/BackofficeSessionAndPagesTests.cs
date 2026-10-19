@@ -22,6 +22,21 @@ public sealed class BackofficeSessionAndPagesTests
     private static readonly Guid ProtectedRoleId = Guid.Parse("00000000-0000-0000-0000-000000000204");
 
     [Fact]
+    public async Task RecoveryPageIsPublicAndLinkedFromBackofficeLogin()
+    {
+        using var factory = new BackofficeFactory(new FakeApi());
+        using var client = Client(factory);
+        using var login = await client.GetAsync("/ingresar");
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        Assert.Contains("href=\"/recuperar-contrasena\"", await login.Content.ReadAsStringAsync());
+        using var recovery = await client.GetAsync("/recuperar-contrasena");
+        Assert.Equal(HttpStatusCode.OK, recovery.StatusCode);
+        var html = await recovery.Content.ReadAsStringAsync();
+        Assert.Contains("correo registrado", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("no-referrer", recovery.Headers.GetValues("Referrer-Policy").Single());
+    }
+
+    [Fact]
     public async Task LoginUsesIsolatedProtectedCookiesAndCurrentApiPermissions()
     {
         var api = new FakeApi();
