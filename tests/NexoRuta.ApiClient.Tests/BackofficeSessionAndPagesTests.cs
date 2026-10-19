@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 
@@ -20,6 +21,407 @@ public sealed class BackofficeSessionAndPagesTests
     private static readonly Guid OwnAccessId = Guid.Parse("00000000-0000-0000-0000-000000000202");
     private static readonly Guid OwnRoleId = Guid.Parse("00000000-0000-0000-0000-000000000203");
     private static readonly Guid ProtectedRoleId = Guid.Parse("00000000-0000-0000-0000-000000000204");
+    private static readonly Guid CoverageZoneId = Guid.Parse("00000000-0000-0000-0000-000000000401");
+    private static readonly Guid CoverageSlotId = Guid.Parse("00000000-0000-0000-0000-000000000402");
+
+    [Fact]
+    public async Task ZoneNavigationAndPagesRequireCurrentOperatorPermission()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var zones = await client.GetAsync("/zonas");
+        Assert.Equal(HttpStatusCode.OK, zones.StatusCode);
+        var html = await zones.Content.ReadAsStringAsync();
+        Assert.Contains("Zonas y franjas", html);
+        Assert.Contains("Todas", html);
+        Assert.Contains("Consultar / editar", html);
+        Assert.DoesNotContain("jwt-user", html);
+        Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/zonas" && call.Token == "jwt-user");
+        using var independentPage = await client.GetAsync("/ingresar");
+        Assert.Contains("href=\"/zonas\"", await independentPage.Content.ReadAsStringAsync());
+
+        api.PermissionOverrides["jwt-user"] = [];
+        using var denied = await client.GetAsync("/zonas/crear");
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ZoneCreateWithCatalogPostsGeoJsonObjectThenRedirectsToInactiveZone()
+    {
+        var api = new FakeApi { EmptyDepartmentCatalog = false };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        var token = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
+        using var page = await client.GetAsync("/zonas/crear");
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.Contains("Artigas (01)", html);
+        Assert.Contains("Dibujo propio en el mapa", html);
+        Assert.Contains("mapbox-gl-js/v3.33.0/mapbox-gl.js", html);
+        Assert.Contains("plugins/mapbox-gl-draw/v1.5.1/mapbox-gl-draw.js", html);
+
+        const string geometry = "{\"type\":\"Polygon\",\"coordinates\":[[[-56,-34],[-55,-34],[-55,-33],[-56,-34]]]}";
+        using var created = await client.PostAsync("/zonas/crear", Form(token,
+            ("Nombre", "Zona Centro"), ("Fuente", "Dibujo"), ("GeometriaJson", geometry)));
+
+        Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+        Assert.Equal($"/zonas/{CoverageZoneId}", created.Headers.Location!.OriginalString);
+        var request = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path == "/api/configuracion/zonas");
+        var body = request.Body;
+        Assert.Equal("Zona Centro", body.GetProperty("nombre").GetString());
+        Assert.Equal("Polygon", body.GetProperty("geometria").GetProperty("type").GetString());
+        Assert.Equal(JsonValueKind.Array, body.GetProperty("geometria").GetProperty("coordinates").ValueKind);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("codigoDepartamento").ValueKind);
+        Assert.Equal("jwt-user", request.Token);
+    }
+
+    [Fact]
+    public async Task ZoneCreateExplainsAnEmptyCatalogSeparatelyFromMapboxConfiguration()
+    {
+        var api = new FakeApi { EmptyDepartmentCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var page = await client.GetAsync("/zonas/crear");
+        var html = await page.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("Las referencias departamentales todavía no están cargadas", html);
+        Assert.DoesNotContain("falta configurar un token público de Mapbox", html);
+        Assert.Contains("data-territory-url=", html);
+    }
+
+    [Fact]
+    public async Task ZoneCreateReportsCatalogTransportFailureInsteadOfCallingItEmpty()
+    {
+        var api = new FakeApi { DepartmentCatalogStatusOverride = HttpStatusCode.ServiceUnavailable };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var page = await client.GetAsync("/zonas/crear");
+        var html = await page.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("No se pudo consultar el catálogo departamental. Revisá la disponibilidad de la API", html);
+        Assert.DoesNotContain("Las referencias departamentales todavía no están cargadas", html);
+        Assert.DoesNotContain("falta configurar un token público de Mapbox", html);
+    }
+
+    [Fact]
+    public async Task MissingMapboxConfigurationDoesNotPretendToSaveDrawnGeometry()
+    {
+        var api = new FakeApi { EmptyDepartmentCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
+
+        const string geometry = "{\"type\":\"Polygon\",\"coordinates\":[[[-56,-34],[-55,-34],[-55,-33],[-56,-34]]]}";
+        using var response = await client.PostAsync("/zonas/crear", Form(token,
+            ("Nombre", "No guardada"), ("Fuente", "Dibujo"), ("GeometriaJson", geometry)));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("falta configurar un token público de Mapbox", html);
+        Assert.DoesNotContain("id=\"coverage-map\"", html);
+        Assert.DoesNotContain(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path == "/api/configuracion/zonas");
+    }
+
+    [Fact]
+    public async Task ZoneCreateTurnsApiBadRequestIntoControlledValidationMessage()
+    {
+        var api = new FakeApi { ZoneCreateStatusOverride = HttpStatusCode.BadRequest };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
+        const string geometry = "{\"type\":\"Polygon\",\"coordinates\":[[[-56,-34],[-55,-34],[-55,-33],[-56,-34]]]}";
+
+        using var response = await client.PostAsync("/zonas/crear", Form(token,
+            ("Nombre", "Zona Centro"), ("Fuente", "Dibujo"), ("GeometriaJson", geometry)));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        var alert = Regex.Match(html, "<p class=\\\"alert [^\\\"]+\\\" role=\\\"alert\\\">(.*?)</p>", RegexOptions.Singleline).Groups[1].Value;
+        Assert.True(WebUtility.HtmlDecode(alert).Contains("La API rechazó los datos", StringComparison.Ordinal),
+            $"Alert: {WebUtility.HtmlDecode(alert)}; API calls: {string.Join(", ", api.Calls.Select(x => $"{x.Method} {x.Path}"))}");
+        Assert.DoesNotContain("internal geometry exception", WebUtility.HtmlDecode(alert));
+        Assert.DoesNotContain("coordinates", WebUtility.HtmlDecode(alert));
+    }
+
+    [Fact]
+    public async Task ZoneDetailNotFoundIsScopedAndUsesNotFoundStatus()
+    {
+        var api = new FakeApi { ZoneDetailStatusOverride = HttpStatusCode.NotFound };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync($"/zonas/{CoverageZoneId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("La zona, franja o referencia ya no existe para este operador", html);
+        Assert.DoesNotContain(CoverageZoneId.ToString(), html);
+    }
+
+    [Fact]
+    public async Task ExpiredZoneApiSessionUsesExistingSignInRedirect()
+    {
+        var api = new FakeApi { ZoneListStatusOverride = HttpStatusCode.Unauthorized };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync("/zonas");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/ingresar?expirada=true", response.Headers.Location!.OriginalString, StringComparison.Ordinal);
+        using var afterExpiry = await client.GetAsync("/zonas");
+        Assert.StartsWith("/ingresar", afterExpiry.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ZoneSlotTimeSelectsUseInvariantValuesAndPreserveUnchangedPrecision()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        var pageToken = await GetAntiforgeryTokenAsync(client, $"/zonas/{CoverageZoneId}");
+        using var detail = await client.GetAsync($"/zonas/{CoverageZoneId}");
+        var html = await detail.Content.ReadAsStringAsync();
+        Assert.Contains("Versión del agregado: <strong>4</strong>", html);
+        Assert.Contains("Revisión vigente: <strong>7</strong>", html);
+        Assert.Contains("23:59:59.999999", html);
+        Assert.Contains("00:00:00.000001", html);
+        Assert.Contains("<legend class=\"h6\">Inicio</legend>", html);
+        Assert.Contains("<legend class=\"h6\">Fin</legend>", html);
+        Assert.Contains("name=\"HoraInicioHora\"", html);
+        Assert.Contains("name=\"HoraInicioMinuto\"", html);
+        Assert.Contains("value=\"00\">00</option>", html);
+        Assert.Contains("value=\"23\">23</option>", html);
+        Assert.Contains("value=\"59\">59</option>", html);
+        Assert.DoesNotContain("name=\"HoraInicio\"", html); // no longer posted as a free-form time value
+
+        using var response = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=CrearFranja", Form(pageToken,
+            ("DiaSemanaIso", "7"), ("HoraInicioHora", "00"), ("HoraInicioMinuto", "00"),
+            ("HoraFinHora", "23"), ("HoraFinMinuto", "59"), ("VersionZona", "4")));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var request = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path.EndsWith("/franjas", StringComparison.Ordinal));
+        Assert.Equal("00:00:00.000000", request.Body.GetProperty("horaInicio").GetString());
+        Assert.Equal("23:59:00.000000", request.Body.GetProperty("horaFin").GetString());
+        Assert.Equal((short)7, request.Body.GetProperty("diaSemanaIso").GetInt16());
+        Assert.Equal(4, request.Body.GetProperty("versionZona").GetInt64());
+
+        using var updated = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=EditarFranja", Form(pageToken,
+            ("franjaId", CoverageSlotId.ToString()), ("DiaSemanaIso", "7"),
+            ("HoraInicioHora", "23"), ("HoraInicioMinuto", "59"),
+            ("HoraFinHora", "00"), ("HoraFinMinuto", "00"), ("EstadoFranja", "Activa"), ("VersionZona", "4")));
+        Assert.Equal(HttpStatusCode.Redirect, updated.StatusCode);
+        var update = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Put && x.Path.EndsWith($"/franjas/{CoverageSlotId}", StringComparison.Ordinal));
+        Assert.Equal("23:59:59.999999", update.Body.GetProperty("horaInicio").GetString());
+        Assert.Equal("00:00:00.000001", update.Body.GetProperty("horaFin").GetString());
+
+        using var changed = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=EditarFranja", Form(pageToken,
+            ("franjaId", CoverageSlotId.ToString()), ("DiaSemanaIso", "7"),
+            ("HoraInicioHora", "23"), ("HoraInicioMinuto", "58"),
+            ("HoraFinHora", "00"), ("HoraFinMinuto", "01"), ("EstadoFranja", "Activa"), ("VersionZona", "4")));
+        Assert.Equal(HttpStatusCode.Redirect, changed.StatusCode);
+        var changedUpdate = api.ZonePayloads.Last(x => x.Method == HttpMethod.Put && x.Path.EndsWith($"/franjas/{CoverageSlotId}", StringComparison.Ordinal));
+        Assert.Equal("23:58:00.000000", changedUpdate.Body.GetProperty("horaInicio").GetString());
+        Assert.Equal("00:01:00.000000", changedUpdate.Body.GetProperty("horaFin").GetString());
+    }
+
+    [Fact]
+    public async Task SlotTimeValidationAndApiErrorsKeepSelectionsWithoutDefaultingMissingTimes()
+    {
+        var api = new FakeApi { SlotCreateStatusOverride = HttpStatusCode.BadRequest, SlotUpdateStatusOverride = HttpStatusCode.BadRequest };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, $"/zonas/{CoverageZoneId}");
+
+        using var missing = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=CrearFranja", Form(token,
+            ("DiaSemanaIso", "3"), ("VersionZona", "4")));
+        Assert.Equal(HttpStatusCode.OK, missing.StatusCode);
+        var missingHtml = await missing.Content.ReadAsStringAsync();
+        var missingAlert = Regex.Match(missingHtml, "<p class=\\\"alert [^\\\"]+\\\" role=\\\"alert\\\">(.*?)</p>", RegexOptions.Singleline).Groups[1].Value;
+        Assert.Contains("Elegí un día ISO y hora y minuto para el inicio y el fin", WebUtility.HtmlDecode(missingAlert));
+        Assert.Contains("id=\"new-start-hour\"", missingHtml);
+        Assert.Contains("name=\"HoraInicioHora\"", missingHtml);
+        var missingCreateForm = Regex.Match(missingHtml, "<form id=\\\"new-slot-form\\\".*?</form>", RegexOptions.Singleline).Value;
+        Assert.DoesNotContain("value=\"00\" selected=\"selected\"", missingCreateForm);
+        Assert.DoesNotContain(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path.EndsWith("/franjas", StringComparison.Ordinal));
+
+        using var equal = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=CrearFranja", Form(token,
+            ("DiaSemanaIso", "3"), ("HoraInicioHora", "08"), ("HoraInicioMinuto", "30"),
+            ("HoraFinHora", "08"), ("HoraFinMinuto", "30"), ("VersionZona", "4")));
+        Assert.Equal(HttpStatusCode.OK, equal.StatusCode);
+        Assert.Contains("Los horarios de inicio y fin deben ser distintos", await equal.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path.EndsWith("/franjas", StringComparison.Ordinal));
+
+        using var createRejected = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=CrearFranja", Form(token,
+            ("DiaSemanaIso", "3"), ("HoraInicioHora", "23"), ("HoraInicioMinuto", "59"),
+            ("HoraFinHora", "00"), ("HoraFinMinuto", "00"), ("VersionZona", "4")));
+        Assert.Equal(HttpStatusCode.OK, createRejected.StatusCode);
+        var createHtml = await createRejected.Content.ReadAsStringAsync();
+        var createForm = Regex.Match(createHtml, "<form id=\\\"new-slot-form\\\".*?</form>", RegexOptions.Singleline).Value;
+        Assert.Contains("value=\"23\" selected=\"selected\"", createForm);
+        Assert.Contains("value=\"59\" selected=\"selected\"", createForm);
+        Assert.Contains("value=\"00\" selected=\"selected\"", createForm);
+        Assert.Contains("value=\"3\" selected=\"selected\"", createForm);
+
+        using var editRejected = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=EditarFranja", Form(token,
+            ("franjaId", CoverageSlotId.ToString()), ("DiaSemanaIso", "6"),
+            ("HoraInicioHora", "22"), ("HoraInicioMinuto", "41"),
+            ("HoraFinHora", "06"), ("HoraFinMinuto", "12"), ("EstadoFranja", "Inactiva"), ("VersionZona", "4")));
+        Assert.Equal(HttpStatusCode.OK, editRejected.StatusCode);
+        var editHtml = await editRejected.Content.ReadAsStringAsync();
+        var editForm = Regex.Matches(editHtml, "<form[^>]*data-slot-time-form[^>]*>.*?</form>", RegexOptions.Singleline)
+            .Cast<Match>().Select(x => x.Value).FirstOrDefault(x => x.Contains(CoverageSlotId.ToString(), StringComparison.Ordinal));
+        Assert.NotNull(editForm);
+        Assert.Contains("value=\"22\" selected=\"selected\"", editForm);
+        Assert.Contains("value=\"41\" selected=\"selected\"", editForm);
+        Assert.Contains("value=\"06\" selected=\"selected\"", editForm);
+        Assert.Contains("value=\"12\" selected=\"selected\"", editForm);
+        Assert.Contains("value=\"6\" selected=\"selected\"", editForm);
+        Assert.Contains("value=\"Inactiva\" selected=\"selected\"", editForm);
+    }
+
+    [Fact]
+    public async Task ZeroIsValidAggregateVersionButMissingVersionIsRejected()
+    {
+        var api = new FakeApi { ZoneVersion = 0 };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, $"/zonas/{CoverageZoneId}");
+
+        using var missing = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=CrearFranja", Form(token,
+            ("DiaSemanaIso", "1"), ("HoraInicioHora", "08"), ("HoraInicioMinuto", "00"),
+            ("HoraFinHora", "09"), ("HoraFinMinuto", "00")));
+        Assert.Equal(HttpStatusCode.OK, missing.StatusCode);
+        Assert.Contains("Recargá la zona para obtener una versión válida", WebUtility.HtmlDecode(await missing.Content.ReadAsStringAsync()));
+        Assert.DoesNotContain(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path.EndsWith("/franjas", StringComparison.Ordinal));
+
+        using var zeroVersion = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=CrearFranja", Form(token,
+            ("DiaSemanaIso", "1"), ("HoraInicioHora", "08"), ("HoraInicioMinuto", "00"),
+            ("HoraFinHora", "09"), ("HoraFinMinuto", "00"), ("VersionZona", "0")));
+        Assert.Equal(HttpStatusCode.Redirect, zeroVersion.StatusCode);
+        var request = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path.EndsWith("/franjas", StringComparison.Ordinal));
+        Assert.Equal(0, request.Body.GetProperty("versionZona").GetInt64());
+    }
+
+    [Fact]
+    public async Task InactiveZoneCannotBeActivatedWithoutActiveSlot()
+    {
+        var api = new FakeApi { ZoneHasActiveSlot = false };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync($"/zonas/{CoverageZoneId}");
+
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Agregá al menos una franja activa para habilitar la zona", html);
+        Assert.Contains("Activar zona", html);
+        Assert.Contains("disabled=\"disabled\"", html);
+    }
+
+    [Fact]
+    public async Task ZoneEditConflictKeepsUserInputAndDoesNotRetryWithNewVersion()
+    {
+        var api = new FakeApi { ZoneUpdateStatusOverride = HttpStatusCode.Conflict };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, $"/zonas/{CoverageZoneId}");
+
+        const string geometry = "{\"type\":\"MultiPolygon\",\"coordinates\":[[[[-56,-34],[-55,-34],[-55,-33],[-56,-34]]]]}";
+        using var conflict = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=Editar", Form(token,
+            ("Nombre", "Nombre que estaba editando"), ("VersionEditada", "4"), ("GeometriaJson", geometry)));
+
+        Assert.Equal(HttpStatusCode.OK, conflict.StatusCode);
+        var html = await conflict.Content.ReadAsStringAsync();
+        var alert = Regex.Match(html, "<p class=\\\"alert [^\\\"]+\\\" role=\\\"alert\\\">(.*?)</p>", RegexOptions.Singleline).Groups[1].Value;
+        Assert.True(WebUtility.HtmlDecode(alert).Contains("La zona cambió mientras la editabas", StringComparison.Ordinal),
+            $"Alert: {WebUtility.HtmlDecode(alert)}; API calls: {string.Join(", ", api.Calls.Select(x => $"{x.Method} {x.Path}"))}");
+        Assert.Contains("value=\"Nombre que estaba editando\"", html);
+        Assert.Contains("Recargar estado actual", html);
+        Assert.Contains("disabled=\"disabled\"", html);
+        Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Put && x.Path == $"/api/configuracion/zonas/{CoverageZoneId}");
+    }
+
+    [Fact]
+    public async Task SlotConflictExplainsOverlapWithoutClaimingVersionChanged()
+    {
+        var api = new FakeApi { SlotCreateStatusOverride = HttpStatusCode.Conflict };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, $"/zonas/{CoverageZoneId}");
+
+        using var response = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=CrearFranja", Form(token,
+            ("DiaSemanaIso", "7"), ("HoraInicioHora", "23"), ("HoraInicioMinuto", "59"),
+            ("HoraFinHora", "00"), ("HoraFinMinuto", "00"), ("VersionZona", "4")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Las franjas activas se superponen", html);
+        Assert.DoesNotContain("La zona cambió mientras la editabas", html);
+        Assert.Contains("Recargar estado actual", html);
+        var request = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path.EndsWith("/franjas", StringComparison.Ordinal));
+        Assert.Equal("23:59:00.000000", request.Body.GetProperty("horaInicio").GetString());
+        Assert.Equal("00:00:00.000000", request.Body.GetProperty("horaFin").GetString());
+    }
+
+    [Fact]
+    public async Task CoverageQueryRendersEveryOverlapWithoutSelectingOne()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, $"/zonas/{CoverageZoneId}");
+
+        using var response = await client.PostAsync($"/zonas/{CoverageZoneId}?handler=ConsultarCobertura", Form(token,
+            ("Longitud", "-56.1645"), ("Latitud", "-34.9011")));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("El punto coincide con varias zonas", html);
+        Assert.Contains("Centro", html);
+        Assert.Contains("Rambla", html);
+        Assert.DoesNotContain("Seleccionada automáticamente", html);
+        Assert.DoesNotContain("jwt-user", html);
+        var coverageRequest = Assert.Single(api.ZonePayloads, x => x.Path == "/api/configuracion/zonas/cobertura");
+        Assert.Equal(-56.1645, coverageRequest.Body.GetProperty("longitud").GetDouble());
+        Assert.Equal(-34.9011, coverageRequest.Body.GetProperty("latitud").GetDouble());
+    }
 
     [Fact]
     public async Task RecoveryPageIsPublicAndLinkedFromBackofficeLogin()
@@ -1030,11 +1432,20 @@ public sealed class BackofficeSessionAndPagesTests
     private static FormUrlEncodedContent Form(string token, params (string Key, string Value)[] values)
         => new(values.Append(("__RequestVerificationToken", token)).ToDictionary(pair => pair.Item1, pair => pair.Item2));
 
-    private sealed class BackofficeFactory(FakeApi api) : WebApplicationFactory<NexoRuta.Backoffice.Core.Security.ApiPermissionAuthorizationHandler>
+    private sealed class BackofficeFactory(FakeApi api, bool mapboxConfigured = false) : WebApplicationFactory<NexoRuta.Backoffice.Core.Security.ApiPermissionAuthorizationHandler>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
+            builder.ConfigureAppConfiguration((_, configuration) =>
+            {
+                if (mapboxConfigured)
+                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["Mapbox:PublicAccessToken"] = "pk.test-public-token",
+                        ["Mapbox:StyleUrl"] = "mapbox://styles/test/style"
+                    });
+            });
             builder.ConfigureTestServices(services => services.Configure<HttpClientFactoryOptions>("NexoRuta", options =>
                 options.HttpMessageHandlerBuilderActions.Add(handlerBuilder => handlerBuilder.PrimaryHandler = api.CreateHandler())));
         }
@@ -1077,6 +1488,17 @@ public sealed class BackofficeSessionAndPagesTests
         public HttpStatusCode? OrganizationUpdateStatusOverride { get; init; }
         public bool CancellationRequestPending { get; set; }
         public string OrganizationState { get; set; } = "Activa";
+        public bool EmptyDepartmentCatalog { get; init; } = true;
+        public HttpStatusCode? DepartmentCatalogStatusOverride { get; init; }
+        public long ZoneVersion { get; init; } = 4;
+        public bool ZoneHasActiveSlot { get; init; } = true;
+        public HttpStatusCode? ZoneListStatusOverride { get; init; }
+        public HttpStatusCode? ZoneCreateStatusOverride { get; init; }
+        public HttpStatusCode? ZoneDetailStatusOverride { get; init; }
+        public HttpStatusCode? ZoneUpdateStatusOverride { get; init; }
+        public HttpStatusCode? SlotCreateStatusOverride { get; init; }
+        public HttpStatusCode? SlotUpdateStatusOverride { get; init; }
+        public ConcurrentQueue<ZonePayloadCall> ZonePayloads { get; } = new();
         public HttpMessageHandler CreateHandler() => new ApiHandler(this);
 
         private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
@@ -1234,9 +1656,100 @@ public sealed class BackofficeSessionAndPagesTests
                     return Json(roleStatus, new { message = "Invalid role input" });
                 return Json(HttpStatusCode.Created, new { id = RoleId });
             }
+            if (path == "/api/configuracion/zonas/departamentos" && request.Method == HttpMethod.Get)
+            {
+                if (DepartmentCatalogStatusOverride is { } catalogStatus)
+                    return Json(catalogStatus, new { message = "catalog unavailable" });
+                return Json(HttpStatusCode.OK, EmptyDepartmentCatalog ? Array.Empty<object>() : new object[]
+                {
+                    new { codigo = "01", versionFuente = "test-v1", nombre = "Artigas",
+                        urlFuente = "https://example.test", atribucion = "test", licencia = "test", importadaUtc = DateTimeOffset.UtcNow }
+                });
+            }
+            if (path == "/api/configuracion/zonas" && request.Method == HttpMethod.Get)
+            {
+                if (ZoneListStatusOverride is { } listStatus)
+                    return Json(listStatus, new { message = "internal list exception" });
+                var state = request.RequestUri!.Query.Contains("Inactiva", StringComparison.Ordinal) ? "Inactiva" : "Activa";
+                return Json(HttpStatusCode.OK, new
+                {
+                    items = new[] { new { id = CoverageZoneId, nombre = "Zona Centro", estado = state, franjasActivas = ZoneHasActiveSlot ? 1 : 0,
+                        version = ZoneVersion, revisionActual = 7, actualizadaUtc = DateTimeOffset.UtcNow } },
+                    pagina = 1, tamanoPagina = 20, total = 1
+                });
+            }
+            if (path == "/api/configuracion/zonas" && request.Method == HttpMethod.Post)
+            {
+                var body = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();
+                ZonePayloads.Enqueue(new(path, request.Method, token, body));
+                if (ZoneCreateStatusOverride is { } createStatus)
+                    return Json(createStatus, new { message = "internal geometry exception with coordinates" });
+                return Json(HttpStatusCode.Created, ZoneDetailResponse());
+            }
+            if (path == "/api/configuracion/zonas/cobertura" && request.Method == HttpMethod.Post)
+            {
+                var body = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();
+                ZonePayloads.Enqueue(new(path, request.Method, token, body));
+                return Json(HttpStatusCode.OK, new
+                {
+                    resultado = "Cubierta", requiereSeleccionDeZona = true,
+                    coincidencias = new[]
+                    {
+                        new { zonaId = CoverageZoneId, nombre = "Centro", revisionActual = 7,
+                            franjasActivas = new[] { new { id = CoverageSlotId, diaSemanaIso = (short)1, horaInicio = "08:00:00.000000", horaFin = "09:00:00.000000", estado = "Activa" } } },
+                        new { zonaId = Guid.Parse("00000000-0000-0000-0000-000000000403"), nombre = "Rambla", revisionActual = 2,
+                            franjasActivas = new[] { new { id = Guid.Parse("00000000-0000-0000-0000-000000000404"), diaSemanaIso = (short)2, horaInicio = "10:00:00.000000", horaFin = "11:00:00.000000", estado = "Activa" } } }
+                    }
+                });
+            }
+            if (path == $"/api/configuracion/zonas/{CoverageZoneId}" && request.Method == HttpMethod.Get)
+            {
+                if (ZoneDetailStatusOverride is { } detailStatus)
+                    return Json(detailStatus, new { message = "internal not found details" });
+                return Json(HttpStatusCode.OK, ZoneDetailResponse());
+            }
+            if (path == $"/api/configuracion/zonas/{CoverageZoneId}" && request.Method == HttpMethod.Put)
+            {
+                var body = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();
+                ZonePayloads.Enqueue(new(path, request.Method, token, body));
+                if (ZoneUpdateStatusOverride is { } updateStatus)
+                    return Json(updateStatus, new { message = "La configuración de la zona cambió; recargá antes de volver a guardar." });
+                return Json(HttpStatusCode.OK, ZoneDetailResponse());
+            }
+            if (path == $"/api/configuracion/zonas/{CoverageZoneId}/franjas" && request.Method == HttpMethod.Post)
+            {
+                var body = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();
+                ZonePayloads.Enqueue(new(path, request.Method, token, body));
+                if (SlotCreateStatusOverride is { } slotStatus)
+                    return Json(slotStatus, new { message = "Las franjas activas de una zona no pueden superponerse." });
+                return Json(HttpStatusCode.Created, new { franja = new { id = Guid.NewGuid(), diaSemanaIso = (short)7,
+                    horaInicio = "23:59:59.999999", horaFin = "00:00:00.000001", estado = "Activa" }, versionZona = 5L, revisionActual = 8 });
+            }
+            if (path.StartsWith($"/api/configuracion/zonas/{CoverageZoneId}/franjas/", StringComparison.Ordinal) && request.Method == HttpMethod.Put)
+            {
+                var body = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();
+                ZonePayloads.Enqueue(new(path, request.Method, token, body));
+                if (SlotUpdateStatusOverride is { } slotStatus)
+                    return Json(slotStatus, new { message = "The slot input was rejected." });
+                return Json(HttpStatusCode.OK, new { franja = new { id = CoverageSlotId, diaSemanaIso = (short)7,
+                    horaInicio = body.GetProperty("horaInicio").GetString(), horaFin = body.GetProperty("horaFin").GetString(),
+                    estado = body.GetProperty("estado").GetString() }, versionZona = 5L, revisionActual = 8 });
+            }
+            if (path == $"/api/configuracion/zonas/{CoverageZoneId}/estado" && request.Method == HttpMethod.Put)
+                return Json(HttpStatusCode.OK, ZoneDetailResponse());
             if (path == "/api/envios") return Json(HttpStatusCode.OK, Array.Empty<object>());
             return Json(HttpStatusCode.NotFound, new { message = "Not found" });
         }
+
+        private object ZoneDetailResponse() => new
+        {
+            id = CoverageZoneId, nombre = "Zona Centro", estado = "Inactiva",
+            geometria = new { type = "Polygon", coordinates = new[] { new[] { new[] { -56.2, -34.9 }, new[] { -56.1, -34.9 }, new[] { -56.1, -34.8 }, new[] { -56.2, -34.9 } } } },
+            zonaHoraria = "America/Montevideo",
+            franjas = new[] { new { id = CoverageSlotId, diaSemanaIso = (short)7, horaInicio = "23:59:59.999999", horaFin = "00:00:00.000001", estado = ZoneHasActiveSlot ? "Activa" : "Inactiva" } },
+            version = ZoneVersion, revisionActual = 7, origenGeometria = "Dibujada", codigoDepartamento = (string?)null,
+            versionFuente = (string?)null, creadaUtc = DateTimeOffset.UtcNow, actualizadaUtc = DateTimeOffset.UtcNow
+        };
 
         private string[] Permissions(string? token)
         {
@@ -1302,6 +1815,7 @@ public sealed class BackofficeSessionAndPagesTests
 
         public sealed record ApiCall(string Path, HttpMethod Method, string? Token);
         public sealed record StateCall(string Path, bool Activo, string? Token);
+        public sealed record ZonePayloadCall(string Path, HttpMethod Method, string? Token, JsonElement Body);
 
         private sealed class ApiHandler(FakeApi api) : HttpMessageHandler
         {

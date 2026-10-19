@@ -1,0 +1,97 @@
+@page "/zonas"
+@model NexoRuta.Backoffice.Features.ZonasCobertura.Pages.IndexModel
+@using NexoRuta.Backoffice.Features.ZonasCobertura
+@{
+    ViewData["Title"] = "Zonas y franjas | Backoffice NexoRuta";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div><h1>Zonas y franjas</h1><p>Configuración de cobertura del operador autenticado.</p></div>
+    <a class="btn btn-primary" asp-page="/ZonasCobertura/Crear">Crear zona</a>
+</div>
+
+@if (Model.Error is not null)
+{
+    <p class="alert alert-danger" role="alert">@Model.Error <a href="/zonas">Recargar</a></p>
+}
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-sm-5 col-md-4">
+        <label for="estado" class="form-label">Zonas para mostrar</label>
+        <select id="estado" name="Estado" class="form-select">
+            <option value="@ZonaCoberturaUi.FiltroActivas" selected="@(Model.Estado == ZonaCoberturaUi.FiltroActivas ? "selected" : null)">Activas</option>
+            <option value="@ZonaCoberturaUi.FiltroInactivas" selected="@(Model.Estado == ZonaCoberturaUi.FiltroInactivas ? "selected" : null)">Inactivas</option>
+            <option value="@ZonaCoberturaUi.FiltroTodas" selected="@(Model.Estado == ZonaCoberturaUi.FiltroTodas ? "selected" : null)">Todas</option>
+        </select>
+    </div>
+    <div class="col-sm-3 col-md-2">
+        <label for="tamanoPagina" class="form-label">Por página</label>
+        <select id="tamanoPagina" name="TamanoPagina" class="form-select">
+            <option value="10" selected="@(Model.TamanoPagina == 10 ? "selected" : null)">10</option>
+            <option value="20" selected="@(Model.TamanoPagina == 20 ? "selected" : null)">20</option>
+            <option value="50" selected="@(Model.TamanoPagina == 50 ? "selected" : null)">50</option>
+        </select>
+    </div>
+    <input type="hidden" name="Pagina" value="1" />
+    <div class="col-sm-auto"><button class="btn btn-outline-primary" type="submit">Aplicar</button></div>
+</form>
+
+@if (Model.Estado is ZonaCoberturaUi.FiltroActivas or ZonaCoberturaUi.FiltroTodas)
+{
+    <section aria-labelledby="activas-title" class="mb-4">
+        <h2 id="activas-title">Zonas activas</h2>
+        @if (Model.Activas.Count == 0)
+        {
+            <p role="status">No hay zonas activas en esta página.</p>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="table align-middle">
+                <thead><tr><th>Nombre</th><th>Estado</th><th>Franjas activas</th><th>Revisión</th><th>Acciones</th></tr></thead>
+                <tbody>@foreach (var zona in Model.Activas)
+                {
+                    <tr>
+                        <td>@zona.Nombre</td><td>@zona.Estado</td><td>@zona.FranjasActivas</td><td>@zona.RevisionActual</td>
+                        <td><a asp-page="/ZonasCobertura/Detalle" asp-route-zonaId="@zona.Id">Consultar / editar</a></td>
+                    </tr>
+                }</tbody>
+            </table></div>
+        }
+    </section>
+}
+
+@if (Model.Estado is ZonaCoberturaUi.FiltroInactivas or ZonaCoberturaUi.FiltroTodas)
+{
+    <section aria-labelledby="inactivas-title" class="mb-4">
+        <h2 id="inactivas-title">Zonas inactivas</h2>
+        @if (Model.Inactivas.Count == 0)
+        {
+            <p role="status">No hay zonas inactivas en esta página.</p>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="table align-middle">
+                <thead><tr><th>Nombre</th><th>Estado</th><th>Franjas activas</th><th>Revisión</th><th>Acciones</th></tr></thead>
+                <tbody>@foreach (var zona in Model.Inactivas)
+                {
+                    <tr>
+                        <td>@zona.Nombre</td><td>@zona.Estado</td><td>@zona.FranjasActivas</td><td>@zona.RevisionActual</td>
+                        <td><a asp-page="/ZonasCobertura/Detalle" asp-route-zonaId="@zona.Id">Consultar / editar</a></td>
+                    </tr>
+                }</tbody>
+            </table></div>
+        }
+    </section>
+}
+
+<div class="d-flex align-items-center gap-3" aria-label="Paginación">
+    <span>Página @Model.Pagina de @Model.Paginas · @Model.Total zonas</span>
+    @if (Model.Pagina > 1)
+    {
+        <a asp-page="/ZonasCobertura/Index" asp-route-Estado="@Model.Estado" asp-route-TamanoPagina="@Model.TamanoPagina" asp-route-Pagina="@(Model.Pagina - 1)">Anterior</a>
+    }
+    @if (Model.Pagina < Model.Paginas)
+    {
+        <a asp-page="/ZonasCobertura/Index" asp-route-Estado="@Model.Estado" asp-route-TamanoPagina="@Model.TamanoPagina" asp-route-Pagina="@(Model.Pagina + 1)">Siguiente</a>
+    }
+</div>
