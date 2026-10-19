@@ -1,0 +1,167 @@
+@page "/tarifas/borrador"
+@model NexoRuta.Backoffice.Features.Tarifas.Pages.BorradorModel
+@using NexoRuta.ApiClient.Features.Tarifas.Contracts
+@using NexoRuta.Backoffice.Features.Tarifas
+@{
+    ViewData["Title"] = "Borrador de tarifas | Backoffice NexoRuta";
+}
+
+<link rel="stylesheet" href="~/css/tarifas.css" asp-append-version="true" />
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div><h1>Borrador de tarifas</h1><p>Configuración editable; todavía no es una oferta publicada.</p></div>
+    <a class="btn btn-outline-secondary" asp-page="/Tarifas/Index">Volver al tarifario</a>
+</div>
+
+@if (Model.Notice is not null)
+{
+    <p class="alert alert-success" role="status">@Model.Notice</p>
+}
+@if (Model.Error is not null)
+{
+    <div class="alert @(Model.Conflict ? "alert-warning" : "alert-danger")" role="alert">
+        @Model.Error
+        @if (Model.Conflict)
+        {
+            <a class="d-block mt-2" asp-page="/Tarifas/Borrador">Recargar borrador actual</a>
+        }
+    </div>
+}
+@if (!Model.CatalogoCompleto)
+{
+    <p class="alert alert-warning" role="status">No se cargó el catálogo completo de zonas. No se enviará un reemplazo parcial del borrador.</p>
+}
+
+<p>Los cambios de esta página quedan pendientes hasta que elijas <strong>Guardar borrador</strong>. Quitar una tarifa o ajuste solo la retira de esta edición local; no se persiste hasta guardar.</p>
+<p role="status" aria-live="polite" data-unsaved-message hidden="@(Model.LocalChangesPending ? null : "hidden")">Hay cambios sin guardar. Guardá el borrador antes de simular o publicar.</p>
+
+<form method="post" asp-page-handler="Guardar" data-single-submit data-unsaved-form data-unsaved-initial="@(Model.LocalChangesPending ? "true" : "false")" id="tariff-draft-form">
+    <input type="hidden" asp-for="VersionConcurrencia" />
+    <span asp-validation-for="VersionConcurrencia" class="text-danger"></span>
+    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+    @if (Model.Tarifas.Count == 0)
+    {
+        <p class="alert alert-info">Este borrador todavía no ofrece tarifas. Agregá una combinación de zona y modalidad.</p>
+    }
+    <div class="tarifas-list">
+    @for (var i = 0; i < Model.Tarifas.Count; i++)
+    {
+        var rate = Model.Tarifas[i];
+        var hasCurrentZone = Guid.TryParse(rate.ZonaId, out var zoneId) && Model.Zonas.Any(zone => zone.Id == zoneId);
+        <fieldset class="card tariff-rate-card" aria-labelledby="rate-title-@i">
+            <legend id="rate-title-@i" class="float-none w-auto px-2">Tarifa @(i + 1)</legend>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label for="rate-@i-zone" class="form-label">Zona</label>
+                        <select id="rate-@i-zone" name="Tarifas[@i].ZonaId" class="form-select" required disabled="@(Model.Conflict || !Model.CatalogoCompleto)">
+                            <option value="">Seleccioná una zona</option>
+                            @if (!hasCurrentZone && Guid.TryParse(rate.ZonaId, out var savedZoneId))
+                            {
+                                <option value="@savedZoneId.ToString("D")" selected>Zona guardada no disponible en el catálogo</option>
+                            }
+                            @foreach (var zone in Model.Zonas)
+                            {
+                                var label = zone.Estado == TarifasUi.InactiveZone
+                                    ? $"{zone.Nombre} — Inactiva (tarifa conservada, no operativa)"
+                                    : $"{zone.Nombre} — Activa";
+                                <option value="@zone.Id.ToString("D")" selected="@(rate.ZonaId == zone.Id.ToString("D") ? "selected" : null)">@label</option>
+                            }
+                        </select>
+                        <span class="form-text">Las zonas inactivas pueden conservar tarifas, pero no son ofertas operativas.</span>
+                        <span class="text-danger" asp-validation-for="Tarifas[i].ZonaId"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="rate-@i-modality" class="form-label">Modalidad</label>
+                        <select id="rate-@i-modality" name="Tarifas[@i].Modalidad" class="form-select" required disabled="@Model.Conflict">
+                            <option value="">Seleccioná una modalidad</option>
+                            <option value="Estandar" selected="@(rate.Modalidad == "Estandar" ? "selected" : null)">Estándar</option>
+                            <option value="Urgente" selected="@(rate.Modalidad == "Urgente" ? "selected" : null)">Urgente</option>
+                        </select>
+                        <span class="text-danger" asp-validation-for="Tarifas[i].Modalidad"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="rate-@i-base" class="form-label">Precio base (UYU)</label>
+                        <input id="rate-@i-base" name="Tarifas[@i].ImporteBaseUyu" value="@rate.ImporteBaseUyu" class="form-control" inputmode="decimal" autocomplete="off" required maxlength="48" disabled="@Model.Conflict" />
+                        <span class="form-text">Hasta 2 decimales; usá el separador de tu configuración regional. Un valor 0 es una tarifa configurada.</span>
+                        <span class="text-danger" asp-validation-for="Tarifas[i].ImporteBaseUyu"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="rate-@i-kg" class="form-label">Precio por kilogramo (UYU/kg)</label>
+                        <input id="rate-@i-kg" name="Tarifas[@i].PrecioPorKilogramoUyu" value="@rate.PrecioPorKilogramoUyu" class="form-control" inputmode="decimal" autocomplete="off" required maxlength="48" disabled="@Model.Conflict" />
+                        <span class="form-text">Hasta 6 decimales.</span>
+                        <span class="text-danger" asp-validation-for="Tarifas[i].PrecioPorKilogramoUyu"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="rate-@i-volume" class="form-label">Precio por metro cúbico (UYU/m³)</label>
+                        <input id="rate-@i-volume" name="Tarifas[@i].PrecioPorMetroCubicoUyu" value="@rate.PrecioPorMetroCubicoUyu" class="form-control" inputmode="decimal" autocomplete="off" required maxlength="48" disabled="@Model.Conflict" />
+                        <span class="form-text">Hasta 6 decimales.</span>
+                        <span class="text-danger" asp-validation-for="Tarifas[i].PrecioPorMetroCubicoUyu"></span>
+                    </div>
+                </div>
+
+                <section class="mt-4" aria-labelledby="adjustments-title-@i">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <h3 id="adjustments-title-@i" class="h5 mb-0">Recargos y bonificaciones</h3>
+                        <button type="submit" class="btn btn-sm btn-outline-primary" asp-page-handler="AgregarAjuste" asp-route-indiceTarifa="@i" disabled="@Model.Conflict">Agregar ajuste</button>
+                    </div>
+                    @if (rate.Ajustes.Count == 0)
+                    {
+                        <p class="form-text">Esta tarifa no tiene ajustes.</p>
+                    }
+                    @for (var j = 0; j < rate.Ajustes.Count; j++)
+                    {
+                        var adjustment = rate.Ajustes[j];
+                        var presentation = TarifasUi.AdjustmentPresentation(adjustment.Tipo);
+                        <div class="row g-2 align-items-end tariff-adjustment" data-adjustment>
+                            <div class="col-12 col-md-4">
+                                <label for="rate-@i-adjustment-@j-name" class="form-label">Nombre</label>
+                                <input id="rate-@i-adjustment-@j-name" name="Tarifas[@i].Ajustes[@j].Nombre" value="@adjustment.Nombre" class="form-control" maxlength="120" required disabled="@Model.Conflict" />
+                                <span class="text-danger" asp-validation-for="Tarifas[i].Ajustes[j].Nombre"></span>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="rate-@i-adjustment-@j-type" class="form-label">¿Cómo modifica el precio?</label>
+                                <select id="rate-@i-adjustment-@j-type" name="Tarifas[@i].Ajustes[@j].Tipo" class="form-select" data-adjustment-type required disabled="@Model.Conflict">
+                                    @foreach (var type in Enum.GetValues<TipoAjusteTarifario>())
+                                    {
+                                        var option = TarifasUi.AdjustmentPresentation(type);
+                                        <option value="@type.ToString()" selected="@(adjustment.Tipo == type.ToString() ? "selected" : null)"
+                                                data-adjustment-value-label="@option.ValueLabel"
+                                                data-adjustment-help-text="@option.HelpText"
+                                                data-adjustment-precision-hint="@option.PrecisionHint">@option.TypeLabel</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-10 col-md-3">
+                                <label for="rate-@i-adjustment-@j-value" class="form-label" data-adjustment-label>@presentation.ValueLabel</label>
+                                <input id="rate-@i-adjustment-@j-value" name="Tarifas[@i].Ajustes[@j].Valor" value="@adjustment.Valor" class="form-control" inputmode="decimal" autocomplete="off" maxlength="48" required disabled="@Model.Conflict" />
+                                <span class="form-text" data-adjustment-help>@presentation.HelpText</span>
+                                <span class="form-text" data-adjustment-precision>@presentation.PrecisionHint</span>
+                                <span class="text-danger" asp-validation-for="Tarifas[i].Ajustes[j].Valor"></span>
+                            </div>
+                            <div class="col-2 col-md-1">
+                                <button type="submit" class="btn btn-outline-danger w-100" asp-page-handler="QuitarAjuste" asp-route-indiceTarifa="@i" asp-route-indiceAjuste="@j" data-confirm-remove="true" data-confirm-message="¿Quitar este ajuste de la edición local? Se guardará solo al elegir Guardar borrador." aria-label="Quitar ajuste @(j + 1)" disabled="@Model.Conflict">Quitar</button>
+                            </div>
+                        </div>
+                    }
+                </section>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" asp-page-handler="QuitarTarifa" asp-route-indice="@i" data-confirm-remove="true" data-confirm-message="¿Quitar esta tarifa de la edición local? Solo se eliminará del borrador guardado al elegir Guardar borrador." disabled="@Model.Conflict">Quitar tarifa de esta edición</button>
+                </div>
+            </div>
+        </fieldset>
+    }
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mt-3">
+        <button type="submit" class="btn btn-outline-primary" asp-page-handler="AgregarTarifa" disabled="@(Model.Conflict || !Model.CatalogoCompleto || Model.Zonas.Count == 0)">Agregar tarifa</button>
+        <button type="submit" class="btn btn-primary" disabled="@(Model.Conflict || !Model.CatalogoCompleto)">Guardar borrador</button>
+    </div>
+</form>
+
+<div class="d-flex flex-wrap gap-2 mt-3">
+    <a class="btn btn-outline-secondary" asp-page="/Tarifas/Simular" asp-route-versionTarifarioId="@Model.VersionTarifarioId" data-requires-clean="true">Simular borrador guardado</a>
+    <a class="btn btn-outline-secondary" asp-page="/Tarifas/Publicar" data-requires-clean="true">Revisar y publicar</a>
+    <a class="btn btn-outline-secondary" asp-page="/ZonasCobertura/Index">Gestionar zonas</a>
+</div>
+<script src="~/js/tarifas-editor.js" asp-append-version="true" defer></script>
