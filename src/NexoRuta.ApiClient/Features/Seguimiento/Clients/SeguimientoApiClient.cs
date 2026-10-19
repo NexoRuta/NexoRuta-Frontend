@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using NexoRuta.ApiClient.Core.Exceptions;
 using NexoRuta.ApiClient.Core.Http;
 using NexoRuta.ApiClient.Features.Seguimiento.Contracts.Responses;
@@ -29,5 +30,17 @@ public sealed class SeguimientoApiClient(HttpClient httpClient)
         {
             return null;
         }
+    }
+    public async Task SolicitarCodigoCancelacionAsync(string token, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/public/seguimiento/{Uri.EscapeDataString(token)}/cancelacion/codigo");
+        await ApiHttp.SendNoContentAsync(httpClient, request, ct);
+    }
+
+    public async Task CancelarAsync(string token, string codigo, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/public/seguimiento/{Uri.EscapeDataString(token)}/cancelacion")
+        { Content = JsonContent.Create(new { codigo }) };
+        await ApiHttp.SendNoContentAsync(httpClient, request, ct);
     }
 }

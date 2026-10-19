@@ -8,6 +8,7 @@ using NexoRuta.ApiClient.Features.Roles.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.ApiClient.Features.Organizaciones.Clients;
 using NexoRuta.ApiClient.Features.ZonasCobertura.Clients;
+using NexoRuta.ApiClient.Features.Reparto.Clients;
 using NexoRuta.ApiClient.Features.Tarifas.Clients;
 using NexoRuta.Backoffice.Core.Security;
 using NexoRuta.Backoffice.Features.Tarifas;
@@ -22,6 +23,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/", SesionUsuario.Operador);
     options.Conventions.AuthorizePage("/Index", "envios.consultar");
     options.Conventions.AuthorizePage("/Usuarios", "usuarios.gestionar");
+    options.Conventions.AuthorizePage("/Rutas", "envios.gestionar");
     options.Conventions.AuthorizePage("/Roles", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AuthorizePage("/ZonasCobertura/Index", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AuthorizePage("/ZonasCobertura/Crear", ZonaCoberturaUi.PermisoGestionar);
@@ -69,7 +71,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(SesionUsuario.Operador, policy =>
         policy.RequireAuthenticatedUser().RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Operador));
-    foreach (var permission in new[] { "envios.consultar", "usuarios.gestionar", ZonaCoberturaUi.PermisoGestionar })
+    foreach (var permission in new[] { "envios.consultar", "envios.gestionar", "usuarios.gestionar", ZonaCoberturaUi.PermisoGestionar })
         options.AddPolicy(permission, policy => policy.RequireAuthenticatedUser().AddRequirements(new ApiPermissionRequirement(permission)));
 });
 builder.Services.AddScoped<IAuthorizationHandler, ApiPermissionAuthorizationHandler>();
@@ -79,6 +81,9 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<AuthApiClient>()
     .AddTypedClient<RolesApiClient>()
     .AddTypedClient<UsuariosApiClient>()
+    .AddTypedClient<RepartidoresApiClient>()
+    .AddTypedClient<RutasApiClient>()
+    .AddTypedClient<ConfiguracionRepartoApiClient>()
     .AddTypedClient<OrganizacionPropiaApiClient>()
       .AddTypedClient<OrganizacionSuspendidaApiClient>()
       .AddTypedClient<ZonasCoberturaApiClient>()

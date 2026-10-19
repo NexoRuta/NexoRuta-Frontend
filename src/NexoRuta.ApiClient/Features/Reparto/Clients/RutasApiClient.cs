@@ -1,0 +1,35 @@
+using System.Net.Http.Json;
+using NexoRuta.ApiClient.Core.Http;
+using NexoRuta.ApiClient.Features.Reparto.Contracts;
+namespace NexoRuta.ApiClient.Features.Reparto.Clients;
+
+public sealed class RutasApiClient(HttpClient http)
+{
+    public async Task<RecursosPlanificacionResponse> RecursosAsync(string token, CancellationToken ct)
+    {
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Get, "api/rutas/recursos"), token);
+        return await ApiHttp.SendAsync<RecursosPlanificacionResponse>(http, request, ct);
+    }
+    public async Task<IReadOnlyList<HojaRutaResponse>> ListarAsync(DateOnly fecha, string token, CancellationToken ct)
+    {
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Get, $"api/rutas?fecha={fecha:yyyy-MM-dd}"), token);
+        return await ApiHttp.SendAsync<HojaRutaResponse[]>(http, request, ct);
+    }
+    public Task<HojaRutaResponse> PlanificarAsync(PlanificarRutaRequest datos, string token, CancellationToken ct) =>
+        EnviarAsync("api/rutas", datos, token, ct);
+    public Task<HojaRutaResponse> DespacharAsync(Guid id, long version, string token, CancellationToken ct) =>
+        EnviarAsync($"api/rutas/{id}/despacho", new { version }, token, ct);
+    public Task<HojaRutaResponse> ReasignarAsync(Guid envio, ReasignarEnvioRequest datos, string token, CancellationToken ct) =>
+        EnviarAsync($"api/envios/{envio}/reasignacion", datos, token, ct);
+    public async Task RecibirAsync(Guid envio, long version, string token, CancellationToken ct)
+    {
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Post, $"api/deposito/envios/{envio}/recepcion")
+        { Content = JsonContent.Create(new { version }) }, token);
+        await ApiHttp.SendNoContentAsync(http, request, ct);
+    }
+    private async Task<HojaRutaResponse> EnviarAsync<T>(string path, T datos, string token, CancellationToken ct)
+    {
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Post, path) { Content = JsonContent.Create(datos) }, token);
+        return await ApiHttp.SendAsync<HojaRutaResponse>(http, request, ct);
+    }
+}

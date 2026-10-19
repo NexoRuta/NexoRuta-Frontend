@@ -1,0 +1,50 @@
+@page "/repartidores"
+@model NexoRuta.Backoffice.Features.Reparto.Pages.RepartidoresModel
+@{ ViewData["Title"] = "Repartidores"; }
+
+<h1>Repartidores</h1>
+<p>Creá primero la cuenta en <a asp-page="/Usuarios">Usuarios</a>. Vinculá su perfil y asignale un rol con el permiso de ejecutar la hoja de ruta propia.</p>
+@if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+@if (Model.Confirmacion is not null) { <p class="alert alert-success" role="status">@Model.Confirmacion</p> }
+
+<section class="card mb-4" aria-labelledby="nuevo-perfil">
+    <div class="card-body">
+        <h2 class="h5" id="nuevo-perfil">Habilitar un repartidor</h2>
+        @if (Model.Disponibles.Count == 0)
+        { <p>No hay cuentas activas con rol pendientes de vincular.</p> }
+        else
+        {
+            <form method="post" asp-page-handler="Guardar" data-single-submit class="row g-3">
+                <div class="col-md-5"><label for="acceso" class="form-label">Usuario</label>
+                    <select name="accesoId" id="acceso" class="form-select" required>
+                        <option value="">Seleccionar usuario</option>
+                        @foreach (var usuario in Model.Disponibles) { <option value="@usuario.AccesoId">@usuario.Email · @usuario.RolNombre</option> }
+                    </select>
+                </div>
+                <div class="col-md-5"><label for="nombre" class="form-label">Nombre del repartidor</label><input id="nombre" name="nombre" class="form-control" maxlength="120" required /></div>
+                <input type="hidden" name="activo" value="true" />
+                <div class="col-md-2 align-self-end"><button class="btn btn-primary" type="submit">Habilitar</button></div>
+            </form>
+        }
+    </div>
+</section>
+
+@foreach (var perfil in Model.Repartidores)
+{
+    <section class="card mb-3" aria-label="Perfil de @perfil.Nombre">
+        <div class="card-body">
+            <p>@perfil.Email · @(perfil.Activo ? "Activo" : "Inactivo")</p>
+            <form method="post" asp-page-handler="Guardar" data-single-submit class="row g-3 align-items-end">
+                <input type="hidden" name="accesoId" value="@perfil.AccesoId" />
+                <input type="hidden" name="version" value="@perfil.Version" />
+                <div class="col-md-7"><label for="nombre-@perfil.AccesoId" class="form-label">Nombre</label><input id="nombre-@perfil.AccesoId" name="nombre" value="@perfil.Nombre" class="form-control" maxlength="120" required /></div>
+                <div class="col-md-3"><label for="activo-@perfil.AccesoId" class="form-label">Estado del perfil</label>
+                    <select id="activo-@perfil.AccesoId" name="activo" class="form-select">
+                        <option value="true" selected="@perfil.Activo">Activo</option><option value="false" selected="@(!perfil.Activo)">Inactivo</option>
+                    </select>
+                </div>
+                <div class="col-md-2"><button class="btn btn-primary" type="submit">Guardar</button></div>
+            </form>
+        </div>
+    </section>
+}

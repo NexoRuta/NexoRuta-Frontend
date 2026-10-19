@@ -14,7 +14,7 @@ public sealed class SpecializedApiClientTests
 
     [Theory]
     [InlineData("usuarios", "api/usuarios/actual")]
-    [InlineData("operadores", "api/comercio/operadores")]
+    [InlineData("operadores", "api/operadores")]
     [InlineData("listar", "api/envios")]
     [InlineData("crear", "api/envios")]
     public async Task Clients_PreserveEndpointsBearerAndHttpErrors(string operation, string path)

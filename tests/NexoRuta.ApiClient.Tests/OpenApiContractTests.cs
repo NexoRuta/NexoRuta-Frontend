@@ -20,6 +20,22 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task PublicCancellationRequiresCodeAndShipmentCreationRequiresRecipientEmail()
+    {
+        using var document = await LoadOpenApiAsync(); var root = document.RootElement; var paths = root.GetProperty("paths");
+        var solicitar = paths.GetProperty("/api/public/seguimiento/{token}/cancelacion/codigo").GetProperty("post");
+        foreach (var estado in new[] { "202", "404", "429" }) Assert.True(solicitar.GetProperty("responses").TryGetProperty(estado, out _));
+        Assert.False(solicitar.TryGetProperty("requestBody", out _));
+        var confirmar = paths.GetProperty("/api/public/seguimiento/{token}/cancelacion").GetProperty("post");
+        var codigo = Resolve(confirmar.GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Equal(new[] { "codigo" }, codigo.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        Assert.False(codigo.GetProperty("additionalProperties").GetBoolean());
+        var alta = Resolve(paths.GetProperty("/api/envios").GetProperty("post").GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Contains("destinatarioEmail", alta.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(254, alta.GetProperty("properties").GetProperty("destinatarioEmail").GetProperty("maxLength").GetInt32());
+    }
+
+    [Fact]
     public async Task CoverageEndpointsArePublishedInTheVersionedOpenApiContract()
     {
         using var document = await LoadOpenApiAsync();
@@ -262,7 +278,8 @@ public sealed class OpenApiContractTests
         var paths = document.RootElement.GetProperty("paths");
 
         Assert.True(
-            paths.TryGetProperty("/api/comercio/operadores", out var endpoint));
+            paths.TryGetProperty("/api/operadores", out var endpoint));
+        Assert.False(paths.TryGetProperty("/api/comercio/operadores", out _));
 
         Assert.True(
             endpoint.TryGetProperty("get", out _));
@@ -321,9 +338,10 @@ public sealed class OpenApiContractTests
     [InlineData("/api/roles/asignables", "get", "200", typeof(IReadOnlyList<RolResponse>))]
     [InlineData("/api/roles/permisos", "get", "200", typeof(IReadOnlyList<PermisoResponse>))]
     [InlineData("/api/roles", "post", "201", typeof(CrearRolResponse))]
-    [InlineData("/api/comercio/operadores", "get", "200", typeof(IReadOnlyList<OperadorDisponibleResponse>))]
+    [InlineData("/api/operadores", "get", "200", typeof(IReadOnlyList<OperadorDisponibleResponse>))]
     [InlineData("/api/envios", "post", "201", typeof(EnvioCreadoResponse))]
     [InlineData("/api/envios", "get", "200", typeof(IReadOnlyList<EnvioResponse>))]
+    [InlineData("/api/envios/{envioId}/cancelacion", "post", "200", typeof(EnvioCanceladoResponse))]
     public async Task Respuestas_CoincidenConLasPropiedadesYTiposDelCliente(string path, string method, string status, Type type)
     {
         using var document = await LoadOpenApiAsync();

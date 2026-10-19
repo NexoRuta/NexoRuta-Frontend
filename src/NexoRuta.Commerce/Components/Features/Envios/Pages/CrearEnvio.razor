@@ -58,6 +58,11 @@
                     <InputText @bind-Value="formulario.DestinatarioNombre" />
                 </label>
                 <ValidationMessage For="() => formulario.DestinatarioNombre" />
+                <label>Correo del destinatario
+                    <InputText type="email" autocomplete="email" maxlength="254" @bind-Value="formulario.DestinatarioEmail" />
+                </label>
+                <ValidationMessage For="() => formulario.DestinatarioEmail" />
+                <p>Se usará para verificar las solicitudes de cancelación del destinatario.</p>
                 <label>Dirección
                     <InputText @bind-Value="formulario.Direccion" />
                 </label>

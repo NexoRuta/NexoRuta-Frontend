@@ -5,6 +5,10 @@
 }
 
 <h1>Envíos recibidos</h1>
+@if (Model.Confirmacion is not null)
+{
+    <p class="alert alert-success" role="status">@Model.Confirmacion</p>
+}
 @if (Model.UsuarioActual is { } usuarioActual)
 {
     <p>Operador: <strong>@usuarioActual.OperadorNombre</strong> · Usuario: @usuarioActual.UsuarioEmail</p>
@@ -13,14 +17,14 @@
 {
     <p class="alert alert-danger" role="alert">@Model.Error</p>
 }
-else if (Model.Envios.Count == 0)
+@if (Model.Envios.Count == 0 && Model.Error is null)
 {
     <p>Este operador todavía no tiene envíos registrados. Los envíos de los comercios aparecerán aquí cuando se registren con este operador.</p>
 }
-else
+else if (Model.Envios.Count > 0)
 {
     <table class="table">
-        <thead><tr><th>ID</th><th>Operador / comercio</th><th>Usuario</th><th>Destinatario</th><th>Dirección</th><th>Estado</th><th>Bultos</th></tr></thead>
+        <thead><tr><th>ID</th><th>Operador / comercio</th><th>Usuario</th><th>Destinatario</th><th>Dirección</th><th>Estado</th><th>Bultos</th>@if (Model.PuedeCancelar) { <th>Acciones</th> }</tr></thead>
         <tbody>
         @foreach (var envio in Model.Envios)
         {
@@ -37,6 +41,25 @@ else
                         <div>@bulto.Codigo — @bulto.PesoGramos g — @bulto.LargoCentimetros × @bulto.AnchoCentimetros × @bulto.AltoCentimetros cm</div>
                     }
                 </td>
+                @if (Model.PuedeCancelar)
+                {
+                    <td>
+                    @if (envio.AdmiteCancelacion())
+                    {
+                        <details>
+                            <summary>Cancelar envío</summary>
+                            <form method="post" asp-page-handler="Cancelar">
+                                <input type="hidden" name="EnvioId" value="@envio.Id" />
+                                <input type="hidden" name="Version" value="@envio.Version" />
+                                <label for="motivo-@envio.Id">Motivo de cancelación</label>
+                                <textarea id="motivo-@envio.Id" name="Motivo" required maxlength="500" class="form-control"></textarea>
+                                <p>Se suspenderá la entrega. Si el destinatario ya recibió el paquete, corresponde una devolución.</p>
+                                <button type="submit" class="btn btn-danger">Confirmar cancelación</button>
+                            </form>
+                        </details>
+                    }
+                    </td>
+                }
             </tr>
         }
         </tbody>
