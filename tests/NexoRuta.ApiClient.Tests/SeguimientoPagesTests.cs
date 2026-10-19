@@ -12,13 +12,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NexoRuta.ApiClient.Core.Session;
 using NexoRuta.ApiClient.Features.Envios.Clients;
+using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.ApiClient.Features.Seguimiento.Clients;
 using NexoRuta.Commerce.Components.Features.Envios.Pages;
 using NexoRuta.Tracking.Components.Pages;
 
 namespace NexoRuta.ApiClient.Tests;
 
-public sealed class SeguimientoPagesTests
+public sealed partial class SeguimientoPagesTests
 {
     private static readonly Guid Acceso = Guid.NewGuid();
     private static readonly Guid Envio = Guid.NewGuid();
@@ -41,6 +42,7 @@ public sealed class SeguimientoPagesTests
         {
             Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
             Assert.Equal(ApiToken, request.Headers.Authorization.Parameter);
+            if (request.RequestUri!.AbsolutePath == "/api/usuarios/actual/permisos") return Respuesta(200, "[]");
             if (request.RequestUri!.AbsolutePath == "/api/envios")
                 return Respuesta(200, JsonSerializer.Serialize(new[] { new { id = Envio,
                     operadorNombre = "Operador de prueba", estado = "Admitido", bultos = Array.Empty<object>() } }));
@@ -51,6 +53,7 @@ public sealed class SeguimientoPagesTests
         })) { BaseAddress = new Uri("http://api.test/") };
         var services = Servicios(page);
         services.AddSingleton(new EnviosApiClient(http));
+        services.AddSingleton(new UsuariosApiClient(http));
         services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
         services.AddSingleton<NavigationManager>(navigation);
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
@@ -62,6 +65,7 @@ public sealed class SeguimientoPagesTests
             var root = await renderer.RenderAsync<MisEnvios>();
             Assert.Contains("Operador de prueba", root.ToHtmlString());
             Assert.Contains("Ver seguimiento", root.ToHtmlString());
+            Assert.DoesNotContain("Cancelar env", root.ToHtmlString());
             Assert.DoesNotContain(Token, root.ToHtmlString());
             Assert.DoesNotContain(ApiToken, root.ToHtmlString());
             // Invoke the same handler bound to the rendered button, without adding a UI test dependency.

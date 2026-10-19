@@ -46,6 +46,10 @@
                             <a class="nav-link text-dark" asp-area="" asp-page="/Index">Envíos</a>
                         </li>
                         }
+                        @if (permisos.Contains("envios.gestionar", StringComparer.Ordinal))
+                        {
+                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Rutas">Rutas y depósito</a></li>
+                        }
                         @if (permisos.Contains("usuarios.gestionar", StringComparer.Ordinal))
                         {
                             <li class="nav-item"><a class="nav-link text-dark" asp-page="/Usuarios">Usuarios</a></li>

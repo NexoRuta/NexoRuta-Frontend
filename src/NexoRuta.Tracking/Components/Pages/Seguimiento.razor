@@ -1,6 +1,8 @@
 @page "/seguimiento/{Token}"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
+@implements IDisposable
+@using NexoRuta.ApiClient.Core.Exceptions
 @using System.Net
 @using NexoRuta.ApiClient.Features.Seguimiento.Clients
 @inject SeguimientoApiClient SeguimientoClient
@@ -54,52 +56,91 @@
         </div>
     </section>
 
+    @if (PuedeCancelar)
+    {
+        <section class="card mt-4" aria-labelledby="cancelacion-titulo">
+            <div class="card-body">
+                <h2 id="cancelacion-titulo" class="h5">Cancelar envío</h2>
+                <p>Podés cancelar antes de recibir el paquete. Te enviaremos un código al correo registrado por el comercio.</p>
+                <button class="btn btn-outline-danger" disabled="@procesando" @onclick="SolicitarCodigo">@(codigoSolicitado ? "Solicitar otro código" : "Enviar código por correo")</button>
+                @if (codigoSolicitado)
+                {
+                    <div class="mt-3">
+                        <label for="codigo-cancelacion" class="form-label">Código recibido por correo</label>
+                        <input id="codigo-cancelacion" class="form-control" maxlength="32" autocomplete="one-time-code" @bind="codigo" disabled="@procesando" />
+                        <p class="small text-muted">No vence por tiempo. Al pedir otro código, el anterior deja de servir. Tenés cinco intentos por código.</p>
+                        <button class="btn btn-danger" disabled="@(procesando || string.IsNullOrWhiteSpace(codigo))" @onclick="Cancelar">Confirmar cancelación del envío</button>
+                    </div>
+                }
+                @if (mensajeCancelacion is not null) { <p role="status" class="mt-3">@mensajeCancelacion</p> }
+            </div>
+        </section>
+    }
+    @if (cancelado) { <div class="alert alert-success mt-4" role="status">El envío fue cancelado.</div> }
 </main>
 
 @code {
     [Parameter]
     public string Token { get; set; } = string.Empty;
 
-    private bool cargando = true;
-    private bool enlaceNoDisponible;
-    private bool limiteExcedido;
-    private string? estado;
+    private bool cargando = true, enlaceNoDisponible, limiteExcedido;
+    private bool procesando, codigoSolicitado, cancelado;
+    private string? estado, mensajeCancelacion;
+    private string codigo = "";
+    private CancellationTokenSource solicitudes = new();
+    private bool PuedeCancelar => estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado";
 
     protected override async Task OnParametersSetAsync()
     {
-        cargando = true;
-        estado = null;
-        enlaceNoDisponible = false;
-        limiteExcedido = false;
-
+        solicitudes.Cancel(); solicitudes.Dispose(); solicitudes = new();
+        var ct = solicitudes.Token;
+        cargando = true; estado = null; enlaceNoDisponible = false; limiteExcedido = false;
+        procesando = false; codigoSolicitado = false; cancelado = false; codigo = ""; mensajeCancelacion = null;
         try
         {
-            var respuesta = await SeguimientoClient.ConsultarAsync(Token);
-
-            if (respuesta is null)
-            {
-                enlaceNoDisponible = true;
-                return;
-            }
-
-            estado = respuesta.Estado;
+            var respuesta = await SeguimientoClient.ConsultarAsync(Token, ct);
+            if (ct.IsCancellationRequested) return;
+            estado = respuesta?.Estado;
+            enlaceNoDisponible = respuesta is null;
         }
-        catch (HttpRequestException ex)
-            when (ex.StatusCode == HttpStatusCode.TooManyRequests)
-        {
-            limiteExcedido = true;
-        }
-        catch (HttpRequestException)
-        {
-            // El bloque de error genérico se mostrará.
-        }
-        catch (TaskCanceledException)
-        {
-            // Puede producirse por un timeout HTTP.
-        }
-        finally
-        {
-            cargando = false;
-        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests) { if (!ct.IsCancellationRequested) limiteExcedido = true; }
+        catch (HttpRequestException) { }
+        catch (OperationCanceledException) { }
+        finally { if (!ct.IsCancellationRequested) cargando = false; }
     }
+
+    private Task SolicitarCodigo() => Operar(async (token, ct) => {
+        await SeguimientoClient.SolicitarCodigoCancelacionAsync(token, ct);
+        if (ct.IsCancellationRequested) return;
+        codigoSolicitado = true; codigo = "";
+        mensajeCancelacion = "Solicitamos el envío del código al correo registrado. Revisá también la carpeta de correo no deseado.";
+    });
+
+    private Task Cancelar() => Operar(async (token, ct) => {
+        await SeguimientoClient.CancelarAsync(token, codigo, ct);
+        if (ct.IsCancellationRequested) return;
+        estado = "Cancelado"; cancelado = true; codigo = ""; mensajeCancelacion = null;
+    });
+
+    private async Task Operar(Func<string, CancellationToken, Task> accion)
+    {
+        if (procesando) return;
+        var ct = solicitudes.Token; var token = Token;
+        procesando = true; mensajeCancelacion = null;
+        try { await accion(token, ct); }
+        catch (NexoRutaApiException ex) when (!ct.IsCancellationRequested)
+        {
+            mensajeCancelacion = ex.StatusCode switch {
+                HttpStatusCode.TooManyRequests => "Esperá un minuto antes de volver a intentarlo.",
+                HttpStatusCode.NotFound => "El envío o enlace ya no permite cancelar. Si recibiste el paquete, corresponde una devolución.",
+                HttpStatusCode.BadRequest => ex.Message,
+                _ => "No pudimos completar la operación. Intentá de nuevo."
+            };
+        }
+        catch (HttpRequestException) { if (!ct.IsCancellationRequested) mensajeCancelacion = "No hay conexión con el servicio. Intentá de nuevo."; }
+        catch (OperationCanceledException) { if (!ct.IsCancellationRequested) mensajeCancelacion = "La consulta demoró demasiado. Intentá de nuevo."; }
+        finally { if (!ct.IsCancellationRequested) procesando = false; }
+    }
+
+    public void Dispose() { solicitudes.Cancel(); solicitudes.Dispose(); }
 }

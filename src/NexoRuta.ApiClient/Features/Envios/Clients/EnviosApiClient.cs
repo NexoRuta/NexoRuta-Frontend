@@ -10,6 +10,12 @@ namespace NexoRuta.ApiClient.Features.Envios.Clients;
 
 public sealed class EnviosApiClient(HttpClient httpClient)
 {
+    public async Task<EnvioCanceladoResponse> CancelarAsync(Guid envioId, long version, string motivo, string token, CancellationToken ct = default)
+    {
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Post, $"api/envios/{envioId}/cancelacion")
+        { Content = JsonContent.Create(new { Version = version, Motivo = motivo }) }, token);
+        return await ApiHttp.SendAsync<EnvioCanceladoResponse>(httpClient, request, ct);
+    }
     public async Task<Uri?> ObtenerSeguimientoAsync(Guid envioId, string token,
         Uri trackingBase, CancellationToken cancellationToken = default)
     {

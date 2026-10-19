@@ -28,6 +28,7 @@ public sealed class EnviosApiClientTests
             Assert.Equal("application/json", request.Content!.Headers.ContentType!.MediaType);
             using var body = JsonDocument.Parse(await request.Content.ReadAsStringAsync(cancellationToken));
             Assert.Equal("Ana", body.RootElement.GetProperty("destinatarioNombre").GetString());
+            Assert.Equal("destinatario@example.test", body.RootElement.GetProperty("destinatarioEmail").GetString());
             Assert.Equal(1250m, body.RootElement.GetProperty("pesoGramos").GetDecimal());
             Assert.Equal("00000000-0000-0000-0000-000000000002", body.RootElement.GetProperty("operadorId").GetString());
             Assert.False(body.RootElement.TryGetProperty("comercioId", out _));
@@ -140,11 +141,19 @@ public sealed class EnviosApiClientTests
     [InlineData("1000000000", false)]
     public void Formulario_RespetaLosLimitesNumericosDeLaApi(string value, bool expected)
     {
-        Assert.Equal("es-UY", CultureInfo.CurrentCulture.Name);
-        var request = ValidRequest();
-        var number = decimal.Parse(value, CultureInfo.InvariantCulture);
-        request.PesoGramos = request.LargoCentimetros = request.AnchoCentimetros = request.AltoCentimetros = number;
-        Assert.Equal(expected, Validator.TryValidateObject(request, new ValidationContext(request), [], validateAllProperties: true));
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("es-UY");
+            var request = ValidRequest();
+            var number = decimal.Parse(value, CultureInfo.InvariantCulture);
+            request.PesoGramos = request.LargoCentimetros = request.AnchoCentimetros = request.AltoCentimetros = number;
+            Assert.Equal(expected, Validator.TryValidateObject(request, new ValidationContext(request), [], validateAllProperties: true));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]
@@ -171,7 +180,7 @@ public sealed class EnviosApiClientTests
     {
         using var http = CreateHttpClient((request, _) =>
         {
-            Assert.Equal("/api/comercio/operadores", request.RequestUri!.AbsolutePath);
+            Assert.Equal("/api/operadores", request.RequestUri!.AbsolutePath);
             Assert.Equal(ApiToken, request.Headers.Authorization!.Parameter);
             return Task.FromResult(JsonResponse(HttpStatusCode.OK, """
                 [{"operadorId":"00000000-0000-0000-0000-000000000002",
@@ -224,7 +233,7 @@ public sealed class EnviosApiClientTests
     private static CrearEnvioRequest ValidRequest() => new()
     {
         OperadorId = Guid.Parse("00000000-0000-0000-0000-000000000002"),
-        DestinatarioNombre = "Ana",
+        DestinatarioNombre = "Ana", DestinatarioEmail = "destinatario@example.test",
         Direccion = "18 de Julio 123",
         CodigoBulto = "B-001",
         PesoGramos = 1250m,
