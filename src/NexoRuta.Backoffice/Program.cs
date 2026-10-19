@@ -7,7 +7,9 @@ using NexoRuta.ApiClient.Features.Auth.Clients;
 using NexoRuta.ApiClient.Features.Roles.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.ApiClient.Features.Organizaciones.Clients;
+using NexoRuta.ApiClient.Features.ZonasCobertura.Clients;
 using NexoRuta.Backoffice.Core.Security;
+using NexoRuta.Backoffice.Features.ZonasCobertura;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHealthChecks();
@@ -18,7 +20,10 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/", SesionUsuario.Operador);
     options.Conventions.AuthorizePage("/Index", "envios.consultar");
     options.Conventions.AuthorizePage("/Usuarios", "usuarios.gestionar");
-    options.Conventions.AuthorizePage("/Roles", "configuracion.gestionar");
+    options.Conventions.AuthorizePage("/Roles", ZonaCoberturaUi.PermisoGestionar);
+    options.Conventions.AuthorizePage("/ZonasCobertura/Index", ZonaCoberturaUi.PermisoGestionar);
+    options.Conventions.AuthorizePage("/ZonasCobertura/Crear", ZonaCoberturaUi.PermisoGestionar);
+    options.Conventions.AuthorizePage("/ZonasCobertura/Detalle", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AllowAnonymousToPage("/Ingresar");
     options.Conventions.AllowAnonymousToPage("/Error");
     options.Conventions.AllowAnonymousToPage("/AccesoDenegado");
@@ -56,7 +61,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(SesionUsuario.Operador, policy =>
         policy.RequireAuthenticatedUser().RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Operador));
-    foreach (var permission in new[] { "envios.consultar", "usuarios.gestionar", "configuracion.gestionar" })
+    foreach (var permission in new[] { "envios.consultar", "usuarios.gestionar", ZonaCoberturaUi.PermisoGestionar })
         options.AddPolicy(permission, policy => policy.RequireAuthenticatedUser().AddRequirements(new ApiPermissionRequirement(permission)));
 });
 builder.Services.AddScoped<IAuthorizationHandler, ApiPermissionAuthorizationHandler>();
@@ -67,7 +72,8 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<RolesApiClient>()
     .AddTypedClient<UsuariosApiClient>()
     .AddTypedClient<OrganizacionPropiaApiClient>()
-    .AddTypedClient<OrganizacionSuspendidaApiClient>();
+      .AddTypedClient<OrganizacionSuspendidaApiClient>()
+      .AddTypedClient<ZonasCoberturaApiClient>();
 
 var app = builder.Build();
 

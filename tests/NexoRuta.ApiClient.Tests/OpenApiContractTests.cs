@@ -19,6 +19,74 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task CoverageEndpointsArePublishedInTheVersionedOpenApiContract()
+    {
+        using var document = await LoadOpenApiAsync();
+        var paths = document.RootElement.GetProperty("paths");
+        var operations = new Dictionary<string, string[]>
+        {
+            ["/api/configuracion/zonas"] = ["get", "post"],
+            ["/api/configuracion/zonas/{zonaId}"] = ["get", "put"],
+            ["/api/configuracion/zonas/{zonaId}/estado"] = ["put"],
+            ["/api/configuracion/zonas/{zonaId}/franjas"] = ["get", "post"],
+            ["/api/configuracion/zonas/{zonaId}/franjas/{franjaId}"] = ["put"],
+            ["/api/configuracion/zonas/departamentos"] = ["get"],
+            ["/api/configuracion/zonas/departamentos/territorio"] = ["get"],
+            ["/api/configuracion/zonas/departamentos/{codigo}"] = ["get"],
+            ["/api/configuracion/zonas/cobertura"] = ["post"]
+        };
+
+        foreach (var (path, methods) in operations)
+        {
+            Assert.True(paths.TryGetProperty(path, out var item), $"OpenAPI path {path} is missing.");
+            foreach (var method in methods)
+                Assert.True(item.TryGetProperty(method, out _), $"OpenAPI operation {method.ToUpperInvariant()} {path} is missing.");
+        }
+    }
+
+    [Fact]
+    public async Task CoverageOpenApiDocumentsGeoJsonSlotPrecisionVersionAndErrors()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+        var create = paths.GetProperty("/api/configuracion/zonas").GetProperty("post");
+        var createSchema = Resolve(create.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Equal(new[] { "nombre" }, createSchema.GetProperty("required").EnumerateArray()
+            .Select(x => x.GetString()).Order());
+        Assert.Contains("geometria", createSchema.GetProperty("properties").EnumerateObject().Select(x => x.Name));
+        Assert.Contains("codigoDepartamento", createSchema.GetProperty("properties").EnumerateObject().Select(x => x.Name));
+        Assert.False(createSchema.GetProperty("additionalProperties").GetBoolean());
+        var geometryUnion = createSchema.GetProperty("properties").GetProperty("geometria");
+        var geometryReference = geometryUnion.GetProperty("oneOf").EnumerateArray()
+            .Single(x => x.TryGetProperty("$ref", out _));
+        var geoJson = Resolve(geometryReference, root);
+        var geoJsonType = geoJson.GetProperty("properties").GetProperty("type");
+        Assert.Equal("^(Polygon|MultiPolygon)$", geoJsonType.GetProperty("pattern").GetString());
+        Assert.DoesNotContain("string", geoJson.GetProperty("properties").GetProperty("coordinates").GetRawText(),
+            StringComparison.OrdinalIgnoreCase);
+
+        var detail = paths.GetProperty("/api/configuracion/zonas/{zonaId}").GetProperty("get");
+        var detailSchema = Resolve(detail.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        var geometrySchema = detailSchema.GetProperty("properties").GetProperty("geometria");
+        Assert.DoesNotContain("string", geometrySchema.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        var geoJsonResponse = Resolve(geometrySchema, root);
+        Assert.Equal("object", geoJsonResponse.GetProperty("type").GetString());
+        Assert.Contains("coordinates", geoJsonResponse.GetProperty("properties").EnumerateObject().Select(x => x.Name));
+        var updateResponses = paths.GetProperty("/api/configuracion/zonas/{zonaId}").GetProperty("put").GetProperty("responses");
+        foreach (var status in new[] { "200", "400", "401", "403", "404", "409" })
+            Assert.Contains(status, updateResponses.EnumerateObject().Select(x => x.Name));
+
+        var slot = Resolve(paths.GetProperty("/api/configuracion/zonas/{zonaId}/franjas").GetProperty("post")
+            .GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Equal("time", slot.GetProperty("properties").GetProperty("horaInicio").GetProperty("format").GetString());
+        Assert.Equal(0, slot.GetProperty("properties").GetProperty("versionZona").GetProperty("minimum").GetInt32());
+        Assert.Contains("versionZona", slot.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+    }
+
+    [Fact]
     public async Task PasswordRecoveryIsPublicWithoutAdministrativePasswordRoutes()
     {
         using var document = await LoadOpenApiAsync();
