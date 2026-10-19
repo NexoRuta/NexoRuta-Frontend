@@ -1,0 +1,71 @@
+@page "/tarifas/publicar"
+@model NexoRuta.Backoffice.Features.Tarifas.Pages.PublicarModel
+@using NexoRuta.ApiClient.Features.Tarifas.Contracts
+@using NexoRuta.Backoffice.Features.Tarifas
+@{
+    ViewData["Title"] = "Publicar tarifas | Backoffice NexoRuta";
+}
+
+<link rel="stylesheet" href="~/css/tarifas.css" asp-append-version="true" />
+<h1>Revisar y publicar tarifas</h1>
+<p><a asp-page="/Tarifas/Borrador">Volver al borrador</a></p>
+@if (Model.Error is not null)
+{
+    <div class="alert @(Model.Conflict ? "alert-warning" : "alert-danger")" role="alert">
+        @Model.Error
+        @if (Model.Conflict) { <a class="d-block mt-2" asp-page="/Tarifas/Publicar">Recargar borrador actual</a> }
+    </div>
+}
+
+@if (Model.Borrador is { } draft)
+{
+    <section class="card tarifario-card mb-4" aria-labelledby="publish-summary-title">
+        <div class="card-body">
+            <h2 id="publish-summary-title" class="h4">Resumen que se publicará</h2>
+            <p>Esta acción crea una publicación inmutable. Para cambiarla después, se prepara un nuevo borrador.</p>
+            @if (draft.Tarifas.Count == 0)
+            {
+                <p class="alert alert-warning">El borrador no tiene tarifas. La API validará que haya al menos una oferta válida para una zona activa.</p>
+            }
+            else
+            {
+                <ul>
+                @foreach (var rate in draft.Tarifas)
+                {
+                    <li>
+                        <strong>@Model.ZonaNombre(rate.ZonaId)</strong> — @(rate.Modalidad == ModalidadTarifaria.Estandar ? "Estándar" : "Urgente"):
+                        base UYU @TarifasUi.FormatDecimal(rate.ImporteBaseUyu, 2), UYU @TarifasUi.FormatDecimal(rate.PrecioPorKilogramoUyu, 6)/kg,
+                        UYU @TarifasUi.FormatDecimal(rate.PrecioPorMetroCubicoUyu, 6)/m³.
+                        @if (Model.ZonaInactiva(rate.ZonaId)) { <span class="badge text-bg-warning">Zona inactiva; no es oferta operativa</span> }
+                        @if (rate.Ajustes.Count == 0)
+                        {
+                            <span>Sin ajustes.</span>
+                        }
+                        else
+                        {
+                            <ul class="mb-0">
+                            @foreach (var adjustment in rate.Ajustes)
+                            {
+                                <li>@adjustment.Nombre — @TarifasUi.AdjustmentLabel(adjustment.Tipo): @TarifasUi.AdjustmentValue(adjustment)</li>
+                            }
+                            </ul>
+                        }
+                    </li>
+                }
+                </ul>
+            }
+        </div>
+    </section>
+
+    <form method="post" data-single-submit>
+        <input type="hidden" asp-for="VersionConcurrencia" />
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" asp-for="ConfirmarPublicacion" required disabled="@Model.Conflict" />
+            <label class="form-check-label" asp-for="ConfirmarPublicacion">Confirmo publicar esta configuración como una versión inmutable.</label>
+            <span asp-validation-for="ConfirmarPublicacion" class="text-danger"></span>
+        </div>
+        <button class="btn btn-primary" type="submit" disabled="@Model.Conflict">Publicar tarifas</button>
+        <a class="btn btn-outline-secondary" asp-page="/Tarifas/Borrador">Seguir editando</a>
+    </form>
+}

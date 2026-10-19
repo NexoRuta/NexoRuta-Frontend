@@ -1,0 +1,87 @@
+@page "/tarifas"
+@model NexoRuta.Backoffice.Features.Tarifas.Pages.IndexModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Tarifas | Backoffice NexoRuta";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1>Tarifas</h1>
+        <p>Configurá, revisá y publicá las tarifas de este operador.</p>
+    </div>
+    <nav class="d-flex flex-wrap gap-2" aria-label="Acciones de tarifas">
+        <a class="btn btn-outline-primary" asp-page="/Tarifas/Publicaciones/Index">Historial</a>
+        <a class="btn btn-outline-primary" asp-page="/Tarifas/Simular">Simulador</a>
+    </nav>
+</div>
+
+@if (Model.Notice is not null)
+{
+    <p class="alert alert-success" role="status">@Model.Notice</p>
+}
+@if (Model.Error is not null)
+{
+    <p class="alert alert-danger" role="alert">@Model.Error <a asp-page="/Tarifas/Index">Recargar estado</a></p>
+}
+
+@if (Model.Estado is null)
+{
+    <p>El estado del tarifario no está disponible. No se muestran importes por defecto.</p>
+}
+else if (!Model.Estado.Configurado)
+{
+    <section class="card tarifario-card" aria-labelledby="empty-tariff-title">
+        <div class="card-body">
+            <h2 id="empty-tariff-title" class="h4">Sin publicación</h2>
+            <p>Todavía no hay una configuración de tarifas. Creá un borrador inicial para empezar.</p>
+            <form method="post" asp-page-handler="CrearBorrador" data-single-submit>
+                <button type="submit" class="btn btn-primary">Crear borrador inicial</button>
+            </form>
+        </div>
+    </section>
+}
+else
+{
+    @if (Model.Estado.PublicacionVigente is { } current)
+    {
+        <section class="card tarifario-card mb-3" aria-labelledby="current-tariff-title">
+            <div class="card-body">
+                <h2 id="current-tariff-title" class="h4">Publicación vigente</h2>
+                <p class="mb-2">Versión publicada <strong>@current.NumeroVersionPublicada</strong>
+                    · @current.PublicadaUtc?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</p>
+                <a asp-page="/Tarifas/Publicaciones/Detalle" asp-route-versionId="@current.VersionTarifarioId">Consultar publicación</a>
+                <span aria-hidden="true"> · </span>
+                <a asp-page="/Tarifas/Simular" asp-route-versionTarifarioId="@current.VersionTarifarioId">Simular</a>
+            </div>
+        </section>
+    }
+    else
+    {
+        <p class="alert alert-info">Sin publicación vigente. Las tarifas todavía no son una oferta publicada.</p>
+    }
+
+    @if (Model.Estado.Borrador is { } draft)
+    {
+        <section class="card tarifario-card" aria-labelledby="draft-tariff-title">
+            <div class="card-body">
+                <h2 id="draft-tariff-title" class="h4">Borrador</h2>
+                <p>Versión de concurrencia: @draft.VersionConcurrencia. Los cambios no se publican hasta que confirmes esa acción.</p>
+                <a class="btn btn-primary" asp-page="/Tarifas/Borrador">Continuar borrador</a>
+                <a class="btn btn-outline-primary ms-1" asp-page="/Tarifas/Simular" asp-route-versionTarifarioId="@draft.VersionTarifarioId">Simular borrador guardado</a>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="card tarifario-card" aria-labelledby="new-draft-title">
+            <div class="card-body">
+                <h2 id="new-draft-title" class="h4">Sin borrador</h2>
+                <p>La publicación vigente no se puede editar. Podés preparar una copia independiente para el próximo cambio.</p>
+                <form method="post" asp-page-handler="CrearBorrador" data-single-submit>
+                    <button type="submit" class="btn btn-primary">Crear copia como borrador</button>
+                </form>
+            </div>
+        </section>
+    }
+}

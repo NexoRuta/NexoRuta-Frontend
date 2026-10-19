@@ -23,6 +23,10 @@ public sealed partial class BackofficeSessionAndPagesTests
     private static readonly Guid ProtectedRoleId = Guid.Parse("00000000-0000-0000-0000-000000000204");
     private static readonly Guid CoverageZoneId = Guid.Parse("00000000-0000-0000-0000-000000000401");
     private static readonly Guid CoverageSlotId = Guid.Parse("00000000-0000-0000-0000-000000000402");
+    private static readonly Guid TariffDraftId = Guid.Parse("00000000-0000-0000-0000-000000000501");
+    private static readonly Guid TariffPublishedId = Guid.Parse("00000000-0000-0000-0000-000000000502");
+    private static readonly Guid TariffActiveZoneId = Guid.Parse("00000000-0000-0000-0000-000000000503");
+    private static readonly Guid TariffInactiveZoneId = Guid.Parse("00000000-0000-0000-0000-000000000504");
 
     [Fact]
     public async Task ZoneNavigationAndPagesRequireCurrentOperatorPermission()
@@ -42,12 +46,344 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.DoesNotContain("jwt-user", html);
         Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/zonas" && call.Token == "jwt-user");
         using var independentPage = await client.GetAsync("/ingresar");
-        Assert.Contains("href=\"/zonas\"", await independentPage.Content.ReadAsStringAsync());
+        var independentHtml = await independentPage.Content.ReadAsStringAsync();
+        Assert.Contains("href=\"/zonas\"", independentHtml);
+        Assert.Contains("href=\"/tarifas\"", independentHtml);
 
         api.PermissionOverrides["jwt-user"] = [];
         using var denied = await client.GetAsync("/zonas/crear");
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
         Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TariffHomeShowsUnconfiguredStateOnlyToAuthorizedOperators()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var home = await client.GetAsync("/tarifas");
+        Assert.Equal(HttpStatusCode.OK, home.StatusCode);
+        var html = await home.Content.ReadAsStringAsync();
+        Assert.Contains("Sin publicación", html);
+        Assert.Contains("Crear borrador inicial", html);
+        Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/tarifas" && call.Token == "jwt-user");
+
+        api.PermissionOverrides["jwt-user"] = [];
+        using var denied = await client.GetAsync("/tarifas/borrador");
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TariffDraftReplacesFullCollectionAndIncludesInactiveZoneReferencesFromEveryCatalogPage()
+    {
+        var api = new FakeApi { HasTariffDraft = true, UseTariffZoneCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        api.TariffDraftRates =
+        [
+            new(TariffActiveZoneId, "Estandar", 10m, 1.25m, 2.5m,
+                [new("Protección", "RecargoFijo", 3.75m, null)]),
+            new(TariffInactiveZoneId, "Urgente", 0m, 0m, 0m, [])
+        ];
+        api.TariffZones = Enumerable.Range(0, 52)
+            .Select(i => new TariffZoneFixture(Guid.Parse($"00000000-0000-0000-0000-{600 + i:D12}"), $"Zona activa {i + 1}", "Activa"))
+            .Append(new TariffZoneFixture(TariffActiveZoneId, "Centro", "Activa"))
+            .Append(new TariffZoneFixture(TariffInactiveZoneId, "Norte", "Inactiva"))
+            .ToList();
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        var token = await GetAntiforgeryTokenAsync(client, "/tarifas/borrador");
+        using var page = await client.GetAsync("/tarifas/borrador");
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/zonas" && call.Query.Contains("pagina=2", StringComparison.Ordinal));
+        Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/zonas" && call.Query.Contains("estado=Inactiva", StringComparison.Ordinal));
+        Assert.Contains("Norte", html);
+        Assert.Contains("Inactiva", html);
+        Assert.Contains("tarifa conservada", html);
+        Assert.Contains("Protecci&#xF3;n", html);
+        Assert.Contains("Hay cambios sin guardar", html);
+        var decoded = WebUtility.HtmlDecode(html);
+        Assert.Contains("¿Cómo modifica el precio?", decoded);
+        Assert.Contains("Sumar un importe fijo ($)", decoded);
+        Assert.Contains("Sumar un porcentaje (%)", decoded);
+        Assert.Contains("Descontar un importe fijo ($)", decoded);
+        Assert.Contains("Descontar un porcentaje (%)", decoded);
+        Assert.Contains("Importe a sumar (UYU)", decoded);
+        Assert.Contains("Porcentaje a sumar (%)", decoded);
+        Assert.Contains("Importe a descontar (UYU)", decoded);
+        Assert.Contains("Porcentaje a descontar (%)", decoded);
+        Assert.Contains("Se aplica una vez por envío.", decoded);
+        Assert.Contains("Se calcula sobre el subtotal de base, peso y volumen.", decoded);
+
+        using var saved = await client.PostAsync("/tarifas/borrador?handler=Guardar", Form(token,
+            ("VersionConcurrencia", "4"),
+            ("Tarifas[0].ZonaId", TariffActiveZoneId.ToString("D")), ("Tarifas[0].Modalidad", "Estandar"),
+            ("Tarifas[0].ImporteBaseUyu", "12,34"), ("Tarifas[0].PrecioPorKilogramoUyu", "1,123456"),
+            ("Tarifas[0].PrecioPorMetroCubicoUyu", "7,654321"),
+            ("Tarifas[0].Ajustes[0].Nombre", "Protección"), ("Tarifas[0].Ajustes[0].Tipo", "RecargoFijo"), ("Tarifas[0].Ajustes[0].Valor", "4,50"),
+            ("Tarifas[1].ZonaId", TariffInactiveZoneId.ToString("D")), ("Tarifas[1].Modalidad", "Urgente"),
+            ("Tarifas[1].ImporteBaseUyu", "0"), ("Tarifas[1].PrecioPorKilogramoUyu", "0"),
+            ("Tarifas[1].PrecioPorMetroCubicoUyu", "0")));
+
+        Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
+        Assert.Equal("/tarifas/borrador", saved.Headers.Location!.OriginalString);
+        var call = Assert.Single(api.TariffPayloads, item => item.Path == "/api/configuracion/tarifas/borrador/tarifas");
+        Assert.Equal("jwt-user", call.Token);
+        Assert.Equal(4, call.Body.GetProperty("versionConcurrencia").GetInt64());
+        var rates = call.Body.GetProperty("tarifas").EnumerateArray().ToArray();
+        Assert.Equal(2, rates.Length);
+        Assert.Equal(TariffActiveZoneId, rates[0].GetProperty("zonaId").GetGuid());
+        Assert.Equal(1.123456m, rates[0].GetProperty("precioPorKilogramoUyu").GetDecimal());
+        Assert.Equal(4.50m, rates[0].GetProperty("ajustes")[0].GetProperty("importeFijoUyu").GetDecimal());
+        Assert.Equal(TariffInactiveZoneId, rates[1].GetProperty("zonaId").GetGuid());
+        Assert.Equal(0m, rates[1].GetProperty("importeBaseUyu").GetDecimal());
+    }
+
+    [Fact]
+    public async Task TariffStaleDraftKeepsFormValuesAndDoesNotRetryReplacement()
+    {
+        var api = new FakeApi { HasTariffDraft = true, UseTariffZoneCatalog = true,
+            TariffSaveStatusOverride = HttpStatusCode.Conflict };
+        api.TariffZones = [new(TariffActiveZoneId, "Centro", "Activa")];
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/tarifas/borrador");
+
+        using var response = await client.PostAsync("/tarifas/borrador?handler=Guardar", Form(token,
+            ("VersionConcurrencia", "4"),
+            ("Tarifas[0].ZonaId", TariffActiveZoneId.ToString("D")), ("Tarifas[0].Modalidad", "Estandar"),
+            ("Tarifas[0].ImporteBaseUyu", "555,25"), ("Tarifas[0].PrecioPorKilogramoUyu", "1"),
+            ("Tarifas[0].PrecioPorMetroCubicoUyu", "2")));
+
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("no se sobrescribieron cambios", html);
+        Assert.Contains("555,25", html);
+        Assert.Contains("Recargar borrador actual", html);
+        Assert.Single(api.TariffPayloads, item => item.Method == HttpMethod.Put);
+    }
+
+    [Fact]
+    public async Task TariffPublicationRequiresConfirmationAndNeverSavesDraftAsASideEffect()
+    {
+        var api = new FakeApi { HasTariffDraft = true, UseTariffZoneCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        api.TariffDraftRates = [new(TariffActiveZoneId, "Estandar", 10m, 1m, 2m,
+            [new("Protección", "RecargoFijo", 3.75m, null)])];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        var token = await GetAntiforgeryTokenAsync(client, "/tarifas/publicar");
+        using var page = await client.GetAsync("/tarifas/publicar");
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.Contains("publicación inmutable", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Sumar un importe fijo ($)", WebUtility.HtmlDecode(html));
+        Assert.Contains("ConfirmarPublicacion", html);
+
+        using var unconfirmed = await client.PostAsync("/tarifas/publicar", Form(token, ("VersionConcurrencia", "4")));
+        Assert.Equal(HttpStatusCode.OK, unconfirmed.StatusCode);
+        Assert.Empty(api.TariffPayloads);
+
+        token = await GetAntiforgeryTokenAsync(client, "/tarifas/publicar");
+        using var published = await client.PostAsync("/tarifas/publicar", Form(token,
+            ("VersionConcurrencia", "4"), ("ConfirmarPublicacion", "true")));
+        Assert.Equal(HttpStatusCode.Redirect, published.StatusCode);
+        Assert.StartsWith("/tarifas/publicaciones/", published.Headers.Location!.OriginalString, StringComparison.Ordinal);
+        Assert.Single(api.TariffPayloads, item => item.Method == HttpMethod.Post && item.Path.EndsWith("/borrador/publicar", StringComparison.Ordinal));
+        Assert.DoesNotContain(api.TariffPayloads, item => item.Method == HttpMethod.Put);
+    }
+
+    [Fact]
+    public async Task TariffSimulatorNavigationAndParcelEditingButtonsBypassUnrelatedRequiredFields()
+    {
+        var api = new FakeApi { HasTariffDraft = true, UseTariffZoneCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var page = await client.GetAsync($"/tarifas/simular?versionTarifarioId={TariffDraftId:D}");
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+
+        static string ButtonTag(string markup, string handler) => Regex.Match(markup,
+            $"<button\\b(?=[^>]*formaction=\\\"[^\\\"]*handler={handler})[^>]*>", RegexOptions.Singleline).Value;
+
+        foreach (var handler in new[] { "CargarVersion", "CargarZona", "AgregarBulto" })
+            Assert.Contains("formnovalidate", ButtonTag(html, handler), StringComparison.OrdinalIgnoreCase);
+
+        Assert.DoesNotContain("formnovalidate", ButtonTag(html, "Simular"), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task TariffSimulatorSendsEveryParcelAndRendersThePersistedApiBreakdown()
+    {
+        var api = new FakeApi { HasTariffDraft = true, UseTariffZoneCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var page = await client.GetAsync($"/tarifas/simular?versionTarifarioId={TariffDraftId:D}");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var token = await GetAntiforgeryTokenAsync(client, $"/tarifas/simular?versionTarifarioId={TariffDraftId:D}");
+        using var response = await client.PostAsync("/tarifas/simular?handler=Simular", Form(token,
+            ("VersionTarifarioId", TariffDraftId.ToString("D")), ("ZonaId", TariffActiveZoneId.ToString("D")),
+            ("Modalidad", "Estandar"),
+            ("Bultos[0].PesoGramos", "1000"), ("Bultos[0].LargoCentimetros", "20"),
+            ("Bultos[0].AnchoCentimetros", "10"), ("Bultos[0].AltoCentimetros", "5"),
+            ("Bultos[1].PesoGramos", "500"), ("Bultos[1].LargoCentimetros", "10"),
+            ("Bultos[1].AnchoCentimetros", "10"), ("Bultos[1].AltoCentimetros", "10")));
+
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("UYU 265,84", html);
+        Assert.Contains("Total antes del piso cero", html);
+        Assert.Contains("Sumar un porcentaje (%)", WebUtility.HtmlDecode(html));
+        var simulation = Assert.Single(api.TariffPayloads, item => item.Path == "/api/configuracion/tarifas/simulaciones");
+        Assert.Equal("jwt-user", simulation.Token);
+        Assert.Equal(2, simulation.Body.GetProperty("bultos").GetArrayLength());
+        Assert.False(simulation.Body.TryGetProperty("importeBaseUyu", out _));
+    }
+
+    [Fact]
+    public async Task TariffDraftCreationIsAntiforgeryProtectedAndCopiesFromCurrentPublication()
+    {
+        var api = new FakeApi { HasCurrentTariffPublication = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var home = await client.GetAsync("/tarifas");
+        var homeHtml = await home.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, home.StatusCode);
+        Assert.Contains("Crear copia como borrador", homeHtml);
+        var token = await GetAntiforgeryTokenAsync(client, "/tarifas");
+        using var rejected = await client.PostAsync("/tarifas?handler=CrearBorrador",
+            new FormUrlEncodedContent(new Dictionary<string, string>()));
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        Assert.DoesNotContain(api.Calls, call => call.Path == "/api/configuracion/tarifas/borrador" && call.Method == HttpMethod.Post);
+
+        using var created = await client.PostAsync("/tarifas?handler=CrearBorrador", Form(token));
+
+        Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+        Assert.Equal("/tarifas/borrador", created.Headers.Location!.OriginalString);
+        Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/tarifas/borrador" &&
+            call.Method == HttpMethod.Post && call.Token == "jwt-user");
+    }
+
+    [Fact]
+    public async Task TariffRemovalStaysLocalUntilFullDraftReplacement()
+    {
+        var api = new FakeApi { HasTariffDraft = true, UseTariffZoneCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        api.TariffZones = [new(TariffActiveZoneId, "Centro", "Activa")];
+        api.TariffDraftRates = [new(TariffActiveZoneId, "Estandar", 10m, 1m, 2m, [])];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/tarifas/borrador");
+
+        using var removed = await client.PostAsync("/tarifas/borrador?indice=0&handler=QuitarTarifa", Form(token,
+            ("VersionConcurrencia", "4"), ("Tarifas[0].ZonaId", TariffActiveZoneId.ToString("D")),
+            ("Tarifas[0].Modalidad", "Estandar"), ("Tarifas[0].ImporteBaseUyu", "10"),
+            ("Tarifas[0].PrecioPorKilogramoUyu", "1"), ("Tarifas[0].PrecioPorMetroCubicoUyu", "2")));
+
+        var html = await removed.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+        Assert.Contains("Hay cambios sin guardar", html);
+        Assert.DoesNotContain("Tarifa 1", html);
+        Assert.Empty(api.TariffPayloads);
+    }
+
+    [Fact]
+    public async Task TariffPublishedHistoryAndDetailAreReadOnlyAndUsePagedApiContract()
+    {
+        var api = new FakeApi { HasCurrentTariffPublication = true, UseTariffZoneCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        api.TariffZones = [new(TariffActiveZoneId, "Centro", "Activa")];
+        api.TariffPublishedRates = [new(TariffActiveZoneId, "Urgente", 0m, 2m, 3m,
+            [new("Descuento", "BonificacionPorcentual", null, 5m)])];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var history = await client.GetAsync("/tarifas/publicaciones?pagina=1&tamanoPagina=10");
+        Assert.Equal(HttpStatusCode.OK, history.StatusCode);
+        Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/tarifas/publicaciones" &&
+            call.Query.Contains("pagina=1", StringComparison.Ordinal) && call.Query.Contains("tamanoPagina=10", StringComparison.Ordinal));
+
+        using var detail = await client.GetAsync($"/tarifas/publicaciones/{TariffPublishedId:D}");
+        var html = await detail.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Contains("UYU 0", html);
+        Assert.Contains("Descontar un porcentaje (%)", WebUtility.HtmlDecode(html));
+        Assert.DoesNotContain("name=\"Tarifas[0]", html);
+        Assert.DoesNotContain("Guardar borrador", html);
+        Assert.Contains("Simular esta publicaci", html);
+    }
+
+    [Fact]
+    public async Task TariffPermissionDoesNotGrantCommerceAdministrativeScope()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-commerce"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "commerce@example.test");
+
+        using var response = await client.GetAsync("/tarifas");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/ingresar", response.Headers.Location!.AbsolutePath);
+        Assert.DoesNotContain(api.Calls, call => call.Path == "/api/configuracion/tarifas");
+    }
+
+    [Fact]
+    public async Task TariffPagesKeepExpiredForbiddenAndMissingResourceResponsesControlled()
+    {
+        var expiredApi = new FakeApi { TariffStateStatusOverride = HttpStatusCode.Unauthorized };
+        expiredApi.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using (var factory = new BackofficeFactory(expiredApi))
+        using (var client = Client(factory))
+        {
+            await LoginAsync(client, "user@example.test");
+            using var expired = await client.GetAsync("/tarifas");
+            Assert.Equal(HttpStatusCode.Redirect, expired.StatusCode);
+            Assert.Equal("/ingresar?expirada=true", expired.Headers.Location!.OriginalString);
+        }
+
+        var forbiddenApi = new FakeApi { TariffStateStatusOverride = HttpStatusCode.Forbidden };
+        forbiddenApi.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using (var factory = new BackofficeFactory(forbiddenApi))
+        using (var client = Client(factory))
+        {
+            await LoginAsync(client, "user@example.test");
+            using var forbidden = await client.GetAsync("/tarifas");
+            Assert.Equal(HttpStatusCode.OK, forbidden.StatusCode);
+            Assert.Contains("No ten", await forbidden.Content.ReadAsStringAsync());
+        }
+
+        var missingApi = new FakeApi();
+        missingApi.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using (var factory = new BackofficeFactory(missingApi))
+        using (var client = Client(factory))
+        {
+            await LoginAsync(client, "user@example.test");
+            using var missing = await client.GetAsync("/tarifas/publicaciones/00000000-0000-0000-0000-000000000999");
+            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        }
     }
 
     [Fact]
@@ -1474,6 +1810,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     private sealed partial class FakeApi
     {
         public ConcurrentQueue<ApiCall> Calls { get; } = new();
+        public ConcurrentQueue<TariffPayloadCall> TariffPayloads { get; } = new();
         public ConcurrentDictionary<string, string[]> PermissionOverrides { get; } = new(StringComparer.Ordinal);
         public HttpStatusCode? PermissionStatusOverride { get; init; }
         public Exception? PermissionFailure { get; init; }
@@ -1498,6 +1835,17 @@ public sealed partial class BackofficeSessionAndPagesTests
         public HttpStatusCode? ZoneUpdateStatusOverride { get; init; }
         public HttpStatusCode? SlotCreateStatusOverride { get; init; }
         public HttpStatusCode? SlotUpdateStatusOverride { get; init; }
+        public bool HasTariffDraft { get; set; }
+        public bool HasCurrentTariffPublication { get; set; }
+        public bool UseTariffZoneCatalog { get; set; }
+        public long TariffConcurrencyVersion { get; set; } = 4;
+        public int TariffPublishedNumber { get; set; } = 1;
+        public HttpStatusCode? TariffSaveStatusOverride { get; set; }
+        public HttpStatusCode? TariffPublishStatusOverride { get; set; }
+        public HttpStatusCode? TariffStateStatusOverride { get; set; }
+        public List<TariffRateFixture> TariffDraftRates { get; set; } = [new(TariffActiveZoneId, "Estandar", 10m, 1m, 2m, [])];
+        public List<TariffRateFixture> TariffPublishedRates { get; set; } = [];
+        public List<TariffZoneFixture> TariffZones { get; set; } = [];
         public ConcurrentQueue<ZonePayloadCall> ZonePayloads { get; } = new();
         public HttpMessageHandler CreateHandler() => new ApiHandler(this);
 
@@ -1657,6 +2005,85 @@ public sealed partial class BackofficeSessionAndPagesTests
                     return Json(roleStatus, new { message = "Invalid role input" });
                 return Json(HttpStatusCode.Created, new { id = RoleId });
             }
+            if (path == "/api/configuracion/tarifas" && request.Method == HttpMethod.Get)
+            {
+                if (TariffStateStatusOverride is { } stateStatus)
+                    return Json(stateStatus, new { message = "tariff state unavailable" });
+                return Json(HttpStatusCode.OK, TariffStateResponse());
+            }
+            if (path == "/api/configuracion/tarifas/borrador" && request.Method == HttpMethod.Post)
+            {
+                HasTariffDraft = true;
+                return Json(HttpStatusCode.Created, TariffVersionResponse(TariffDraftId, "Borrador", null, TariffConcurrencyVersion, TariffDraftRates));
+            }
+            if (path == "/api/configuracion/tarifas/borrador" && request.Method == HttpMethod.Get)
+            {
+                if (!HasTariffDraft) return Json(HttpStatusCode.NotFound, new { message = "Not found" });
+                return Json(HttpStatusCode.OK, TariffVersionResponse(TariffDraftId, "Borrador", null, TariffConcurrencyVersion, TariffDraftRates));
+            }
+            if (path == "/api/configuracion/tarifas/borrador/tarifas" && request.Method == HttpMethod.Put)
+            {
+                var body = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();
+                TariffPayloads.Enqueue(new(path, request.Method, token, body));
+                if (TariffSaveStatusOverride is { } saveStatus)
+                    return Json(saveStatus, new { message = "The draft changed." });
+                TariffConcurrencyVersion++;
+                TariffDraftRates = body.GetProperty("tarifas").EnumerateArray().Select(rate => new TariffRateFixture(
+                    rate.GetProperty("zonaId").GetGuid(), rate.GetProperty("modalidad").GetString()!,
+                    rate.GetProperty("importeBaseUyu").GetDecimal(), rate.GetProperty("precioPorKilogramoUyu").GetDecimal(),
+                    rate.GetProperty("precioPorMetroCubicoUyu").GetDecimal(), rate.GetProperty("ajustes").EnumerateArray()
+                        .Select(adjustment => new TariffAdjustmentFixture(adjustment.GetProperty("nombre").GetString()!,
+                            adjustment.GetProperty("tipo").GetString()!, ReadNullableDecimal(adjustment, "importeFijoUyu"),
+                            ReadNullableDecimal(adjustment, "porcentaje"))).ToList())).ToList();
+                return Json(HttpStatusCode.OK, TariffVersionResponse(TariffDraftId, "Borrador", null, TariffConcurrencyVersion, TariffDraftRates));
+            }
+            if (path == "/api/configuracion/tarifas/borrador/publicar" && request.Method == HttpMethod.Post)
+            {
+                var body = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();
+                TariffPayloads.Enqueue(new(path, request.Method, token, body));
+                if (TariffPublishStatusOverride is { } publishStatus)
+                    return Json(publishStatus, new { message = "The draft cannot be published." });
+                HasCurrentTariffPublication = true;
+                HasTariffDraft = false;
+                TariffPublishedRates = [.. TariffDraftRates];
+                return Json(HttpStatusCode.OK, TariffVersionResponse(TariffPublishedId, "Publicada", TariffPublishedNumber, TariffConcurrencyVersion, TariffPublishedRates));
+            }
+            if (path == "/api/configuracion/tarifas/publicaciones" && request.Method == HttpMethod.Get)
+            {
+                var query = request.RequestUri!.Query;
+                var page = QueryInteger(query, "pagina", 1);
+                var pageSize = QueryInteger(query, "tamanoPagina", 20);
+                var allItems = HasCurrentTariffPublication
+                    ? new[] { TariffVersionSummary(TariffPublishedId, "Publicada", TariffPublishedNumber, TariffConcurrencyVersion) }
+                    : Array.Empty<object>();
+                var items = allItems.Skip((page - 1) * pageSize).Take(pageSize);
+                return Json(HttpStatusCode.OK, new { items, pagina = page, tamanoPagina = pageSize, total = allItems.Length });
+            }
+            if (path.StartsWith("/api/configuracion/tarifas/publicaciones/", StringComparison.Ordinal) && request.Method == HttpMethod.Get)
+            {
+                if (!Guid.TryParse(path[("/api/configuracion/tarifas/publicaciones/".Length)..], out var versionId) ||
+                    versionId != TariffPublishedId || !HasCurrentTariffPublication)
+                    return Json(HttpStatusCode.NotFound, new { message = "Not found" });
+                return Json(HttpStatusCode.OK, TariffVersionResponse(TariffPublishedId, "Publicada", TariffPublishedNumber, TariffConcurrencyVersion,
+                    TariffPublishedRates.Count > 0 ? TariffPublishedRates : TariffDraftRates));
+            }
+            if (path == "/api/configuracion/tarifas/simulaciones" && request.Method == HttpMethod.Post)
+            {
+                var body = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();
+                TariffPayloads.Enqueue(new(path, request.Method, token, body));
+                return Json(HttpStatusCode.OK, new
+                {
+                    origen = "Borrador", versionTarifarioId = TariffDraftId, numeroVersionPublicada = (int?)null,
+                    versionConcurrencia = TariffConcurrencyVersion, zonaId = body.GetProperty("zonaId").GetGuid(),
+                    modalidad = body.GetProperty("modalidad").GetString(), moneda = "UYU",
+                    pesoTotalKg = 1.5m, volumenTotalM3 = 0.003m, importeBaseUyu = 250m,
+                    componentePesoUyu = 7.5m, componenteVolumenUyu = 8.34m,
+                    ajustes = new[] { new { nombre = "Recargo demo", tipo = "RecargoPorcentual", valorConfigurado = 15m,
+                        @base = "SubtotalOriginal", importeUyu = 35.9775m } },
+                    subtotalUyu = 265.84m, recargosUyu = 0m, bonificacionesUyu = 0m,
+                    totalPrevioPisoUyu = 265.84m, pisoCeroAplicado = false, totalFinalUyu = 265.84m
+                });
+            }
             if (path == "/api/configuracion/zonas/departamentos" && request.Method == HttpMethod.Get)
             {
                 if (DepartmentCatalogStatusOverride is { } catalogStatus)
@@ -1671,6 +2098,20 @@ public sealed partial class BackofficeSessionAndPagesTests
             {
                 if (ZoneListStatusOverride is { } listStatus)
                     return Json(listStatus, new { message = "internal list exception" });
+                if (UseTariffZoneCatalog)
+                {
+                    var query = request.RequestUri!.Query;
+                    var stateFilter = query.Contains("estado=Inactiva", StringComparison.Ordinal) ? "Inactiva" : "Activa";
+                    var page = QueryInteger(query, "pagina", 1);
+                    var pageSize = QueryInteger(query, "tamanoPagina", 50);
+                    var matches = TariffZones.Where(zone => zone.Estado == stateFilter).ToArray();
+                    var items = matches.Skip((page - 1) * pageSize).Take(pageSize).Select(zone => (object)new
+                    {
+                        id = zone.Id, nombre = zone.Nombre, estado = zone.Estado, franjasActivas = 1,
+                        version = ZoneVersion, revisionActual = 1, actualizadaUtc = DateTimeOffset.UtcNow
+                    });
+                    return Json(HttpStatusCode.OK, new { items, pagina = page, tamanoPagina = pageSize, total = matches.Length });
+                }
                 var state = request.RequestUri!.Query.Contains("Inactiva", StringComparison.Ordinal) ? "Inactiva" : "Activa";
                 return Json(HttpStatusCode.OK, new
                 {
@@ -1752,6 +2193,49 @@ public sealed partial class BackofficeSessionAndPagesTests
             versionFuente = (string?)null, creadaUtc = DateTimeOffset.UtcNow, actualizadaUtc = DateTimeOffset.UtcNow
         };
 
+        private object TariffStateResponse()
+        {
+            var current = HasCurrentTariffPublication
+                ? TariffVersionSummary(TariffPublishedId, "Publicada", TariffPublishedNumber, TariffConcurrencyVersion)
+                : null;
+            var draft = HasTariffDraft
+                ? TariffVersionSummary(TariffDraftId, "Borrador", null, TariffConcurrencyVersion)
+                : null;
+            return new { configurado = HasCurrentTariffPublication || HasTariffDraft, publicacionVigente = current, borrador = draft };
+        }
+
+        private static object TariffVersionSummary(Guid id, string state, int? number, long concurrencyVersion)
+            => new { versionTarifarioId = id, estado = state, numeroVersionPublicada = number,
+                versionConcurrencia = concurrencyVersion, moneda = "UYU", creadaUtc = DateTimeOffset.UtcNow,
+                publicadaUtc = state == "Publicada" ? DateTimeOffset.UtcNow : (DateTimeOffset?)null };
+
+        private static object TariffVersionResponse(Guid id, string state, int? number, long concurrencyVersion,
+            IReadOnlyList<TariffRateFixture> rates)
+            => new { versionTarifarioId = id, estado = state, numeroVersionPublicada = number,
+                versionConcurrencia = concurrencyVersion, moneda = "UYU", creadaUtc = DateTimeOffset.UtcNow,
+                publicadaUtc = state == "Publicada" ? DateTimeOffset.UtcNow : (DateTimeOffset?)null,
+                tarifas = rates.Select(rate => new { zonaId = rate.ZoneId, modalidad = rate.Modality,
+                    importeBaseUyu = rate.BaseUyu, precioPorKilogramoUyu = rate.PerKilogramUyu,
+                    precioPorMetroCubicoUyu = rate.PerCubicMeterUyu,
+                    ajustes = rate.Adjustments.Select(adjustment => new { nombre = adjustment.Name, tipo = adjustment.Type,
+                        importeFijoUyu = adjustment.FixedAmountUyu, porcentaje = adjustment.Percentage }) }) };
+
+        private static decimal? ReadNullableDecimal(JsonElement parent, string property)
+        {
+            var value = parent.GetProperty(property);
+            return value.ValueKind == JsonValueKind.Null ? null : value.GetDecimal();
+        }
+
+        private static int QueryInteger(string query, string key, int fallback)
+        {
+            foreach (var segment in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var pair = segment.Split('=', 2);
+                if (pair.Length == 2 && pair[0] == key && int.TryParse(pair[1], out var value)) return value;
+            }
+            return fallback;
+        }
+
         private string[] Permissions(string? token)
         {
             if (token is not null && PermissionOverrides.TryGetValue(token, out var permissions)) return permissions;
@@ -1814,9 +2298,10 @@ public sealed partial class BackofficeSessionAndPagesTests
                 tieneDuenoRegistrado = OrganizationHasOwner
             });
 
-        public sealed record ApiCall(string Path, HttpMethod Method, string? Token);
+        public sealed record ApiCall(string Path, HttpMethod Method, string? Token, string Query);
         public sealed record StateCall(string Path, bool Activo, string? Token);
         public sealed record ZonePayloadCall(string Path, HttpMethod Method, string? Token, JsonElement Body);
+        public sealed record TariffPayloadCall(string Path, HttpMethod Method, string? Token, JsonElement Body);
 
         private sealed class ApiHandler(FakeApi api) : HttpMessageHandler
         {
@@ -1824,4 +2309,9 @@ public sealed partial class BackofficeSessionAndPagesTests
                 => api.SendAsync(request, cancellationToken);
         }
     }
+
+    private sealed record TariffZoneFixture(Guid Id, string Nombre, string Estado);
+    private sealed record TariffRateFixture(Guid ZoneId, string Modality, decimal BaseUyu, decimal PerKilogramUyu,
+        decimal PerCubicMeterUyu, IReadOnlyList<TariffAdjustmentFixture> Adjustments);
+    private sealed record TariffAdjustmentFixture(string Name, string Type, decimal? FixedAmountUyu, decimal? Percentage);
 }

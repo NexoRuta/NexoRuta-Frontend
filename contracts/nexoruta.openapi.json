@@ -1923,9 +1923,14 @@
         "responses": {
           "202": {
             "description": "Accepted"
-          },
-          "404": {
-            "description": "Not Found",
+    "/api/configuracion/tarifas": {
+      "get": {
+        "tags": [
+          "Tarifario"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1944,8 +1949,149 @@
               }
             }
           },
-          "429": {
-            "description": "Too Many Requests",
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifarioEstadoResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifarioEstadoResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifarioEstadoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/tarifas/publicaciones": {
+      "get": {
+        "tags": [
+          "Tarifario"
+        ],
+        "parameters": [
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamanoPagina",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaPublicacionesTarifarioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaPublicacionesTarifarioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaPublicacionesTarifarioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "text/plain": {
                 "schema": {
@@ -1967,58 +2113,364 @@
         }
       }
     },
-    "/api/public/seguimiento/{token}/cancelacion": {
-      "post": {
+    "/api/configuracion/tarifas/publicaciones/{versionId}": {
+      "get": {
         "tags": [
-          "CancelacionPublica"
+          "Tarifario"
         ],
         "parameters": [
           {
-            "name": "token",
+            "name": "versionId",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/tarifas/borrador": {
+      "post": {
+        "tags": [
+          "Tarifario"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Tarifario"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/tarifas/borrador/tarifas": {
+      "put": {
+        "tags": [
+          "Tarifario"
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+                "$ref": "#/components/schemas/ReemplazarTarifasBorradorRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+                "$ref": "#/components/schemas/ReemplazarTarifasBorradorRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+                "$ref": "#/components/schemas/ReemplazarTarifasBorradorRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
                 }
               }
             }
@@ -2065,6 +2517,308 @@
           },
           "429": {
             "description": "Too Many Requests",
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/seguimiento/{token}/cancelacion": {
+      "post": {
+        "tags": [
+          "CancelacionPublica"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+    "/api/configuracion/tarifas/borrador/publicar": {
+      "post": {
+        "tags": [
+          "Tarifario"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorTarifarioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorTarifarioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorTarifarioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionTarifarioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/tarifas/simulaciones": {
+      "post": {
+        "tags": [
+          "Tarifario"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+                "$ref": "#/components/schemas/SimularTarifaRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+                "$ref": "#/components/schemas/SimularTarifaRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+                "$ref": "#/components/schemas/SimularTarifaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
+                  "$ref": "#/components/schemas/SimulacionTarifaResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
+                  "$ref": "#/components/schemas/SimulacionTarifaResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
+                  "$ref": "#/components/schemas/SimulacionTarifaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+          "409": {
+            "description": "Conflict",
             "content": {
               "text/plain": {
                 "schema": {
@@ -8528,6 +9282,114 @@
         },
         "additionalProperties": false
       },
+      "AjusteTarifarioAplicadoResponse": {
+        "required": [
+          "nombre",
+          "tipo",
+          "base",
+          "valorConfigurado",
+          "importeUyu"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoAjusteTarifarioContract"
+          },
+          "base": {
+            "$ref": "#/components/schemas/BaseAjusteTarifarioContract"
+          },
+          "valorConfigurado": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "importeUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          }
+        }
+      },
+      "AjusteTarifarioRequest": {
+        "required": [
+          "nombre",
+          "tipo"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoAjusteTarifarioContract"
+          },
+          "importeFijoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "porcentaje": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AjusteTarifarioResponse": {
+        "required": [
+          "nombre",
+          "tipo",
+          "importeFijoUyu",
+          "porcentaje"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoAjusteTarifarioContract"
+          },
+          "importeFijoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "porcentaje": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          }
+        }
+      },
       "AltaOrganizacion": {
         "required": [
           "organizacion",
@@ -8638,6 +9500,11 @@
             "format": "date-time"
           }
         }
+      "BaseAjusteTarifarioContract": {
+        "enum": [
+          "ImporteFijo",
+          "SubtotalOriginal"
+        ]
       },
       "BoundsGeoJsonResponse": {
         "required": [
@@ -8701,7 +9568,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "largoCentimetros": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -8709,7 +9576,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "anchoCentimetros": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -8717,7 +9584,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "altoCentimetros": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -8725,7 +9592,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           }
         }
       },
@@ -8747,6 +9614,15 @@
           "codigo": {
             "type": "string"
           },
+      "BultoSimulacionRequest": {
+        "required": [
+          "pesoGramos",
+          "largoCentimetros",
+          "anchoCentimetros",
+          "altoCentimetros"
+        ],
+        "type": "object",
+        "properties": {
           "pesoGramos": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
             "type": [
@@ -8756,6 +9632,9 @@
             "format": "double"
           },
           "volumenCm3": {
+            "format": "decimal"
+          },
+          "largoCentimetros": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
             "type": [
               "number",
@@ -8775,6 +9654,26 @@
             "format": "int64"
           }
         }
+            "format": "decimal"
+          },
+          "anchoCentimetros": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "altoCentimetros": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          }
+        },
+        "additionalProperties": false
       },
       "CambiarEmailUsuarioRequest": {
         "required": [
@@ -9153,7 +10052,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "largoCentimetros": {
             "maximum": 999999999,
@@ -9163,7 +10062,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "anchoCentimetros": {
             "maximum": 999999999,
@@ -9173,7 +10072,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "altoCentimetros": {
             "maximum": 999999999,
@@ -9183,7 +10082,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           }
         }
       },
@@ -9477,7 +10376,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "largoCentimetros": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -9485,7 +10384,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "anchoCentimetros": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -9493,7 +10392,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "altoCentimetros": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
@@ -9501,7 +10400,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           }
         }
       },
@@ -9640,6 +10539,11 @@
           }
         },
         "additionalProperties": false
+      "EstadoVersionTarifarioContract": {
+        "enum": [
+          "Borrador",
+          "Publicada"
+        ]
       },
       "FranjaEntregaCambioResponse": {
         "required": [
@@ -9979,6 +10883,17 @@
         },
         "additionalProperties": false
       },
+      "ModalidadTarifariaContract": {
+        "enum": [
+          "Estandar",
+          "Urgente"
+        ]
+      },
+      "MonedaTarifariaContract": {
+        "enum": [
+          "UYU"
+        ]
+      },
       "OperadorDisponible": {
         "required": [
           "operadorId",
@@ -10087,6 +11002,12 @@
           }
         }
       },
+      "OrigenSimulacionTarifarioContract": {
+        "enum": [
+          "Borrador",
+          "Publicacion"
+        ]
+      },
       "PaginaOrganizaciones": {
         "required": [
           "items",
@@ -10100,6 +11021,47 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/OrganizacionAdministrativa"
+            }
+          },
+          "pagina": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tamanoPagina": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PaginaPublicacionesTarifarioResponse": {
+        "required": [
+          "items",
+          "pagina",
+          "tamanoPagina",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VersionTarifarioResumenResponse"
             }
           },
           "pagina": {
@@ -10610,6 +11572,53 @@
         }
       },
       "RepartidorResponse": {
+      "PublicarBorradorTarifarioRequest": {
+        "required": [
+          "versionConcurrencia"
+        ],
+        "type": "object",
+        "properties": {
+          "versionConcurrencia": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReemplazarTarifasBorradorRequest": {
+        "required": [
+          "versionConcurrencia",
+          "tarifas"
+        ],
+        "type": "object",
+        "properties": {
+          "versionConcurrencia": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "tarifas": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TarifaZonaModalidadRequest"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegistroRequest": {
         "required": [
           "accesoId",
           "usuarioId",
@@ -10724,6 +11733,216 @@
           }
         }
       },
+      "RolResumen": {
+        "required": [
+          "id",
+          "codigo",
+          "nombre",
+          "permisos"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "permisos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "esProtegidoSistema": {
+            "type": "boolean"
+          },
+          "esPropio": {
+            "type": "boolean"
+          },
+          "esRolPropietario": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SimulacionTarifaResponse": {
+        "required": [
+          "origen",
+          "versionTarifarioId",
+          "numeroVersionPublicada",
+          "versionConcurrencia",
+          "zonaId",
+          "modalidad",
+          "moneda",
+          "pesoTotalKg",
+          "volumenTotalM3",
+          "importeBaseUyu",
+          "componentePesoUyu",
+          "componenteVolumenUyu",
+          "ajustes",
+          "subtotalUyu",
+          "recargosUyu",
+          "bonificacionesUyu",
+          "totalPrevioPisoUyu",
+          "pisoCeroAplicado",
+          "totalFinalUyu"
+        ],
+        "type": "object",
+        "properties": {
+          "origen": {
+            "$ref": "#/components/schemas/OrigenSimulacionTarifarioContract"
+          },
+          "versionTarifarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "numeroVersionPublicada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "versionConcurrencia": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "zonaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modalidad": {
+            "$ref": "#/components/schemas/ModalidadTarifariaContract"
+          },
+          "moneda": {
+            "$ref": "#/components/schemas/MonedaTarifariaContract"
+          },
+          "pesoTotalKg": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "volumenTotalM3": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "importeBaseUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "componentePesoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "componenteVolumenUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "ajustes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AjusteTarifarioAplicadoResponse"
+            }
+          },
+          "subtotalUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "recargosUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "bonificacionesUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "totalPrevioPisoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "pisoCeroAplicado": {
+            "type": "boolean"
+          },
+          "totalFinalUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          }
+        }
+      },
+      "SimularTarifaRequest": {
+        "required": [
+          "versionTarifarioId",
+          "zonaId",
+          "modalidad",
+          "bultos"
+        ],
+        "type": "object",
+        "properties": {
+          "versionTarifarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "token": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "nuevaPassword": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      },
       "ResultadoOperacionResponse": {
         "required": [
           "id",
@@ -10804,31 +12023,23 @@
         "type": "object",
         "properties": {
           "id": {
+          "zonaId": {
             "type": "string",
             "format": "uuid"
           },
-          "codigo": {
-            "type": "string"
+          "modalidad": {
+            "$ref": "#/components/schemas/ModalidadTarifariaContract"
           },
-          "nombre": {
-            "type": "string"
-          },
-          "permisos": {
+          "bultos": {
+            "maxItems": 100,
+            "minItems": 1,
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/BultoSimulacionRequest"
             }
-          },
-          "esProtegidoSistema": {
-            "type": "boolean"
-          },
-          "esPropio": {
-            "type": "boolean"
-          },
-          "esRolPropietario": {
-            "type": "boolean"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "SesionMovilResponse": {
         "required": [
@@ -11059,6 +12270,141 @@
           }
         }
       },
+      "TarifarioEstadoResponse": {
+        "required": [
+          "configurado",
+          "publicacionVigente",
+          "borrador"
+        ],
+        "type": "object",
+        "properties": {
+          "configurado": {
+            "type": "boolean"
+          },
+          "publicacionVigente": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VersionTarifarioResumenResponse"
+              }
+            ]
+          },
+          "borrador": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VersionTarifarioResumenResponse"
+              }
+            ]
+          }
+        }
+      },
+      "TarifaZonaModalidadRequest": {
+        "required": [
+          "zonaId",
+          "modalidad",
+          "importeBaseUyu",
+          "precioPorKilogramoUyu",
+          "precioPorMetroCubicoUyu",
+          "ajustes"
+        ],
+        "type": "object",
+        "properties": {
+          "zonaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modalidad": {
+            "$ref": "#/components/schemas/ModalidadTarifariaContract"
+          },
+          "importeBaseUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "precioPorKilogramoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "precioPorMetroCubicoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "ajustes": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AjusteTarifarioRequest"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TarifaZonaModalidadResponse": {
+        "required": [
+          "zonaId",
+          "modalidad",
+          "importeBaseUyu",
+          "precioPorKilogramoUyu",
+          "precioPorMetroCubicoUyu",
+          "ajustes"
+        ],
+        "type": "object",
+        "properties": {
+          "zonaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modalidad": {
+            "$ref": "#/components/schemas/ModalidadTarifariaContract"
+          },
+          "importeBaseUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "precioPorKilogramoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "precioPorMetroCubicoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "ajustes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AjusteTarifarioResponse"
+            }
+          }
+        }
+      },
       "TerritorioUruguayResponse": {
         "required": [
           "codigoPais",
@@ -11081,6 +12427,14 @@
             "$ref": "#/components/schemas/BoundsGeoJsonResponse"
           }
         }
+      },
+      "TipoAjusteTarifarioContract": {
+        "enum": [
+          "RecargoFijo",
+          "RecargoPorcentual",
+          "BonificacionFija",
+          "BonificacionPorcentual"
+        ]
       },
       "UsuarioActualResponse": {
         "required": [
@@ -11286,12 +12640,114 @@
         "type": "object",
         "properties": {
           "version": {
+      "VersionTarifarioResponse": {
+        "required": [
+          "versionTarifarioId",
+          "estado",
+          "numeroVersionPublicada",
+          "versionConcurrencia",
+          "moneda",
+          "creadaUtc",
+          "publicadaUtc",
+          "tarifas"
+        ],
+        "type": "object",
+        "properties": {
+          "versionTarifarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoVersionTarifarioContract"
+          },
+          "numeroVersionPublicada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "versionConcurrencia": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
               "string"
             ],
             "format": "int64"
+          },
+          "moneda": {
+            "$ref": "#/components/schemas/MonedaTarifariaContract"
+          },
+          "creadaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publicadaUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "tarifas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TarifaZonaModalidadResponse"
+            }
+          }
+        }
+      },
+      "VersionTarifarioResumenResponse": {
+        "required": [
+          "versionTarifarioId",
+          "estado",
+          "numeroVersionPublicada",
+          "versionConcurrencia",
+          "moneda",
+          "creadaUtc",
+          "publicadaUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "versionTarifarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoVersionTarifarioContract"
+          },
+          "numeroVersionPublicada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "versionConcurrencia": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "moneda": {
+            "$ref": "#/components/schemas/MonedaTarifariaContract"
+          },
+          "creadaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publicadaUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -11445,6 +12901,7 @@
     },
     {
       "name": "CancelacionPublica"
+      "name": "Tarifario"
     },
     {
       "name": "EnlaceSeguimiento"

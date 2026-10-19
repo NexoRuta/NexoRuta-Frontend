@@ -9,7 +9,9 @@ using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.ApiClient.Features.Organizaciones.Clients;
 using NexoRuta.ApiClient.Features.ZonasCobertura.Clients;
 using NexoRuta.ApiClient.Features.Reparto.Clients;
+using NexoRuta.ApiClient.Features.Tarifas.Clients;
 using NexoRuta.Backoffice.Core.Security;
+using NexoRuta.Backoffice.Features.Tarifas;
 using NexoRuta.Backoffice.Features.ZonasCobertura;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +28,12 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/ZonasCobertura/Index", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AuthorizePage("/ZonasCobertura/Crear", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AuthorizePage("/ZonasCobertura/Detalle", ZonaCoberturaUi.PermisoGestionar);
+    options.Conventions.AuthorizePage("/Tarifas/Index", TarifasUi.PermissionManage);
+    options.Conventions.AuthorizePage("/Tarifas/Borrador", TarifasUi.PermissionManage);
+    options.Conventions.AuthorizePage("/Tarifas/Publicaciones/Index", TarifasUi.PermissionManage);
+    options.Conventions.AuthorizePage("/Tarifas/Publicaciones/Detalle", TarifasUi.PermissionManage);
+    options.Conventions.AuthorizePage("/Tarifas/Publicar", TarifasUi.PermissionManage);
+    options.Conventions.AuthorizePage("/Tarifas/Simular", TarifasUi.PermissionManage);
     options.Conventions.AllowAnonymousToPage("/Ingresar");
     options.Conventions.AllowAnonymousToPage("/Error");
     options.Conventions.AllowAnonymousToPage("/AccesoDenegado");
@@ -78,7 +86,8 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<ConfiguracionRepartoApiClient>()
     .AddTypedClient<OrganizacionPropiaApiClient>()
       .AddTypedClient<OrganizacionSuspendidaApiClient>()
-      .AddTypedClient<ZonasCoberturaApiClient>();
+      .AddTypedClient<ZonasCoberturaApiClient>()
+      .AddTypedClient<TarifasApiClient>();
 
 var app = builder.Build();
 
