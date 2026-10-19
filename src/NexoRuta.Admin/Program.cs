@@ -14,7 +14,7 @@ builder.Services.AddDataProtection().SetApplicationName("NexoRuta.Admin");
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/", AdminAccess.Permission);
-    foreach (var page in new[] { "/Ingresar", "/AccesoDenegado", "/ApiIndisponible", "/Error", "/Salir" })
+    foreach (var page in new[] { "/Ingresar", "/SolicitarRecuperacion", "/AccesoDenegado", "/ApiIndisponible", "/Error", "/Salir" })
         options.Conventions.AllowAnonymousToPage(page);
 });
 builder.Services.AddAntiforgery(options => options.Cookie.Name = "NexoRuta.Admin.Antiforgery");

@@ -33,8 +33,53 @@ public sealed class AltaPropiaPagesTests
             Assert.Contains($"href=\"{reciprocal}\"", content);
             Assert.Contains("href=\"/\"", content);
         }
+        Assert.Contains("href=\"/recuperar-contrasena\"", await client.GetStringAsync("/ingresar"));
         foreach (var path in new[] { "/envios/crear", "/envios", "/usuarios", "/roles", "/organizacion" })
             Assert.Equal(HttpStatusCode.Redirect, (await client.GetAsync(path)).StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetLinkIsRemovedFromRenderedUrlAndProtectedInAnHttpOnlyCookie()
+    {
+        var api = new Api();
+        using var factory = new Factory(api);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        const string token = "identity-reset-token-secret";
+        var userId = Guid.NewGuid();
+
+        using var link = await client.GetAsync($"/restablecer-contrasena?userId={userId:D}&token={token}");
+        Assert.Equal(HttpStatusCode.Redirect, link.StatusCode);
+        Assert.Equal("/restablecer-contrasena", link.Headers.Location!.OriginalString);
+        var cookie = link.Headers.GetValues("Set-Cookie").Single(x => x.StartsWith("NexoRuta.PasswordRecovery=", StringComparison.Ordinal));
+        Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("samesite=strict", cookie, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(token, cookie, StringComparison.Ordinal);
+
+        using var page = await client.GetAsync(link.Headers.Location);
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Equal("no-referrer", page.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Contains("no-store", page.Headers.CacheControl!.ToString(), StringComparison.OrdinalIgnoreCase);
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.DoesNotContain(token, html, StringComparison.Ordinal);
+        Assert.DoesNotContain(userId.ToString("D"), html, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<script", html, StringComparison.OrdinalIgnoreCase);
+
+        var csrf = await Token(client, "/restablecer-contrasena");
+        const string password = "A-new-browser-password-2026!";
+        using var saved = await client.PostAsync("/restablecer-contrasena", Form(csrf, ("NuevaPassword", password)));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var result = await saved.Content.ReadAsStringAsync();
+        Assert.Contains("La contraseña se guardó", result, StringComparison.Ordinal);
+        Assert.DoesNotContain(token, result, StringComparison.Ordinal);
+        Assert.DoesNotContain(password, result, StringComparison.Ordinal);
+        Assert.Equal(userId, api.ResetRequest!.Value.GetProperty("usuarioId").GetGuid());
+        Assert.Equal(token, api.ResetRequest.Value.GetProperty("token").GetString());
+        Assert.Equal(password, api.ResetRequest.Value.GetProperty("nuevaPassword").GetString());
     }
 
     [Theory]
@@ -236,6 +281,7 @@ public sealed class AltaPropiaPagesTests
         public List<JsonElement> Registration { get; } = [];
         public string? CreatedPath { get; private set; }
         public JsonElement? Creation { get; private set; }
+        public JsonElement? ResetRequest { get; private set; }
         public string? CreationToken { get; private set; }
         public HttpStatusCode? RegistrationFailure { get; init; }
         public string? TypeOverride { get; init; }
@@ -251,6 +297,11 @@ public sealed class AltaPropiaPagesTests
                 return Json(HttpStatusCode.Created, new { UsuarioId = Guid.NewGuid(), Email = "person@example.test" });
             }
             if (path == "/api/auth/login") return Json(HttpStatusCode.OK, new { AccessToken = "identity-jwt", TokenType = "Bearer", ExpiresAtUtc = DateTime.UtcNow.AddMinutes(15) });
+            if (path == "/api/auth/password-recovery/reset")
+            {
+                ResetRequest = await request.Content!.ReadFromJsonAsync<JsonElement>(ct);
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
             if (path == "/api/usuarios/actual") return Json(HttpStatusCode.OK, new {
                 UsuarioId = Guid.NewGuid(), AccesoId = Member ? Guid.NewGuid() : (Guid?)null,
                 UsuarioEmail = "person@example.test", Tipo = TypeOverride ?? (Member ? "Comercio" : "SinOrganizacion")
