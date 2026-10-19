@@ -13,6 +13,7 @@ using NexoRuta.ApiClient.Features.Plataforma.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Plataforma.Contracts.Requests;
 using NexoRuta.ApiClient.Features.Organizaciones.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Organizaciones.Contracts.Requests;
+using NexoRuta.ApiClient.Features.Tarifas.Contracts;
 
 namespace NexoRuta.ApiClient.Tests;
 
@@ -84,6 +85,79 @@ public sealed class OpenApiContractTests
         Assert.Equal("time", slot.GetProperty("properties").GetProperty("horaInicio").GetProperty("format").GetString());
         Assert.Equal(0, slot.GetProperty("properties").GetProperty("versionZona").GetProperty("minimum").GetInt32());
         Assert.Contains("versionZona", slot.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+    }
+
+    [Fact]
+    public async Task TariffEndpointsArePublishedInTheVersionedOpenApiContract()
+    {
+        using var document = await LoadOpenApiAsync();
+        var paths = document.RootElement.GetProperty("paths");
+        var operations = new Dictionary<string, string[]>
+        {
+            ["/api/configuracion/tarifas"] = ["get"],
+            ["/api/configuracion/tarifas/publicaciones"] = ["get"],
+            ["/api/configuracion/tarifas/publicaciones/{versionId}"] = ["get"],
+            ["/api/configuracion/tarifas/borrador"] = ["get", "post"],
+            ["/api/configuracion/tarifas/borrador/tarifas"] = ["put"],
+            ["/api/configuracion/tarifas/borrador/publicar"] = ["post"],
+            ["/api/configuracion/tarifas/simulaciones"] = ["post"]
+        };
+
+        foreach (var (path, methods) in operations)
+        {
+            Assert.True(paths.TryGetProperty(path, out var item), $"OpenAPI path {path} is missing.");
+            foreach (var method in methods)
+                Assert.True(item.TryGetProperty(method, out _), $"OpenAPI operation {method.ToUpperInvariant()} {path} is missing.");
+        }
+    }
+
+    [Fact]
+    public async Task TariffOpenApiDocumentsTypedEnumsDecimalPrecisionVersionsAndErrors()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+        var replace = paths.GetProperty("/api/configuracion/tarifas/borrador/tarifas").GetProperty("put");
+        foreach (var status in new[] { "200", "400", "401", "403", "404", "409" })
+            Assert.Contains(status, replace.GetProperty("responses").EnumerateObject().Select(x => x.Name));
+        var request = Resolve(replace.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Equal(new[] { "tarifas", "versionConcurrencia" }, request.GetProperty("required").EnumerateArray()
+            .Select(x => x.GetString()).Order());
+        Assert.False(request.GetProperty("additionalProperties").GetBoolean());
+        var version = request.GetProperty("properties").GetProperty("versionConcurrencia");
+        Assert.Equal("int64", version.GetProperty("format").GetString());
+        Assert.Equal(0, version.GetProperty("minimum").GetInt32());
+
+        var rate = Resolve(request.GetProperty("properties").GetProperty("tarifas")
+            .GetProperty("items"), root);
+        var amount = rate.GetProperty("properties").GetProperty("importeBaseUyu");
+        Assert.Equal("decimal", amount.GetProperty("format").GetString());
+        var modality = Resolve(rate.GetProperty("properties").GetProperty("modalidad"), root);
+        Assert.Equal(new[] { "Estandar", "Urgente" }, modality.GetProperty("enum").EnumerateArray()
+            .Select(x => x.GetString()).ToArray());
+        var adjustment = Resolve(rate.GetProperty("properties").GetProperty("ajustes").GetProperty("items"), root);
+        var adjustmentType = Resolve(adjustment.GetProperty("properties").GetProperty("tipo"), root);
+        Assert.Equal(new[] { "RecargoFijo", "RecargoPorcentual", "BonificacionFija", "BonificacionPorcentual" },
+            adjustmentType.GetProperty("enum").EnumerateArray().Select(x => x.GetString()).ToArray());
+
+        var simulate = paths.GetProperty("/api/configuracion/tarifas/simulaciones").GetProperty("post");
+        foreach (var status in new[] { "200", "400", "401", "403", "404", "409" })
+            Assert.Contains(status, simulate.GetProperty("responses").EnumerateObject().Select(x => x.Name));
+        var simulateRequest = Resolve(simulate.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Equal(new[] { "bultos", "modalidad", "versionTarifarioId", "zonaId" },
+            simulateRequest.GetProperty("required").EnumerateArray().Select(x => x.GetString()).Order());
+        Assert.False(simulateRequest.GetProperty("properties").TryGetProperty("precios", out _));
+        Assert.False(simulateRequest.GetProperty("additionalProperties").GetBoolean());
+        var result = Resolve(simulate.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Contains("versionConcurrencia", result.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        Assert.Contains("numeroVersionPublicada", result.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        foreach (var field in new[] { "pesoTotalKg", "volumenTotalM3", "totalPrevioPisoUyu", "totalFinalUyu" })
+            Assert.Equal("decimal", result.GetProperty("properties").GetProperty(field).GetProperty("format").GetString());
+        Assert.Contains("null", result.GetProperty("properties").GetProperty("numeroVersionPublicada")
+            .GetProperty("type").EnumerateArray().Select(x => x.GetString()));
     }
 
     [Fact]

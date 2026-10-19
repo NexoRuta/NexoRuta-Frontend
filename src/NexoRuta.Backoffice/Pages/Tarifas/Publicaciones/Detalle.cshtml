@@ -1,0 +1,70 @@
+@page "/tarifas/publicaciones/{versionId:guid}"
+@model NexoRuta.Backoffice.Features.Tarifas.Pages.PublicacionModel
+@using NexoRuta.ApiClient.Features.Tarifas.Contracts
+@using NexoRuta.Backoffice.Features.Tarifas
+@using System.Globalization
+@{
+    ViewData["Title"] = "Publicación de tarifas | Backoffice NexoRuta";
+}
+
+<link rel="stylesheet" href="~/css/tarifas.css" asp-append-version="true" />
+<h1>Publicación de tarifas</h1>
+<p><a asp-page="/Tarifas/Publicaciones/Index">Volver al historial</a></p>
+@if (Model.Notice is not null) { <p class="alert alert-success" role="status">@Model.Notice</p> }
+@if (Model.Error is not null) { <p class="alert alert-warning" role="alert">@Model.Error</p> }
+
+@if (Model.Publicacion is { } publication)
+{
+    var isCurrent = publication.VersionTarifarioId == Model.VersionVigenteId;
+    <section class="card tarifario-card mb-4" aria-labelledby="publication-summary">
+        <div class="card-body">
+            <h2 id="publication-summary" class="h4">@(isCurrent ? "Publicación vigente" : "Publicación histórica")</h2>
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Número publicado</dt><dd class="col-sm-8">@publication.NumeroVersionPublicada</dd>
+                <dt class="col-sm-4">Fecha de publicación</dt><dd class="col-sm-8">@publication.PublicadaUtc?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</dd>
+                <dt class="col-sm-4">Estado</dt><dd class="col-sm-8">Solo lectura</dd>
+            </dl>
+        </div>
+    </section>
+
+    @if (publication.Tarifas.Count == 0)
+    {
+        <p role="status">Esta publicación no contiene tarifas.</p>
+    }
+    @foreach (var rate in publication.Tarifas)
+    {
+        <section class="card tariff-rate-card mb-3" aria-label="Tarifa @Model.ZonaNombre(rate.ZonaId), @rate.Modalidad">
+            <div class="card-body">
+                <h2 class="h5">@Model.ZonaNombre(rate.ZonaId) · @(rate.Modalidad == ModalidadTarifaria.Estandar ? "Estándar" : "Urgente")</h2>
+                @if (Model.ZonaInactiva(rate.ZonaId))
+                {
+                    <p class="alert alert-warning">Zona inactiva: esta tarifa se conserva en el historial, pero no es una oferta operativa.</p>
+                }
+                <dl class="row tariff-measure-list">
+                    <dt class="col-sm-5">Precio base</dt><dd class="col-sm-7">UYU @TarifasUi.FormatDecimal(rate.ImporteBaseUyu, 2)</dd>
+                    <dt class="col-sm-5">Precio por kilogramo</dt><dd class="col-sm-7">UYU @TarifasUi.FormatDecimal(rate.PrecioPorKilogramoUyu, 6) / kg</dd>
+                    <dt class="col-sm-5">Precio por metro cúbico</dt><dd class="col-sm-7">UYU @TarifasUi.FormatDecimal(rate.PrecioPorMetroCubicoUyu, 6) / m³</dd>
+                </dl>
+                <h3 class="h6">Recargos y bonificaciones</h3>
+                @if (rate.Ajustes.Count == 0)
+                {
+                    <p>Sin ajustes.</p>
+                }
+                else
+                {
+                    <ul>
+                    @foreach (var adjustment in rate.Ajustes)
+                    {
+                        <li>@adjustment.Nombre — @(TarifasUi.AdjustmentLabel(adjustment.Tipo)): @TarifasUi.AdjustmentValue(adjustment)</li>
+                    }
+                    </ul>
+                }
+            </div>
+        </section>
+    }
+    <a class="btn btn-outline-primary" asp-page="/Tarifas/Simular" asp-route-versionTarifarioId="@publication.VersionTarifarioId">Simular esta publicación</a>
+    @if (isCurrent)
+    {
+        <a class="btn btn-primary" asp-page="/Tarifas/Index">Crear una copia como borrador</a>
+    }
+}
