@@ -1,0 +1,47 @@
+@page "/configuracion-reparto"
+@model NexoRuta.Backoffice.Features.Reparto.Pages.ConfiguracionRepartoModel
+@{ ViewData["Title"] = "Configuración de reparto"; }
+<h1>Configuración de reparto</h1>
+<p>Configurá estas reglas antes de despachar la primera ruta. Cada hoja conserva la versión con la que fue despachada.</p>
+@if (Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
+@if (Model.Confirmacion is not null) { <div class="alert alert-success" role="status">@Model.Confirmacion</div> }
+<form method="post" asp-page-handler="Politica" class="card card-body mb-4" data-single-submit>
+    <h2 class="h4">Reglas operativas · versión @Model.Politica.Version</h2>
+    <input type="hidden" asp-for="Politica.Version" />
+    <label asp-for="Politica.ZonaHoraria">Zona horaria IANA</label>
+    <input asp-for="Politica.ZonaHoraria" class="form-control mb-2" required maxlength="100" placeholder="America/Montevideo" />
+    <label asp-for="Politica.MaximoParadas">Máximo de paradas por ruta</label><input asp-for="Politica.MaximoParadas" class="form-control mb-2" min="1" max="500" required />
+    <label asp-for="Politica.MaximoIntentos">Máximo de intentos por envío</label><input asp-for="Politica.MaximoIntentos" class="form-control mb-2" min="1" max="100" required />
+    <fieldset class="mb-2"><legend class="h5">Prueba exigida para validar la entrega</legend>
+        <label class="me-3"><input asp-for="Politica.RequiereFirma" /> Firma</label>
+        <label class="me-3"><input asp-for="Politica.RequiereFoto" /> Foto</label>
+        <label class="me-3"><input asp-for="Politica.RequiereNombre" /> Nombre del receptor</label>
+        <label><input asp-for="Politica.RequiereDocumento" /> Documento del receptor</label>
+    </fieldset>
+    <label class="mb-2"><input asp-for="Politica.RequiereFotoIntento" /> Exigir foto en intentos fallidos</label>
+    <label class="mb-2"><input asp-for="Politica.BloquearDiscrepanciasCarga" /> Bloquear salida con diferencias de carga</label>
+    <label asp-for="Motivos">Motivos de intento fallido, uno por línea</label><textarea asp-for="Motivos" class="form-control mb-3" rows="5" required></textarea>
+    <button class="btn btn-primary align-self-start">Guardar nueva versión</button>
+</form>
+<h2>Vehículos</h2>
+<form method="post" asp-page-handler="Vehiculo" class="card card-body mb-3" data-single-submit>
+    <h3 class="h5">Agregar vehículo</h3>
+    <input type="hidden" asp-for="Vehiculo.Id" /><input type="hidden" asp-for="Vehiculo.Version" />
+    <label asp-for="Vehiculo.Matricula">Matrícula</label><input asp-for="Vehiculo.Matricula" class="form-control mb-2" required maxlength="20" />
+    <label asp-for="Vehiculo.PesoMaximoGramos">Capacidad de peso (gramos)</label><input asp-for="Vehiculo.PesoMaximoGramos" type="number" step="0.01" min="0.01" class="form-control mb-2" required />
+    <label asp-for="Vehiculo.VolumenMaximoCm3">Capacidad de volumen (cm³)</label><input asp-for="Vehiculo.VolumenMaximoCm3" type="number" step="0.01" min="0.01" class="form-control mb-2" required />
+    <label class="mb-3"><input asp-for="Vehiculo.Activo" /> Activo</label>
+    <button class="btn btn-primary align-self-start">Agregar vehículo</button>
+</form>
+@foreach (var item in Model.Vehiculos)
+{
+    <form method="post" asp-page-handler="Vehiculo" class="card card-body mb-2" data-single-submit>
+        <input type="hidden" name="Vehiculo.Id" value="@item.Id" /><input type="hidden" name="Vehiculo.Version" value="@item.Version" />
+        <div class="row g-2">
+            <div class="col-md-3"><label for="matricula-@item.Id">Matrícula</label><input id="matricula-@item.Id" name="Vehiculo.Matricula" value="@item.Matricula" class="form-control" required maxlength="20" /></div>
+            <div class="col-md-3"><label for="peso-@item.Id">Peso (g)</label><input id="peso-@item.Id" name="Vehiculo.PesoMaximoGramos" value="@item.PesoMaximoGramos.ToString(System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" min="0.01" class="form-control" required /></div>
+            <div class="col-md-3"><label for="volumen-@item.Id">Volumen (cm³)</label><input id="volumen-@item.Id" name="Vehiculo.VolumenMaximoCm3" value="@item.VolumenMaximoCm3.ToString(System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" min="0.01" class="form-control" required /></div>
+            <div class="col-md-3 align-self-end"><label><input type="checkbox" name="Vehiculo.Activo" value="true" checked="@item.Activo" /> Activo</label><input type="hidden" name="Vehiculo.Activo" value="false" /><button class="btn btn-outline-primary">Guardar</button></div>
+        </div>
+    </form>
+}

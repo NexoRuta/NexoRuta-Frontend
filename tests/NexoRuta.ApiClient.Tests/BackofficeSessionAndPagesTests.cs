@@ -12,7 +12,7 @@ using Microsoft.Extensions.Http;
 
 namespace NexoRuta.ApiClient.Tests;
 
-public sealed class BackofficeSessionAndPagesTests
+public sealed partial class BackofficeSessionAndPagesTests
 {
     private static readonly Guid TargetUserId = Guid.Parse("00000000-0000-0000-0000-000000000101");
     private static readonly Guid TargetAccessId = Guid.Parse("00000000-0000-0000-0000-000000000102");
@@ -2205,7 +2205,7 @@ public sealed class BackofficeSessionAndPagesTests
         }
     }
 
-    private sealed class FakeApi
+    private sealed partial class FakeApi
     {
         public ConcurrentQueue<ApiCall> Calls { get; } = new();
         public ConcurrentQueue<TariffPayloadCall> TariffPayloads { get; } = new();
@@ -2267,6 +2267,7 @@ public sealed class BackofficeSessionAndPagesTests
             var path = request.RequestUri!.AbsolutePath;
             var token = request.Headers.Authorization?.Parameter;
             Calls.Enqueue(new ApiCall(path, request.Method, token, request.RequestUri.Query));
+            if (IncludeReparto && await Reparto(request, path, token, ct) is { } reparto) return reparto;
             if (path == "/api/auth/login")
             {
                 var body = await request.Content!.ReadFromJsonAsync<JsonElement>(ct);
@@ -2307,7 +2308,7 @@ public sealed class BackofficeSessionAndPagesTests
                     return Json(status, new { message = "Permission service unavailable" });
                 return Json(HttpStatusCode.OK, Permissions(token));
             }
-            if (path == "/api/usuarios/actual") return Json(HttpStatusCode.OK, CurrentUser(token));
+            if (path == "/api/usuarios/actual") return Json(HttpStatusCode.OK, CurrentUser(token, IsCancellationAdmin));
             if (path == "/api/organizacion/suspendida")
                 return Json(HttpStatusCode.OK, new { organizacionId = Guid.NewGuid(), tipoOrganizacion = token == "jwt-suspended-commerce" ? "Comercio" : "Operador", nombre = "Suspended organization", estado = "Suspendida", mensaje = "Sign in again after reactivation." });
             if (path == "/api/organizacion/actual" && request.Method == HttpMethod.Get)
@@ -2752,7 +2753,7 @@ public sealed class BackofficeSessionAndPagesTests
             };
         }
 
-        private static object CurrentUser(string? token)
+        private static object CurrentUser(string? token, bool cancellationAdmin = false)
         {
             var commerce = token == "jwt-commerce";
             var platform = token == "jwt-platform";
@@ -2768,7 +2769,7 @@ public sealed class BackofficeSessionAndPagesTests
                 comercioNombre = commerce ? "Commerce" : null,
                 tipo = platform ? "Plataforma" : commerce ? "Comercio" : "Operador",
                 rolId = platform ? (Guid?)null : RoleId,
-                rolCodigo = platform ? null : "dynamic"
+                rolCodigo = platform ? null : cancellationAdmin ? "administrador_operador" : "dynamic"
             };
         }
 
