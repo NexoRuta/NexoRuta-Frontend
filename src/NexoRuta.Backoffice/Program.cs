@@ -10,9 +10,11 @@ using NexoRuta.ApiClient.Features.Organizaciones.Clients;
 using NexoRuta.ApiClient.Features.ZonasCobertura.Clients;
 using NexoRuta.ApiClient.Features.Reparto.Clients;
 using NexoRuta.ApiClient.Features.Tarifas.Clients;
+using NexoRuta.ApiClient.Features.ReglasOperativas.Clients;
 using NexoRuta.Backoffice.Core.Security;
 using NexoRuta.Backoffice.Features.Tarifas;
 using NexoRuta.Backoffice.Features.ZonasCobertura;
+using NexoRuta.Backoffice.Features.ReglasOperativas;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHealthChecks();
@@ -34,6 +36,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Tarifas/Publicaciones/Detalle", TarifasUi.PermissionManage);
     options.Conventions.AuthorizePage("/Tarifas/Publicar", TarifasUi.PermissionManage);
     options.Conventions.AuthorizePage("/Tarifas/Simular", TarifasUi.PermissionManage);
+    options.Conventions.AuthorizeFolder("/ReglasOperativas", ReglasOperativasUi.PermissionManage);
     options.Conventions.AllowAnonymousToPage("/Ingresar");
     options.Conventions.AllowAnonymousToPage("/Error");
     options.Conventions.AllowAnonymousToPage("/AccesoDenegado");
@@ -73,6 +76,8 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser().RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Operador));
     foreach (var permission in new[] { "envios.consultar", "envios.gestionar", "usuarios.gestionar", ZonaCoberturaUi.PermisoGestionar })
         options.AddPolicy(permission, policy => policy.RequireAuthenticatedUser().AddRequirements(new ApiPermissionRequirement(permission)));
+    options.AddPolicy(ReglasOperativasUi.PermissionManage, policy =>
+        policy.RequireAuthenticatedUser().AddRequirements(new ApiPermissionRequirement(ReglasOperativasUi.PermissionManage)));
 });
 builder.Services.AddScoped<IAuthorizationHandler, ApiPermissionAuthorizationHandler>();
 builder.Services.AddHttpClient("NexoRuta", client =>
@@ -87,7 +92,8 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<OrganizacionPropiaApiClient>()
       .AddTypedClient<OrganizacionSuspendidaApiClient>()
       .AddTypedClient<ZonasCoberturaApiClient>()
-      .AddTypedClient<TarifasApiClient>();
+      .AddTypedClient<TarifasApiClient>()
+      .AddTypedClient<ReglasOperativasApiClient>();
 
 var app = builder.Build();
 

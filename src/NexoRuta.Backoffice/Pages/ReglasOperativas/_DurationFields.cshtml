@@ -1,0 +1,35 @@
+@model NexoRuta.Backoffice.Features.ReglasOperativas.DurationFieldsViewModel
+<div class="duration-fields" role="group" aria-label="@Model.Label">
+    <div class="mb-2">
+        <label class="form-label" for="@($"{Model.Prefix}_Dias")">Días</label>
+        <input class="form-control" id="@($"{Model.Prefix}_Dias")" name="@($"{Model.Prefix}.Dias")" type="number" min="0" max="365" step="1" inputmode="numeric" value="@Model.Value.Dias" />
+        @Html.ValidationMessage($"{Model.Prefix}.Dias", null, new { @class = "text-danger" })
+    </div>
+    <div class="mb-2">
+        <label class="form-label" for="@($"{Model.Prefix}_Horas")">Horas</label>
+        <select class="form-select" id="@($"{Model.Prefix}_Horas")" name="@($"{Model.Prefix}.Horas")">
+            <option value="">—</option>
+            @for (var hour = 0; hour <= 23; hour++)
+            {
+                var value = hour.ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+                if (Model.Value.Horas == value) { <option value="@value" selected>@value</option> }
+                else { <option value="@value">@value</option> }
+            }
+        </select>
+        @Html.ValidationMessage($"{Model.Prefix}.Horas", null, new { @class = "text-danger" })
+    </div>
+    <div class="mb-2">
+        <label class="form-label" for="@($"{Model.Prefix}_Minutos")">Minutos</label>
+        <select class="form-select" id="@($"{Model.Prefix}_Minutos")" name="@($"{Model.Prefix}.Minutos")">
+            <option value="">—</option>
+            @for (var minute = 0; minute <= 59; minute++)
+            {
+                var value = minute.ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+                if (Model.Value.Minutos == value) { <option value="@value" selected>@value</option> }
+                else { <option value="@value">@value</option> }
+            }
+        </select>
+        @Html.ValidationMessage($"{Model.Prefix}.Minutos", null, new { @class = "text-danger" })
+    </div>
+</div>
+@Html.ValidationMessage(Model.Prefix, null, new { @class = "text-danger" })

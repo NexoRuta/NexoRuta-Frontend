@@ -1,0 +1,21 @@
+.rules-section .form-control,
+.rules-section .form-select {
+    min-height: 2.75rem;
+}
+
+.duration-fields {
+    display: grid;
+    grid-template-columns: minmax(6rem, 1.2fr) repeat(2, minmax(5rem, 1fr));
+    gap: 0.75rem;
+    max-width: 34rem;
+}
+
+@media (max-width: 575.98px) {
+    .duration-fields {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .duration-fields > div:first-child {
+        grid-column: 1 / -1;
+    }
+}

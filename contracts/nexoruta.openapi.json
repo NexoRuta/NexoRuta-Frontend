@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost/"
+      "url": "http://127.0.0.1:5079/"
     }
   ],
   "paths": {
@@ -1905,24 +1905,6 @@
         }
       }
     },
-    "/api/public/seguimiento/{token}/cancelacion/codigo": {
-      "post": {
-        "tags": [
-          "CancelacionPublica"
-        ],
-        "parameters": [
-          {
-            "name": "token",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted"
     "/api/configuracion/tarifas": {
       "get": {
         "tags": [
@@ -2515,8 +2497,6 @@
               }
             }
           },
-          "429": {
-            "description": "Too Many Requests",
           "409": {
             "description": "Conflict",
             "content": {
@@ -2540,20 +2520,6 @@
         }
       }
     },
-    "/api/public/seguimiento/{token}/cancelacion": {
-      "post": {
-        "tags": [
-          "CancelacionPublica"
-        ],
-        "parameters": [
-          {
-            "name": "token",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
     "/api/configuracion/tarifas/borrador/publicar": {
       "post": {
         "tags": [
@@ -2692,19 +2658,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CodigoCancelacionRequest"
                 "$ref": "#/components/schemas/SimularTarifaRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/CodigoCancelacionRequest"
                 "$ref": "#/components/schemas/SimularTarifaRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/CodigoCancelacionRequest"
                 "$ref": "#/components/schemas/SimularTarifaRequest"
               }
             }
@@ -2757,20 +2720,198 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
                   "$ref": "#/components/schemas/SimulacionTarifaResponse"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
                   "$ref": "#/components/schemas/SimulacionTarifaResponse"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
                   "$ref": "#/components/schemas/SimulacionTarifaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/seguimiento/{token}/cancelacion/codigo": {
+      "post": {
+        "tags": [
+          "CancelacionPublica"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/seguimiento/{token}/cancelacion": {
+      "post": {
+        "tags": [
+          "CancelacionPublica"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodigoCancelacionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelacionPublicaResponse"
                 }
               }
             }
@@ -2817,8 +2958,6 @@
           },
           "429": {
             "description": "Too Many Requests",
-          "409": {
-            "description": "Conflict",
             "content": {
               "text/plain": {
                 "schema": {
@@ -5216,6 +5355,458 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas": {
+      "get": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasEstadoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas/borrador": {
+      "post": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReemplazarBorradorReglasOperativasRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReemplazarBorradorReglasOperativasRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReemplazarBorradorReglasOperativasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas/borrador/publicar": {
+      "post": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorReglasOperativasRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorReglasOperativasRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorReglasOperativasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas/publicaciones": {
+      "get": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "parameters": [
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamanoPagina",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaPublicacionesReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas/publicaciones/{versionId}": {
+      "get": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
                 }
               }
             }
@@ -9500,6 +10091,7 @@
             "format": "date-time"
           }
         }
+      },
       "BaseAjusteTarifarioContract": {
         "enum": [
           "ImporteFijo",
@@ -9614,6 +10206,35 @@
           "codigo": {
             "type": "string"
           },
+          "pesoGramos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "volumenCm3": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "custodia": {
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "BultoSimulacionRequest": {
         "required": [
           "pesoGramos",
@@ -9629,9 +10250,6 @@
               "number",
               "string"
             ],
-            "format": "double"
-          },
-          "volumenCm3": {
             "format": "decimal"
           },
           "largoCentimetros": {
@@ -9640,20 +10258,6 @@
               "number",
               "string"
             ],
-            "format": "double"
-          },
-          "custodia": {
-            "type": "string"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          }
-        }
             "format": "decimal"
           },
           "anchoCentimetros": {
@@ -10515,6 +11119,18 @@
           }
         }
       },
+      "EstadoVersionReglasOperativasContract": {
+        "enum": [
+          "Borrador",
+          "Publicada"
+        ]
+      },
+      "EstadoVersionTarifarioContract": {
+        "enum": [
+          "Borrador",
+          "Publicada"
+        ]
+      },
       "EvidenciaRepartoRequest": {
         "required": [
           "tipo",
@@ -10539,11 +11155,6 @@
           }
         },
         "additionalProperties": false
-      "EstadoVersionTarifarioContract": {
-        "enum": [
-          "Borrador",
-          "Publicada"
-        ]
       },
       "FranjaEntregaCambioResponse": {
         "required": [
@@ -10830,6 +11441,61 @@
           }
         }
       },
+      "ModalidadTarifariaContract": {
+        "enum": [
+          "Estandar",
+          "Urgente"
+        ]
+      },
+      "MonedaTarifariaContract": {
+        "enum": [
+          "UYU"
+        ]
+      },
+      "MotivoNoEntregaRequest": {
+        "required": [
+          "codigo",
+          "descripcion",
+          "disponible"
+        ],
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "type": "string"
+          },
+          "descripcion": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "disponible": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MotivoNoEntregaResponse": {
+        "required": [
+          "codigo",
+          "descripcion",
+          "disponible"
+        ],
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "disponible": {
+            "type": "boolean"
+          }
+        }
+      },
       "OperacionRepartoRequest": {
         "required": [
           "tipo"
@@ -10882,17 +11548,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "ModalidadTarifariaContract": {
-        "enum": [
-          "Estandar",
-          "Urgente"
-        ]
-      },
-      "MonedaTarifariaContract": {
-        "enum": [
-          "UYU"
-        ]
       },
       "OperadorDisponible": {
         "required": [
@@ -11021,6 +11676,47 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/OrganizacionAdministrativa"
+            }
+          },
+          "pagina": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tamanoPagina": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PaginaPublicacionesReglasOperativasResponse": {
+        "required": [
+          "items",
+          "pagina",
+          "tamanoPagina",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VersionReglasOperativasResumenResponse"
             }
           },
           "pagina": {
@@ -11360,6 +12056,13 @@
           }
         }
       },
+      "PoliticaDevolucionContract": {
+        "enum": [
+          "DecisionOperativa",
+          "IniciarAutomaticamente",
+          null
+        ]
+      },
       "PrimerAdministradorRequest": {
         "required": [
           "email",
@@ -11415,6 +12118,44 @@
             ]
           }
         }
+      },
+      "PublicarBorradorReglasOperativasRequest": {
+        "required": [
+          "versionConcurrencia"
+        ],
+        "type": "object",
+        "properties": {
+          "versionConcurrencia": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublicarBorradorTarifarioRequest": {
+        "required": [
+          "versionConcurrencia"
+        ],
+        "type": "object",
+        "properties": {
+          "versionConcurrencia": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
       },
       "ReasignarEnvioRequest": {
         "required": [
@@ -11482,6 +12223,127 @@
           }
         }
       },
+      "ReemplazarBorradorReglasOperativasRequest": {
+        "required": [
+          "versionConcurrencia",
+          "maxIntentosEntrega",
+          "intervaloEntreIntentosMinutos",
+          "politicaDevolucionAlAgotarIntentos",
+          "plazoEstandarMinutos",
+          "plazoUrgenteMinutos",
+          "requisitosPrueba",
+          "motivos"
+        ],
+        "type": "object",
+        "properties": {
+          "versionConcurrencia": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "maxIntentosEntrega": {
+            "maximum": 100,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "intervaloEntreIntentosMinutos": {
+            "maximum": 525600,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "politicaDevolucionAlAgotarIntentos": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PoliticaDevolucionContract"
+              }
+            ]
+          },
+          "plazoEstandarMinutos": {
+            "maximum": 525600,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "plazoUrgenteMinutos": {
+            "maximum": 525600,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requisitosPrueba": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TipoPruebaEntregaContract"
+            }
+          },
+          "motivos": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MotivoNoEntregaRequest"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReemplazarTarifasBorradorRequest": {
+        "required": [
+          "versionConcurrencia",
+          "tarifas"
+        ],
+        "type": "object",
+        "properties": {
+          "versionConcurrencia": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "tarifas": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TarifaZonaModalidadRequest"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "RegistroAvisoRequest": {
         "required": [
           "tipo"
@@ -11541,6 +12403,66 @@
         },
         "additionalProperties": false
       },
+      "ReglasOperativasErrorResponse": {
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ReglasOperativasEstadoResponse": {
+        "required": [
+          "configurado",
+          "publicacionVigente",
+          "borrador"
+        ],
+        "type": "object",
+        "properties": {
+          "configurado": {
+            "type": "boolean"
+          },
+          "publicacionVigente": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VersionReglasOperativasResumenResponse"
+              }
+            ]
+          },
+          "borrador": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VersionReglasOperativasResumenResponse"
+              }
+            ]
+          }
+        }
+      },
       "RenovacionSesionRequest": {
         "required": [
           "refreshToken"
@@ -11572,53 +12494,6 @@
         }
       },
       "RepartidorResponse": {
-      "PublicarBorradorTarifarioRequest": {
-        "required": [
-          "versionConcurrencia"
-        ],
-        "type": "object",
-        "properties": {
-          "versionConcurrencia": {
-            "maximum": 9223372036854776000,
-            "minimum": 0,
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ReemplazarTarifasBorradorRequest": {
-        "required": [
-          "versionConcurrencia",
-          "tarifas"
-        ],
-        "type": "object",
-        "properties": {
-          "versionConcurrencia": {
-            "maximum": 9223372036854776000,
-            "minimum": 0,
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "tarifas": {
-            "maxItems": 500,
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TarifaZonaModalidadRequest"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "RegistroRequest": {
         "required": [
           "accesoId",
           "usuarioId",
@@ -11733,6 +12608,76 @@
           }
         }
       },
+      "ResultadoOperacionResponse": {
+        "required": [
+          "id",
+          "secuencia",
+          "resultado",
+          "detalle",
+          "versionEnvio",
+          "versionRuta",
+          "versionesEnvio",
+          "estadosEnvio"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "secuencia": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "resultado": {
+            "type": "string"
+          },
+          "detalle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "versionEnvio": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "versionRuta": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "versionesEnvio": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          },
+          "estadosEnvio": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "RolResumen": {
         "required": [
           "id",
@@ -11766,6 +12711,39 @@
           },
           "esRolPropietario": {
             "type": "boolean"
+          }
+        }
+      },
+      "SesionMovilResponse": {
+        "required": [
+          "accessToken",
+          "expiresAtUtc",
+          "refreshToken",
+          "refreshExpiresAtUtc",
+          "sesionId"
+        ],
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "expiresAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "refreshExpiresAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sesionId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -11931,98 +12909,6 @@
             "type": "string",
             "format": "uuid"
           },
-          "token": {
-            "maxLength": 4096,
-            "minLength": 1,
-            "type": "string"
-          },
-          "nuevaPassword": {
-            "maxLength": 1024,
-            "minLength": 1,
-            "type": "string"
-          }
-        }
-      },
-      "ResultadoOperacionResponse": {
-        "required": [
-          "id",
-          "secuencia",
-          "resultado",
-          "detalle",
-          "versionEnvio",
-          "versionRuta",
-          "versionesEnvio",
-          "estadosEnvio"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "secuencia": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "resultado": {
-            "type": "string"
-          },
-          "detalle": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "versionEnvio": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "versionRuta": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "versionesEnvio": {
-            "type": "object",
-            "additionalProperties": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int64"
-            }
-          },
-          "estadosEnvio": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "RolResumen": {
-        "required": [
-          "id",
-          "codigo",
-          "nombre",
-          "permisos"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
           "zonaId": {
             "type": "string",
             "format": "uuid"
@@ -12040,39 +12926,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "SesionMovilResponse": {
-        "required": [
-          "accessToken",
-          "expiresAtUtc",
-          "refreshToken",
-          "refreshExpiresAtUtc",
-          "sesionId"
-        ],
-        "type": "object",
-        "properties": {
-          "accessToken": {
-            "type": "string"
-          },
-          "tokenType": {
-            "type": "string"
-          },
-          "expiresAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "refreshToken": {
-            "type": "string"
-          },
-          "refreshExpiresAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "sesionId": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
       },
       "SolicitarBajaRequest": {
         "required": [
@@ -12436,6 +13289,14 @@
           "BonificacionPorcentual"
         ]
       },
+      "TipoPruebaEntregaContract": {
+        "enum": [
+          "FirmaEnPantalla",
+          "Fotografia",
+          "NombreReceptor",
+          "DocumentoReceptor"
+        ]
+      },
       "UsuarioActualResponse": {
         "required": [
           "accesoId",
@@ -12606,7 +13467,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "volumenMaximoCm3": {
             "maximum": 9999999999999999999999,
@@ -12616,7 +13477,7 @@
               "number",
               "string"
             ],
-            "format": "double"
+            "format": "decimal"
           },
           "activo": {
             "type": "boolean"
@@ -12633,6 +13494,167 @@
           }
         }
       },
+      "VersionReglasOperativasResponse": {
+        "required": [
+          "versionReglasOperativasId",
+          "estado",
+          "numeroVersionPublicada",
+          "versionConcurrencia",
+          "maxIntentosEntrega",
+          "intervaloEntreIntentosMinutos",
+          "politicaDevolucionAlAgotarIntentos",
+          "plazoEstandarMinutos",
+          "plazoUrgenteMinutos",
+          "requisitosPrueba",
+          "motivos",
+          "creadaUtc",
+          "publicadaUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "versionReglasOperativasId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoVersionReglasOperativasContract"
+          },
+          "numeroVersionPublicada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "versionConcurrencia": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "maxIntentosEntrega": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "intervaloEntreIntentosMinutos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "politicaDevolucionAlAgotarIntentos": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PoliticaDevolucionContract"
+              }
+            ]
+          },
+          "plazoEstandarMinutos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "plazoUrgenteMinutos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requisitosPrueba": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TipoPruebaEntregaContract"
+            }
+          },
+          "motivos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MotivoNoEntregaResponse"
+            }
+          },
+          "creadaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publicadaUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "VersionReglasOperativasResumenResponse": {
+        "required": [
+          "versionReglasOperativasId",
+          "estado",
+          "numeroVersionPublicada",
+          "versionConcurrencia",
+          "creadaUtc",
+          "publicadaUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "versionReglasOperativasId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoVersionReglasOperativasContract"
+          },
+          "numeroVersionPublicada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "versionConcurrencia": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "creadaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publicadaUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "VersionRutaRequest": {
         "required": [
           "version"
@@ -12640,6 +13662,15 @@
         "type": "object",
         "properties": {
           "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "VersionTarifarioResponse": {
         "required": [
           "versionTarifarioId",
@@ -12900,8 +13931,10 @@
       "name": "UsuarioActual"
     },
     {
-      "name": "CancelacionPublica"
       "name": "Tarifario"
+    },
+    {
+      "name": "CancelacionPublica"
     },
     {
       "name": "EnlaceSeguimiento"
@@ -12923,6 +13956,9 @@
     },
     {
       "name": "Rutas"
+    },
+    {
+      "name": "ReglasOperativas"
     },
     {
       "name": "CambiarEstadoOrganizacion"
