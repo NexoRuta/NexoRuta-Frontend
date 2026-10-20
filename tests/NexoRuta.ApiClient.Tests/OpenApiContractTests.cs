@@ -20,6 +20,76 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task OperationalRulesContractContainsVersionedDraftPublicationAndValidationSchemas()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+        var operations = new Dictionary<string, string[]>
+        {
+            ["/api/configuracion/reglas-operativas"] = ["get"],
+            ["/api/configuracion/reglas-operativas/borrador"] = ["get", "post", "put"],
+            ["/api/configuracion/reglas-operativas/borrador/publicar"] = ["post"],
+            ["/api/configuracion/reglas-operativas/publicaciones"] = ["get"],
+            ["/api/configuracion/reglas-operativas/publicaciones/{versionId}"] = ["get"]
+        };
+        foreach (var (path, methods) in operations)
+        {
+            Assert.True(paths.TryGetProperty(path, out var item), $"OpenAPI path {path} is missing.");
+            foreach (var method in methods)
+                Assert.True(item.TryGetProperty(method, out _), $"OpenAPI operation {method} {path} is missing.");
+        }
+
+        var replace = paths.GetProperty("/api/configuracion/reglas-operativas/borrador").GetProperty("put");
+        foreach (var status in new[] { "200", "400", "401", "403", "404", "409" })
+            Assert.Contains(status, replace.GetProperty("responses").EnumerateObject().Select(item => item.Name));
+        var request = Resolve(replace.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.False(request.GetProperty("additionalProperties").GetBoolean());
+        var required = request.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
+        foreach (var field in new[] { "versionConcurrencia", "maxIntentosEntrega", "intervaloEntreIntentosMinutos",
+                     "politicaDevolucionAlAgotarIntentos", "plazoEstandarMinutos", "plazoUrgenteMinutos",
+                     "requisitosPrueba", "motivos" })
+            Assert.Contains(field, required);
+        Assert.Equal("int64", request.GetProperty("properties").GetProperty("versionConcurrencia")
+            .GetProperty("format").GetString());
+        Assert.Equal(0, request.GetProperty("properties").GetProperty("versionConcurrencia")
+            .GetProperty("minimum").GetInt32());
+        Assert.Contains("null", request.GetProperty("properties").GetProperty("maxIntentosEntrega")
+            .GetProperty("type").EnumerateArray().Select(item => item.GetString()));
+
+        var proofItems = Resolve(request.GetProperty("properties").GetProperty("requisitosPrueba")
+            .GetProperty("items"), root);
+        Assert.Equal(new[] { "FirmaEnPantalla", "Fotografia", "NombreReceptor", "DocumentoReceptor" },
+            proofItems.GetProperty("enum").EnumerateArray().Select(item => item.GetString()).ToArray());
+        var motives = Resolve(request.GetProperty("properties").GetProperty("motivos").GetProperty("items"), root);
+        Assert.False(motives.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(40, motives.GetProperty("properties").GetProperty("codigo").GetProperty("maxLength").GetInt32());
+        Assert.Equal(120, motives.GetProperty("properties").GetProperty("descripcion").GetProperty("maxLength").GetInt32());
+
+        var publish = paths.GetProperty("/api/configuracion/reglas-operativas/borrador/publicar").GetProperty("post");
+        var publishRequest = Resolve(publish.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Contains("versionConcurrencia", publishRequest.GetProperty("required").EnumerateArray()
+            .Select(item => item.GetString()));
+
+        var detail = Resolve(publish.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Contains("versionConcurrencia", detail.GetProperty("required").EnumerateArray()
+            .Select(item => item.GetString()));
+        Assert.Contains("numeroVersionPublicada", detail.GetProperty("required").EnumerateArray()
+            .Select(item => item.GetString()));
+        Assert.Contains("null", detail.GetProperty("properties").GetProperty("numeroVersionPublicada")
+            .GetProperty("type").EnumerateArray().Select(item => item.GetString()));
+
+        var history = paths.GetProperty("/api/configuracion/reglas-operativas/publicaciones").GetProperty("get");
+        Assert.Contains("400", history.GetProperty("responses").EnumerateObject().Select(item => item.Name));
+        Assert.Equal(100, history.GetProperty("parameters").EnumerateArray()
+            .Single(item => item.GetProperty("name").GetString() == "tamanoPagina")
+            .GetProperty("schema").GetProperty("maximum").GetInt32());
+    }
+
+    [Fact]
     public async Task CoverageEndpointsArePublishedInTheVersionedOpenApiContract()
     {
         using var document = await LoadOpenApiAsync();

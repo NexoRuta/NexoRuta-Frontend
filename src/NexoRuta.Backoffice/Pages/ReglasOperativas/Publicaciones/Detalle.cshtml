@@ -1,0 +1,41 @@
+@page "/reglas-operativas/publicaciones/{versionId:guid}"
+@model NexoRuta.Backoffice.Features.ReglasOperativas.Pages.PublicacionDetalleModel
+@using System.Globalization
+@using NexoRuta.Backoffice.Features.ReglasOperativas
+@{
+    ViewData["Title"] = "Detalle de publicación | Backoffice NexoRuta";
+}
+<h1>Reglas publicadas</h1>
+<p><a asp-page="/ReglasOperativas/Publicaciones/Index">Volver al historial</a></p>
+@if (Model.Notice is not null) { <p class="alert alert-success" role="status">@Model.Notice</p> }
+@if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+@if (Model.Publicacion is { } publication)
+{
+    <section class="card" aria-labelledby="publication-title">
+        <div class="card-body">
+            <h2 id="publication-title" class="h4">Publicación @publication.NumeroVersionPublicada</h2>
+            <p>Publicada el @publication.PublicadaUtc?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</p>
+            <dl class="row">
+                <dt class="col-sm-4">Máximo de intentos de entrega</dt><dd class="col-sm-8">@publication.MaxIntentosEntrega</dd>
+                <dt class="col-sm-4">Espera mínima después de un intento fallido</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(publication.IntervaloEntreIntentosMinutos)</dd>
+                <dt class="col-sm-4">Prueba requerida para entregar</dt><dd class="col-sm-8">@string.Join(", ", publication.RequisitosPrueba.Select(ReglasOperativasUi.ProofLabel))</dd>
+                <dt class="col-sm-4">Cuando se agotan los intentos</dt><dd class="col-sm-8">@ReglasOperativasUi.PolicyLabel(publication.PoliticaDevolucionAlAgotarIntentos)</dd>
+                <dt class="col-sm-4">Plazo Estándar</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(publication.PlazoEstandarMinutos)</dd>
+                <dt class="col-sm-4">Plazo Urgente</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(publication.PlazoUrgenteMinutos)</dd>
+            </dl>
+            <h3 class="h5">Motivos de no entrega</h3>
+            <ul>
+            @foreach (var motive in publication.Motivos)
+            {
+                <li>@motive.Codigo — @motive.Descripcion (@ReglasOperativasUi.MotiveAvailabilityLabel(motive.Disponible))</li>
+            }
+            </ul>
+        </div>
+    </section>
+    @if (!Model.HayBorrador)
+    {
+        <form method="post" asp-page="/ReglasOperativas/Index" asp-page-handler="CrearBorrador" class="mt-3" data-single-submit>
+            <button class="btn btn-primary" type="submit">Crear copia para editar</button>
+        </form>
+    }
+}

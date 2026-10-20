@@ -3500,6 +3500,458 @@
         }
       }
     },
+    "/api/configuracion/reglas-operativas": {
+      "get": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasEstadoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas/borrador": {
+      "post": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReemplazarBorradorReglasOperativasRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReemplazarBorradorReglasOperativasRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReemplazarBorradorReglasOperativasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas/borrador/publicar": {
+      "post": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorReglasOperativasRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorReglasOperativasRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarBorradorReglasOperativasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas/publicaciones": {
+      "get": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "parameters": [
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamanoPagina",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaPublicacionesReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/reglas-operativas/publicaciones/{versionId}": {
+      "get": {
+        "tags": [
+          "ReglasOperativas"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReglasOperativasResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasOperativasErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/{tipo}/{id}/estado": {
       "put": {
         "tags": [
@@ -7712,6 +8164,12 @@
           }
         }
       },
+      "EstadoVersionReglasOperativasContract": {
+        "enum": [
+          "Borrador",
+          "Publicada"
+        ]
+      },
       "EstadoVersionTarifarioContract": {
         "enum": [
           "Borrador",
@@ -7918,6 +8376,50 @@
           "UYU"
         ]
       },
+      "MotivoNoEntregaRequest": {
+        "required": [
+          "codigo",
+          "descripcion",
+          "disponible"
+        ],
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "type": "string"
+          },
+          "descripcion": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "disponible": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MotivoNoEntregaResponse": {
+        "required": [
+          "codigo",
+          "descripcion",
+          "disponible"
+        ],
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "disponible": {
+            "type": "boolean"
+          }
+        }
+      },
       "OperadorDisponible": {
         "required": [
           "operadorId",
@@ -8045,6 +8547,47 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/OrganizacionAdministrativa"
+            }
+          },
+          "pagina": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tamanoPagina": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PaginaPublicacionesReglasOperativasResponse": {
+        "required": [
+          "items",
+          "pagina",
+          "tamanoPagina",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VersionReglasOperativasResumenResponse"
             }
           },
           "pagina": {
@@ -8257,6 +8800,13 @@
           }
         }
       },
+      "PoliticaDevolucionContract": {
+        "enum": [
+          "DecisionOperativa",
+          "IniciarAutomaticamente",
+          null
+        ]
+      },
       "PrimerAdministradorRequest": {
         "required": [
           "email",
@@ -8313,6 +8863,25 @@
           }
         }
       },
+      "PublicarBorradorReglasOperativasRequest": {
+        "required": [
+          "versionConcurrencia"
+        ],
+        "type": "object",
+        "properties": {
+          "versionConcurrencia": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
       "PublicarBorradorTarifarioRequest": {
         "required": [
           "versionConcurrencia"
@@ -8328,6 +8897,100 @@
               "string"
             ],
             "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReemplazarBorradorReglasOperativasRequest": {
+        "required": [
+          "versionConcurrencia",
+          "maxIntentosEntrega",
+          "intervaloEntreIntentosMinutos",
+          "politicaDevolucionAlAgotarIntentos",
+          "plazoEstandarMinutos",
+          "plazoUrgenteMinutos",
+          "requisitosPrueba",
+          "motivos"
+        ],
+        "type": "object",
+        "properties": {
+          "versionConcurrencia": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "maxIntentosEntrega": {
+            "maximum": 100,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "intervaloEntreIntentosMinutos": {
+            "maximum": 525600,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "politicaDevolucionAlAgotarIntentos": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PoliticaDevolucionContract"
+              }
+            ]
+          },
+          "plazoEstandarMinutos": {
+            "maximum": 525600,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "plazoUrgenteMinutos": {
+            "maximum": 525600,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requisitosPrueba": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TipoPruebaEntregaContract"
+            }
+          },
+          "motivos": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MotivoNoEntregaRequest"
+            }
           }
         },
         "additionalProperties": false
@@ -8377,6 +9040,66 @@
           }
         },
         "additionalProperties": false
+      },
+      "ReglasOperativasErrorResponse": {
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ReglasOperativasEstadoResponse": {
+        "required": [
+          "configurado",
+          "publicacionVigente",
+          "borrador"
+        ],
+        "type": "object",
+        "properties": {
+          "configurado": {
+            "type": "boolean"
+          },
+          "publicacionVigente": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VersionReglasOperativasResumenResponse"
+              }
+            ]
+          },
+          "borrador": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VersionReglasOperativasResumenResponse"
+              }
+            ]
+          }
+        }
       },
       "ResolverSolicitudBajaRequest": {
         "required": [
@@ -9028,6 +9751,14 @@
           "BonificacionPorcentual"
         ]
       },
+      "TipoPruebaEntregaContract": {
+        "enum": [
+          "FirmaEnPantalla",
+          "Fotografia",
+          "NombreReceptor",
+          "DocumentoReceptor"
+        ]
+      },
       "UsuarioActualResponse": {
         "required": [
           "accesoId",
@@ -9172,6 +9903,167 @@
           "esPropietario": {
             "type": "boolean",
             "default": false
+          }
+        }
+      },
+      "VersionReglasOperativasResponse": {
+        "required": [
+          "versionReglasOperativasId",
+          "estado",
+          "numeroVersionPublicada",
+          "versionConcurrencia",
+          "maxIntentosEntrega",
+          "intervaloEntreIntentosMinutos",
+          "politicaDevolucionAlAgotarIntentos",
+          "plazoEstandarMinutos",
+          "plazoUrgenteMinutos",
+          "requisitosPrueba",
+          "motivos",
+          "creadaUtc",
+          "publicadaUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "versionReglasOperativasId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoVersionReglasOperativasContract"
+          },
+          "numeroVersionPublicada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "versionConcurrencia": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "maxIntentosEntrega": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "intervaloEntreIntentosMinutos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "politicaDevolucionAlAgotarIntentos": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PoliticaDevolucionContract"
+              }
+            ]
+          },
+          "plazoEstandarMinutos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "plazoUrgenteMinutos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requisitosPrueba": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TipoPruebaEntregaContract"
+            }
+          },
+          "motivos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MotivoNoEntregaResponse"
+            }
+          },
+          "creadaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publicadaUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "VersionReglasOperativasResumenResponse": {
+        "required": [
+          "versionReglasOperativasId",
+          "estado",
+          "numeroVersionPublicada",
+          "versionConcurrencia",
+          "creadaUtc",
+          "publicadaUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "versionReglasOperativasId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoVersionReglasOperativasContract"
+          },
+          "numeroVersionPublicada": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "versionConcurrencia": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "creadaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publicadaUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -9445,6 +10337,9 @@
     },
     {
       "name": "Roles"
+    },
+    {
+      "name": "ReglasOperativas"
     },
     {
       "name": "CambiarEstadoOrganizacion"
