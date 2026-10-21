@@ -17,6 +17,18 @@
     {
         <section class="card card-body mb-3">
             <h3 class="h5">@Model.Repartidor(ruta.RepartidorAccesoId) · @ruta.Matricula · @ruta.Estado</h3>
+            @if (ruta.IncidenciasCierre.Count > 0)
+            {
+                <div class="alert alert-warning" role="status">
+                    <strong>Cierre con incidencia: bultos sin entrega ni rendición</strong>
+                    <ul>@foreach (var incidencia in ruta.IncidenciasCierre)
+                    {
+                        <li>@incidencia.Codigo · registrado al cerrar la jornada. Custodia actual:
+                            @(ruta.Paradas.SelectMany(p => p.Bultos).Single(b => b.Id == incidencia.BultoId).Custodia).</li>
+                    }</ul>
+                    <p class="mb-0">La incidencia se conserva como historial. Solo confirmar la recepción en depósito cuando los bultos estén físicamente presentes.</p>
+                </div>
+            }
             <div class="table-responsive"><table class="table"><caption>Paradas en orden de recorrido</caption>
                 <thead><tr><th>Orden</th><th>Hora</th><th>Destino</th><th>Bultos</th><th>Estado</th></tr></thead>
                 <tbody>@foreach (var p in ruta.Paradas.OrderBy(p => p.Orden))
@@ -60,8 +72,9 @@
         </form>
     </details>
     <h2>Recepción en depósito</h2>
-    <p>Confirmá únicamente cuando hayas recibido todos los bultos del envío. En una devolución, el repartidor debe haber declarado la rendición.</p>
-    @foreach (var envio in Model.Envios.Where(e => e.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion"))
+    <p>Confirmá únicamente cuando hayas recibido todos los bultos del envío. Requiere rendición declarada o una incidencia registrada al cerrar la jornada; recibir nunca elimina esa incidencia.</p>
+    @foreach (var envio in Model.Envios.Where(e => e.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion"
+        || Model.Rutas.Any(r => r.IncidenciasCierre.Any(i => i.EnvioId == e.Id)) && e.Estado is ("EnTransito" or "NoEntregado")))
     {
         <form method="post" asp-page-handler="Recibir" class="card card-body mb-2" data-single-submit>
             <input type="hidden" asp-for="Fecha" /><input type="hidden" name="envioId" value="@envio.Id" /><input type="hidden" name="version" value="@envio.Version" />

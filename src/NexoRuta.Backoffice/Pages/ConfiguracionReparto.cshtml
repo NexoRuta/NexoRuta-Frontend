@@ -2,25 +2,17 @@
 @model NexoRuta.Backoffice.Features.Reparto.Pages.ConfiguracionRepartoModel
 @{ ViewData["Title"] = "Configuración de reparto"; }
 <h1>Configuración de reparto</h1>
-<p>Configurá estas reglas antes de despachar la primera ruta. Cada hoja conserva la versión con la que fue despachada.</p>
+<p>Configurá el reparto antes de despachar la primera ruta. Los intentos, motivos y pruebas se publican en <a href="/reglas-operativas">Reglas operativas</a> y se fijan al crear cada envío. Cada hoja conserva la versión con la que fue despachada.</p>
 @if (Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
 @if (Model.Confirmacion is not null) { <div class="alert alert-success" role="status">@Model.Confirmacion</div> }
 <form method="post" asp-page-handler="Politica" class="card card-body mb-4" data-single-submit>
-    <h2 class="h4">Reglas operativas · versión @Model.Politica.Version</h2>
+    <h2 class="h4">Configuración de ruta · versión @Model.Politica.Version</h2>
     <input type="hidden" asp-for="Politica.Version" />
     <label asp-for="Politica.ZonaHoraria">Zona horaria IANA</label>
     <input asp-for="Politica.ZonaHoraria" class="form-control mb-2" required maxlength="100" placeholder="America/Montevideo" />
     <label asp-for="Politica.MaximoParadas">Máximo de paradas por ruta</label><input asp-for="Politica.MaximoParadas" class="form-control mb-2" min="1" max="500" required />
-    <label asp-for="Politica.MaximoIntentos">Máximo de intentos por envío</label><input asp-for="Politica.MaximoIntentos" class="form-control mb-2" min="1" max="100" required />
-    <fieldset class="mb-2"><legend class="h5">Prueba exigida para validar la entrega</legend>
-        <label class="me-3"><input asp-for="Politica.RequiereFirma" /> Firma</label>
-        <label class="me-3"><input asp-for="Politica.RequiereFoto" /> Foto</label>
-        <label class="me-3"><input asp-for="Politica.RequiereNombre" /> Nombre del receptor</label>
-        <label><input asp-for="Politica.RequiereDocumento" /> Documento del receptor</label>
-    </fieldset>
     <label class="mb-2"><input asp-for="Politica.RequiereFotoIntento" /> Exigir foto en intentos fallidos</label>
     <label class="mb-2"><input asp-for="Politica.BloquearDiscrepanciasCarga" /> Bloquear salida con diferencias de carga</label>
-    <label asp-for="Motivos">Motivos de intento fallido, uno por línea</label><textarea asp-for="Motivos" class="form-control mb-3" rows="5" required></textarea>
     <button class="btn btn-primary align-self-start">Guardar nueva versión</button>
 </form>
 <h2>Vehículos</h2>

@@ -49,6 +49,25 @@ public sealed partial class BackofficeSessionAndPagesTests
     }
 
     [Fact]
+    public async Task CierreConIncidenciaMuestraHistorialCustodiaYRecepcionSinDecisionSobreLaEntrega()
+    {
+        var api = new FakeApi { IncludeReparto = true, IncludeIncidenciaCierre = true };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.Contains("Cierre con incidencia", html);
+        Assert.Contains("TEST-FALTANTE", html);
+        Assert.Contains("Custodia actual:", html);
+        Assert.Contains("Repartidor", html);
+        Assert.Contains("Confirmar recepción de todos los bultos", html);
+        Assert.DoesNotContain("Aceptar entrega", html);
+        Assert.DoesNotContain("Rechazar entrega", html);
+    }
+
+    [Fact]
     public async Task RutasSinPermisoNoExponeControlesNiLlamaContratosOperativos()
     {
         var api = new FakeApi { IncludeReparto = true };
@@ -71,14 +90,22 @@ public sealed partial class BackofficeSessionAndPagesTests
     private sealed partial class FakeApi
     {
         public bool IncludeReparto { get; init; }
+        public bool IncludeIncidenciaCierre { get; init; }
         public bool IsCancellationAdmin { get; init; }
         public bool CancellationApplied { get; private set; }
         public System.Collections.Concurrent.ConcurrentQueue<ZonePayloadCall> RepartoPayloads { get; } = new();
         private async Task<HttpResponseMessage?> Reparto(HttpRequestMessage request, string path, string? token, CancellationToken ct)
         {
             var politica = new { version = 1, zonaHoraria = "America/Montevideo", maximoParadas = 100, maximoIntentos = 3, motivos = new[] { "Ausente" } };
+            var bultoId = Guid.Parse("00000000-0000-0000-0000-000000000704");
+            object[] paradas = IncludeIncidenciaCierre ? [new { envioId = EnvioPrueba, orden = 1, activa = false,
+                llegadaEstimadaUtc = DateTimeOffset.Parse("2026-10-20T18:00:00Z"), estado = "EnTransito", envioVersion = 8,
+                destinatario = "Destino de prueba", direccion = "Dirección de prueba", latitud = -34.9, longitud = -56.2,
+                bultos = new[] { new { id = bultoId, codigo = "TEST-FALTANTE", custodia = "Repartidor", version = 2 } } }] : [];
+            object[] incidenciasCierre = IncludeIncidenciaCierre ? [new { operacionId = Guid.NewGuid(), envioId = EnvioPrueba,
+                bultoId, codigo = "TEST-FALTANTE", versionBulto = 2, ocurridaEnUtc = DateTimeOffset.UtcNow, recibidaEnUtc = DateTimeOffset.UtcNow }] : [];
             var ruta = new { id = RutaPrueba, jornadaId = Guid.NewGuid(), repartidorAccesoId = TargetAccessId, vehiculoId = VehiculoPrueba,
-                matricula = "AAA 1234", fecha = "2026-10-20", estado = "Planificada", version = 3, ultimaSecuencia = 0, politica, paradas = Array.Empty<object>() };
+                matricula = "AAA 1234", fecha = "2026-10-20", estado = IncludeIncidenciaCierre ? "Finalizada" : "Planificada", version = 3, ultimaSecuencia = 0, politica, paradas, incidenciasCierre };
             if (path == "/api/rutas/recursos") return Json(HttpStatusCode.OK, new { politica,
                 repartidores = new[] { new { accesoId = TargetAccessId, nombre = "Repartidor de prueba" } },
                 vehiculos = new[] { new { id = VehiculoPrueba, matricula = "AAA 1234", pesoMaximoGramos = 10000m, volumenMaximoCm3 = 10000m, activo = true, version = 1 } } });

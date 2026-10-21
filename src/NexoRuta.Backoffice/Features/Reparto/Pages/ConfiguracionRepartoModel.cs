@@ -11,7 +11,6 @@ namespace NexoRuta.Backoffice.Features.Reparto.Pages;
 public sealed class ConfiguracionRepartoModel(ConfiguracionRepartoApiClient api) : PageModel
 {
     [BindProperty] public ConfiguracionRepartoResponse Politica { get; set; } = new();
-    [BindProperty] public string Motivos { get; set; } = "";
     [BindProperty] public VehiculoResponse Vehiculo { get; set; } = new();
     public IReadOnlyList<VehiculoResponse> Vehiculos { get; private set; } = [];
     public string? Error { get; private set; }
@@ -23,7 +22,6 @@ public sealed class ConfiguracionRepartoModel(ConfiguracionRepartoApiClient api)
         if (!ModelState.IsValid) Error = "Revisá los valores de la configuración.";
         else try
         {
-            Politica.Motivos = Motivos.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             Politica = await api.GuardarAsync(Politica, Token(), HttpContext.RequestAborted);
             Confirmacion = "Configuración guardada. Las rutas ya despachadas conservan su versión anterior.";
             ModelState.Clear();
@@ -49,7 +47,7 @@ public sealed class ConfiguracionRepartoModel(ConfiguracionRepartoApiClient api)
     {
         try
         {
-            if (politica) { Politica = await api.ObtenerAsync(Token(), HttpContext.RequestAborted) ?? new(); Motivos = string.Join("\n", Politica.Motivos); }
+            if (politica) { Politica = await api.ObtenerAsync(Token(), HttpContext.RequestAborted) ?? new(); }
             Vehiculos = await api.VehiculosAsync(Token(), HttpContext.RequestAborted);
         }
         catch (NexoRutaApiException ex) { var redirect = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redirect is not null) return redirect; Error = ex.Message; }

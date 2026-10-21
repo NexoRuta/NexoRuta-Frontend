@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:5079/"
+      "url": "http://localhost/"
     }
   ],
   "paths": {
@@ -5239,129 +5239,6 @@
         }
       }
     },
-    "/api/envios/{id}/destino": {
-      "put": {
-        "tags": [
-          "Rutas"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfirmarDestinoRequest"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfirmarDestinoRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConfirmarDestinoRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/configuracion/reglas-operativas": {
       "get": {
         "tags": [
@@ -8497,6 +8374,330 @@
         }
       }
     },
+    "/api/envios/{id}/destino": {
+      "get": {
+        "tags": [
+          "DestinosEnvio"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinoEnvioDatos"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinoEnvioDatos"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinoEnvioDatos"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "DestinosEnvio"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarDestinoRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarDestinoRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarDestinoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/envios/{id}/destino/propuestas": {
+      "post": {
+        "tags": [
+          "DestinosEnvio"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestasDestinoDatos"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestasDestinoDatos"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestasDestinoDatos"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/envios": {
       "post": {
         "tags": [
@@ -8585,6 +8786,26 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10451,8 +10672,7 @@
       },
       "ConfiguracionRepartoContract": {
         "required": [
-          "zonaHoraria",
-          "motivos"
+          "zonaHoraria"
         ],
         "type": "object",
         "properties": {
@@ -10481,41 +10701,11 @@
             ],
             "format": "int32"
           },
-          "maximoIntentos": {
-            "maximum": 100,
-            "minimum": 1,
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "requiereFirma": {
-            "type": "boolean"
-          },
-          "requiereFoto": {
-            "type": "boolean"
-          },
-          "requiereNombre": {
-            "type": "boolean"
-          },
-          "requiereDocumento": {
-            "type": "boolean"
-          },
           "requiereFotoIntento": {
             "type": "boolean"
           },
           "bloquearDiscrepanciasCarga": {
             "type": "boolean"
-          },
-          "motivos": {
-            "maxItems": 100,
-            "minItems": 1,
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
           }
         }
       },
@@ -10530,6 +10720,7 @@
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -10538,6 +10729,7 @@
           "latitud": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
             "type": [
+              "null",
               "number",
               "string"
             ],
@@ -10546,12 +10738,14 @@
           "longitud": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
             "type": [
+              "null",
               "number",
               "string"
             ],
             "format": "double"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ConsultaCoberturaResponse": {
         "required": [
@@ -10895,6 +11089,63 @@
           },
           "importadaUtc": {
             "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DestinoEnvioDatos": {
+        "required": [
+          "envioId",
+          "direccion",
+          "version",
+          "estado",
+          "latitud",
+          "longitud",
+          "confirmadaEnUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "direccion": {
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "latitud": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "longitud": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "confirmadaEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
@@ -11321,7 +11572,8 @@
           "version",
           "ultimaSecuencia",
           "politica",
-          "paradas"
+          "paradas",
+          "incidenciasCierre"
         ],
         "type": "object",
         "properties": {
@@ -11375,6 +11627,12 @@
             "items": {
               "$ref": "#/components/schemas/ParadaRutaResponse"
             }
+          },
+          "incidenciasCierre": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncidenciaCierreDatos"
+            }
           }
         }
       },
@@ -11391,6 +11649,51 @@
           },
           "email": {
             "type": "string"
+          }
+        }
+      },
+      "IncidenciaCierreDatos": {
+        "required": [
+          "operacionId",
+          "envioId",
+          "bultoId",
+          "codigo",
+          "versionBulto",
+          "ocurridaEnUtc",
+          "recibidaEnUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "operacionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bultoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "versionBulto": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "ocurridaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recibidaEnUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -11480,8 +11783,7 @@
       "MotivoNoEntregaResponse": {
         "required": [
           "codigo",
-          "descripcion",
-          "disponible"
+          "descripcion"
         ],
         "type": "object",
         "properties": {
@@ -11490,9 +11792,6 @@
           },
           "descripcion": {
             "type": "string"
-          },
-          "disponible": {
-            "type": "boolean"
           }
         }
       },
@@ -11939,7 +12238,8 @@
           "direccion",
           "latitud",
           "longitud",
-          "bultos"
+          "bultos",
+          "reglas"
         ],
         "type": "object",
         "properties": {
@@ -12006,6 +12306,9 @@
             "items": {
               "$ref": "#/components/schemas/BultoRutaResponse"
             }
+          },
+          "reglas": {
+            "$ref": "#/components/schemas/ReglasEnvioResponse"
           }
         }
       },
@@ -12116,6 +12419,71 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PropuestaDestinoDatos": {
+        "required": [
+          "descripcion",
+          "latitud",
+          "longitud"
+        ],
+        "type": "object",
+        "properties": {
+          "descripcion": {
+            "type": "string"
+          },
+          "latitud": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "longitud": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "PropuestasDestinoDatos": {
+        "required": [
+          "envioId",
+          "direccion",
+          "version",
+          "atribucion",
+          "propuestas"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "direccion": {
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "atribucion": {
+            "type": "string"
+          },
+          "propuestas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropuestaDestinoDatos"
+            }
           }
         }
       },
@@ -12402,6 +12770,72 @@
           }
         },
         "additionalProperties": false
+      },
+      "ReglasEnvioResponse": {
+        "required": [
+          "versionId",
+          "numeroVersion",
+          "maximoIntentos",
+          "intervaloEntreIntentosMinutos",
+          "politicaDevolucionAlAgotarIntentos",
+          "requiereFirma",
+          "requiereFoto",
+          "requiereNombre",
+          "requiereDocumento",
+          "motivos"
+        ],
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "numeroVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maximoIntentos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "intervaloEntreIntentosMinutos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "politicaDevolucionAlAgotarIntentos": {
+            "type": "string"
+          },
+          "requiereFirma": {
+            "type": "boolean"
+          },
+          "requiereFoto": {
+            "type": "boolean"
+          },
+          "requiereNombre": {
+            "type": "boolean"
+          },
+          "requiereDocumento": {
+            "type": "boolean"
+          },
+          "motivos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MotivoNoEntregaResponse"
+            }
+          }
+        }
       },
       "ReglasOperativasErrorResponse": {
         "required": [
@@ -13983,6 +14417,9 @@
     },
     {
       "name": "CancelacionesEnvio"
+    },
+    {
+      "name": "DestinosEnvio"
     },
     {
       "name": "Envios"

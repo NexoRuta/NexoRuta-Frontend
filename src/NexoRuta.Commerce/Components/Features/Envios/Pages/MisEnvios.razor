@@ -44,6 +44,8 @@ else if (envios.Count > 0)
                             aria-label="Ver seguimiento del envío @envio.Id" @onclick="() => VerSeguimientoAsync(envio.Id)">
                             @(consultando == envio.Id ? "Consultando…" : "Ver seguimiento")
                         </button>
+                        @if (envio.Estado == "Admitido")
+                        { <a class="btn btn-outline-primary" href="/envios/@envio.Id/destino">Ubicación del destino</a> }
                         @if (puedeCancelar && envio.AdmiteCancelacion())
                         {
                             <button class="btn btn-outline-danger" disabled="@(consultando is not null)" @onclick="() => PrepararCancelacion(envio)">Cancelar envío</button>

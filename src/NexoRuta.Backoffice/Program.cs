@@ -105,6 +105,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseRouting();
 
+app.UseRequestLocalization("es-UY");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();

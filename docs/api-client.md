@@ -56,3 +56,7 @@ La copia contiene metadatos de la API, sin datos de usuarios o envíos. Los DTOs
 ## Cancelación verificada desde Tracking
 
 `SeguimientoApiClient.SolicitarCodigoCancelacionAsync` solicita por POST el envío del código al contacto registrado, sin enviar un correo elegido por el visitante. `CancelarAsync(token, codigo)` confirma la acción por POST. La página muestra código y confirmación expresa solo antes de la entrega física; maneja errores, cinco intentos, reemisión y `429`. Cambiar de enlace cancela las consultas previas y limpia el formulario. El seguimiento público no revela contactos ni códigos; `202` indica solicitud encolada. [Contrato](../../backend/docs/cu/cancelacion-envios.md).
+
+## Destino del envío
+
+`DestinosEnvioApiClient` consulta la dirección y su versión, solicita propuestas al proveedor configurado y confirma por PUT las coordenadas elegidas por el comercio. El alta y la lista enlazan la página `/envios/{id}/destino`; la página no selecciona automáticamente una coincidencia y exige revisión expresa. Cambiar el punto desmarca la revisión. La clave Geoapify permanece en backend; Commerce solo recibe el token público de Mapbox por configuración. [Contrato y evidencia](../../backend/docs/cu/destinos-envios.md).

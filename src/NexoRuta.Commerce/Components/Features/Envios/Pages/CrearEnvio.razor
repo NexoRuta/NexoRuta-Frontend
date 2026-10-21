@@ -34,6 +34,7 @@
     {
         <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para
             @creado.ComercioNombre con @creado.OperadorNombre; bulto @creado.CodigoBulto.</p>
+        <p><a class="btn btn-primary" href="/envios/@creado.Id/destino">Continuar: revisar y confirmar ubicación</a></p>
         }
         @if (usuarioActual is not null && operadores.Count == 0 && error is null)
         {

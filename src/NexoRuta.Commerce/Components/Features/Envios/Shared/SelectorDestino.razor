@@ -1,0 +1,56 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime Js
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+
+@if (token is null)
+{
+    <p class="alert alert-warning" role="status">El mapa no está configurado. Podés indicar las coordenadas manualmente; no se eligió ningún punto por defecto.</p>
+}
+else
+{
+    <div @ref="elemento" style="height:360px;min-height:240px" aria-label="Mapa del destino; seleccioná el punto o mové el marcador"></div>
+    @if (mensaje is not null) { <p role="status">@mensaje</p> }
+}
+
+@code {
+    [Parameter] public double? Latitud { get; set; }
+    [Parameter] public double? Longitud { get; set; }
+    [Parameter] public EventCallback<(double Latitud, double Longitud)> PuntoCambiado { get; set; }
+    private ElementReference elemento;
+    private string? token, mensaje;
+    private bool fallo;
+    private IJSObjectReference? modulo, mapa;
+    private DotNetObjectReference<SelectorDestino>? referencia;
+    protected override void OnInitialized()
+    {
+        var valor = Configuration["Mapbox:PublicAccessToken"];
+        token = valor?.StartsWith("pk.", StringComparison.Ordinal) == true ? valor : null;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (token is null || fallo) return;
+        try
+        {
+            if (modulo is null)
+            {
+                modulo = await Js.InvokeAsync<IJSObjectReference>("import", "./js/destino-mapbox.js");
+                referencia = DotNetObjectReference.Create(this);
+                mapa = await modulo.InvokeAsync<IJSObjectReference>("crear", elemento, token, referencia);
+            }
+            if (mapa is not null) await mapa.InvokeVoidAsync("mostrar", Latitud, Longitud);
+        }
+        catch (JSException) { fallo = true; mensaje = "No se pudo cargar el mapa. Revisá la conexión o indicá las coordenadas manualmente."; StateHasChanged(); }
+    }
+    [JSInvokable] public Task Seleccionar(double latitud, double longitud) => PuntoCambiado.InvokeAsync((latitud, longitud));
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (mapa is not null) { await mapa.InvokeVoidAsync("dispose"); await mapa.DisposeAsync(); }
+            if (modulo is not null) await modulo.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+        referencia?.Dispose();
+    }
+}
