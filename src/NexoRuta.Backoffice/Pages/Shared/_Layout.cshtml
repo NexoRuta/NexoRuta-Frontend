@@ -7,82 +7,57 @@
     <title>@ViewData["Title"] - NexoRuta.Backoffice</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/portal-design.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/NexoRuta.Backoffice.styles.css" asp-append-version="true" />
     @await RenderSectionAsync("Head", required: false)
 </head>
 @{
-    var permisos = Context.Items.TryGetValue(NexoRuta.Backoffice.Core.Security.ApiPermissionAuthorizationHandler.PermissionsCacheKey, out var granted)
-        ? granted as IReadOnlyList<string> ?? []
-        : [];
-    var puedeGestionarZonas = false;
-    if (User.Identity?.IsAuthenticated == true && !User.HasClaim(NexoRuta.ApiClient.Core.Session.SesionUsuario.ClaimTipoAcceso, NexoRuta.ApiClient.Core.Session.SesionUsuario.OrganizacionSuspendida))
-    {
-        var operadorActual = await AuthorizationService.AuthorizeAsync(User, null, NexoRuta.ApiClient.Core.Session.SesionUsuario.Operador);
-        if (operadorActual.Succeeded)
-        {
-            var permisoZonas = await AuthorizationService.AuthorizeAsync(User, null, NexoRuta.Backoffice.Features.ZonasCobertura.ZonaCoberturaUi.PermisoGestionar);
-            puedeGestionarZonas = permisoZonas.Succeeded;
-        }
-    }
+    var mostrarNavegacion = User.Identity?.IsAuthenticated == true
+        && !User.HasClaim(NexoRuta.ApiClient.Core.Session.SesionUsuario.ClaimTipoAcceso, NexoRuta.ApiClient.Core.Session.SesionUsuario.OrganizacionSuspendida);
+    var navigation = mostrarNavegacion
+        ? await NexoRuta.Backoffice.Core.Navigation.BackofficeNavigation.LoadAsync(AuthorizationService, User, Context)
+        : NexoRuta.Backoffice.Core.Navigation.BackofficeNavigationSnapshot.Hidden;
 }
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">NexoRuta.Backoffice</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
+    <a class="nr-skip-link" href="#main-content">Saltar al contenido principal</a>
+    <div class="nr-app-shell nr-backoffice-shell" id="backoffice-app-shell">
+        <header class="nr-topbar">
+            <a class="nr-brand" asp-area="" asp-page="/Index" aria-label="NexoRuta Backoffice, inicio">
+                <span class="nr-brand-mark" aria-hidden="true">N</span>
+                <span>NexoRuta <small>Backoffice</small></span>
+            </a>
+            <div class="nr-topbar-actions">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <form method="post" asp-page="/Salir" data-single-submit>
+                        <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
+                    </form>
+                }
+                <button class="navbar-toggler nr-menu-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#backofficeNavigation" aria-controls="backofficeNavigation" aria-expanded="false" aria-label="Mostrar u ocultar navegación principal">
+                    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        @if (!User.HasClaim(NexoRuta.ApiClient.Core.Session.SesionUsuario.ClaimTipoAcceso, NexoRuta.ApiClient.Core.Session.SesionUsuario.OrganizacionSuspendida))
-                        {
-                        <li class="nav-item"><a class="nav-link text-dark" asp-page="/MiOperador">Mi operador</a></li>
-                        @if (permisos.Contains("envios.consultar", StringComparer.Ordinal))
-                        {
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Envíos</a>
-                        </li>
-                        }
-                        @if (permisos.Contains("envios.gestionar", StringComparer.Ordinal))
-                        {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Rutas">Rutas y depósito</a></li>
-                        }
-                        @if (permisos.Contains("usuarios.gestionar", StringComparer.Ordinal))
-                        {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Usuarios">Usuarios</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Repartidores">Repartidores</a></li>
-                        }
-                        @if (permisos.Contains(NexoRuta.Backoffice.Features.ZonasCobertura.ZonaCoberturaUi.PermisoGestionar, StringComparer.Ordinal))
-                        {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/ConfiguracionReparto">Configuración de reparto</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Roles">Roles y permisos</a></li>
-                        }
-                        @if (puedeGestionarZonas)
-                        {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/ZonasCobertura/Index">Zonas y franjas</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/Tarifas/Index">Tarifas</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/ReglasOperativas/Index">Reglas operativas</a></li>
-                        }
-                        }
-                    </ul>
-                    @if (User.Identity?.IsAuthenticated == true)
-                    {
-                        <form method="post" asp-page="/Salir" data-single-submit>
-                            <button type="submit" class="btn btn-link">Cerrar sesión</button>
-                        </form>
-                    }
-                </div>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+        </header>
+        <div class="nr-portal-layout @(mostrarNavegacion ? "has-sidebar" : null)">
+            @if (mostrarNavegacion)
+            {
+            <aside id="backofficeNavigation" class="nr-sidebar collapse d-lg-block">
+                <partial name="Shared/_BackofficeNavigation" model="navigation" />
+            </aside>
+            }
+            <div class="nr-main-column">
+                <main id="main-content" role="main" class="nr-main-content" tabindex="-1">
+                    <div class="nr-page nr-page-backoffice">
+                        @RenderBody()
+                    </div>
+                </main>
+                <footer class="nr-footer">NexoRuta <span aria-hidden="true">·</span> Backoffice</footer>
+            </div>
+        </div>
     </div>
+
+    @await RenderSectionAsync("PageDialogs", required: false)
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

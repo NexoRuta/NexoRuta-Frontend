@@ -201,6 +201,17 @@ public sealed class EnviosApiClientTests
         Assert.False(Validator.TryValidateObject(request, new ValidationContext(request), [], validateAllProperties: true));
     }
 
+    [Fact]
+    public void Formulario_EmailInvalidoMuestraUnMensajeDeValidacionEnEspanol()
+    {
+        var request = ValidRequest();
+        request.DestinatarioEmail = "no-es-un-correo";
+        var errors = new List<ValidationResult>();
+
+        Assert.False(Validator.TryValidateObject(request, new ValidationContext(request), errors, validateAllProperties: true));
+        Assert.Contains(errors, error => error.ErrorMessage == "Ingresá un correo electrónico válido.");
+    }
+
     [Theory]
     [InlineData("usuario")]
     [InlineData("operadores")]

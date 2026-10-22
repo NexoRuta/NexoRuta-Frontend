@@ -27,7 +27,7 @@
 
 @if (Model.Zona is { } zona)
 {
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+    <header class="nr-page-header">
         <div>
             <h1>@zona.Nombre</h1>
             <p>Estado: <strong>@zona.Estado</strong> · Zona horaria: <strong>@zona.ZonaHoraria</strong></p>
@@ -36,7 +36,8 @@
                 @if (zona.CodigoDepartamento is not null) { <span>· Departamento @zona.CodigoDepartamento · referencia @zona.VersionFuente</span> }
             </p>
         </div>
-        <div>
+        <div class="d-flex flex-wrap gap-2 align-items-start">
+            <a class="btn btn-outline-secondary" asp-page="/ZonasCobertura/Index">Volver a zonas</a>
             @if (zona.Estado == ZonaCoberturaUi.EstadoActiva)
             {
                 <form method="post" asp-page-handler="Estado" data-single-submit>
@@ -56,7 +57,7 @@
                 @if (activeSlots == 0) { <p class="form-text">Agregá al menos una franja activa para habilitar la zona.</p> }
             }
         </div>
-    </div>
+    </header>
 
     <section aria-labelledby="geometry-title" class="mb-4">
         <h2 id="geometry-title">Cobertura geográfica</h2>
@@ -113,7 +114,7 @@
         @if (zona.Franjas.Count == 0) { <p role="status">Todavía no hay franjas configuradas.</p> }
         else
         {
-            <div class="table-responsive"><table class="table align-middle">
+        <div class="table-responsive" role="region" aria-label="Franjas de la zona; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0"><table class="table align-middle">
                 <thead><tr><th>Día</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Editar</th></tr></thead>
                 <tbody>
                 @foreach (var franja in zona.Franjas)

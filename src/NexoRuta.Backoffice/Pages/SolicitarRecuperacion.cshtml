@@ -1,24 +1,20 @@
 @page "/recuperar-contrasena"
 @model NexoRuta.Backoffice.Features.Sesion.Pages.SolicitarRecuperacionModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@{ Layout = null; }
-<!doctype html>
-<html lang="es">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Recuperar contraseña | Backoffice</title></head>
-<body>
-<partial name="Shared/_StandaloneZonesNavigation" />
-<main>
-    <h1>Recuperá tu contraseña</h1>
-    <p>Ingresá el correo registrado. Si pertenece a una cuenta, vas a recibir instrucciones para restablecer la contraseña.</p>
-    @if (Model.SolicitudEnviada) { <p role="status">Si el correo pertenece a una cuenta, vas a recibir instrucciones para restablecer la contraseña.</p> }
-    @if (Model.Error is not null) { <p role="alert">@Model.Error</p> }
+@{ Layout = "_StandaloneLayout"; ViewData["Title"] = "Recuperar contraseña | Backoffice NexoRuta"; }
+<section class="nr-auth-panel" aria-labelledby="recovery-heading">
+    <h1 id="recovery-heading">Recuperar contraseña</h1>
+    <p>Te enviaremos un enlace si hay una cuenta asociada.</p>
+    @if (Model.SolicitudEnviada) { <p class="nr-auth-message" role="status">Si hay una cuenta asociada, recibirás un enlace para cambiar la contraseña.</p> }
+    @if (Model.Error is not null) { <p class="nr-auth-message" role="alert">@Model.Error</p> }
     <form method="post" asp-page="/SolicitarRecuperacion" data-single-submit>
-        <label asp-for="Email">Correo electrónico</label>
-        <input asp-for="Email" type="email" autocomplete="email" required maxlength="254" />
-        <span asp-validation-for="Email" role="alert"></span>
-        <button type="submit">Enviar instrucciones</button>
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <div class="nr-auth-field">
+            <label asp-for="Email" class="form-label">Correo electrónico</label>
+            <input asp-for="Email" class="form-control" type="email" autocomplete="email" required maxlength="254" aria-describedby="Email-validation" />
+            <span asp-validation-for="Email" id="Email-validation" class="text-danger"></span>
+        </div>
+        <button type="submit" class="btn btn-primary nr-auth-submit">Enviar enlace</button>
     </form>
-    <p><a href="/ingresar">Volver a ingresar</a></p>
-</main>
-</body>
-</html>
+    <p class="nr-auth-secondary"><a href="/ingresar">Volver al ingreso</a></p>
+</section>

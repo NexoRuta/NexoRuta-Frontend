@@ -12,3 +12,15 @@ document.querySelectorAll("form[data-single-submit]").forEach((form) => {
         form.querySelectorAll('button[type="submit"]').forEach((button) => { if (button !== submitter) button.disabled = true; });
     });
 });
+
+document.addEventListener("click", (event) => {
+    const toggle = event.target.closest("[data-password-toggle]");
+    if (!toggle) return;
+    const input = document.getElementById(toggle.getAttribute("aria-controls"));
+    if (!input) return;
+    const visible = input.type === "password";
+    input.type = visible ? "text" : "password";
+    toggle.textContent = visible ? "Ocultar" : "Mostrar";
+    toggle.setAttribute("aria-label", `${visible ? "Ocultar" : "Mostrar"} contraseña`);
+    toggle.setAttribute("aria-pressed", String(visible));
+});

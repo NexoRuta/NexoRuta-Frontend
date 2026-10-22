@@ -1,0 +1,30 @@
+@model NexoRuta.Backoffice.Core.Navigation.BackofficeNavigationSnapshot
+@{
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
+    var navigationClass = Model.Standalone ? "nr-standalone-nav" : "nr-navigation";
+    var navigationLabel = Model.Standalone ? "Navegación operativa" : "Navegación principal";
+}
+@if (Model.Status == NexoRuta.Backoffice.Core.Navigation.BackofficeNavigationStatus.Ready && Model.Groups.Count > 0)
+{
+    <nav class="@navigationClass" aria-label="@navigationLabel">
+        @foreach (var group in Model.Groups)
+        {
+            <div class="nr-nav-group">
+                @if (!Model.Standalone)
+                {
+                    <p class="nr-nav-heading">@group.Label</p>
+                }
+                <ul class="nr-nav-list">
+                    @foreach (var link in group.Links)
+                    {
+                        <li><a class="nr-nav-link @(link.IsActive(currentPage) ? "active" : null)" aria-current="@(link.IsActive(currentPage) ? "page" : null)" href="@link.Href">@link.Label</a></li>
+                    }
+                </ul>
+            </div>
+        }
+    </nav>
+}
+else if (Model.Status == NexoRuta.Backoffice.Core.Navigation.BackofficeNavigationStatus.Unavailable)
+{
+    <p class="nr-navigation-status" role="status">No se pudieron verificar tus permisos para actualizar la navegación. Recargá la página para volver a intentarlo.</p>
+}

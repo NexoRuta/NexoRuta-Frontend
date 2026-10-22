@@ -5,31 +5,69 @@
 @using NexoRuta.ApiClient.Core.Exceptions
 @using System.Net
 @using NexoRuta.ApiClient.Features.Seguimiento.Clients
+@using NexoRuta.ApiClient.Features.IdentidadVisual
 @inject SeguimientoApiClient SeguimientoClient
 
 <PageTitle>Seguimiento de envío | NexoRuta</PageTitle>
 
-<main class="container py-5">
+<section class="nr-page nr-page-tracking">
+    <header class="nr-page-heading">
+        <div>
+            <p class="nr-eyebrow">ESTADO DEL ENVÍO</p>
+            <h1>Seguimiento de envío</h1>
+            <p>Consultá el estado actual y las opciones disponibles para tu envío.</p>
+        </div>
+    </header>
 
-    <h1>Seguimiento de envío</h1>
+    <section class="card nr-tracking-card" aria-labelledby="estado-envio-titulo">
+        <div class="card-body" aria-busy="@cargando">
 
-    <p class="text-muted">
-        Consultá el estado actual de tu envío.
-    </p>
+            @if (!cargando && identidad is not null)
+            {
+                <section class="operator-identity" style="--nr-operator-accent: @(ColorMarca.AcentoSobreBlanco(identidad.ColorPrimario) ?? "var(--bs-primary)");" aria-labelledby="identidad-operador-titulo">
+                    @if (identidad.LogoContenido is { Length: > 0 } && identidad.LogoTipoContenido is "image/png" or "image/jpeg")
+                    {
+                        <img class="operator-identity-logo" src="@LogoDataUri" alt="Logo de @identidad.Nombre" />
+                    }
+                    <h2 id="identidad-operador-titulo" class="h5">@identidad.Nombre</h2>
+                    @if (identidad.CorreoPublico is not null || identidad.TelefonoPublico is not null)
+                    {
+                        <dl class="operator-identity-contact">
+                            @if (identidad.CorreoPublico is not null)
+                            {
+                                <dt>Correo de contacto</dt><dd><a href="mailto:@identidad.CorreoPublico">@identidad.CorreoPublico</a></dd>
+                            }
+                            @if (identidad.TelefonoPublico is not null)
+                            {
+                                <dt>Teléfono</dt><dd><a href="tel:@TelefonoHref">@identidad.TelefonoPublico</a></dd>
+                            }
+                        </dl>
+                    }
+                    @if (identidad.ColorPrimario is not null || identidad.ColorSecundario is not null)
+                    {
+                        <ul class="operator-brand-colors" aria-label="Colores de marca">
+                            @if (ColorMarca.TieneFormatoValido(identidad.ColorPrimario))
+                            { <li><span class="operator-brand-swatch" style="background-color:@identidad.ColorPrimario"></span>Color primario</li> }
+                            @if (ColorMarca.TieneFormatoValido(identidad.ColorSecundario))
+                            { <li><span class="operator-brand-swatch" style="background-color:@identidad.ColorSecundario"></span>Color secundario</li> }
+                        </ul>
+                    }
+                </section>
+            }
 
-    <section class="card mt-4">
-        <div class="card-body">
-
-            <h2 class="h5">Estado del envío</h2>
+            <h2 id="estado-envio-titulo" class="h5">Estado del envío</h2>
 
             @if (cargando)
             {
-                <p>Consultando el estado...</p>
+                <p class="visually-hidden" role="status">Consultando el estado del envío.</p>
+                <div class="tracking-status-skeleton" aria-hidden="true">
+                    <span></span><span></span>
+                </div>
             }
             else if (estado is not null)
             {
-                <div class="alert alert-success">
-                    Estado actual: <strong>@estado</strong>
+                <div class="nr-tracking-status" role="status">
+                    <span>Estado actual</span><strong>@estado</strong>
                 </div>
             }
             else if (limiteExcedido)
@@ -58,7 +96,7 @@
 
     @if (PuedeCancelar)
     {
-        <section class="card mt-4" aria-labelledby="cancelacion-titulo">
+        <section class="card nr-tracking-card nr-cancellation-card" aria-labelledby="cancelacion-titulo">
             <div class="card-body">
                 <h2 id="cancelacion-titulo" class="h5">Cancelar envío</h2>
                 <p>Podés cancelar antes de recibir el paquete. Te enviaremos un código al correo registrado por el comercio.</p>
@@ -77,7 +115,7 @@
         </section>
     }
     @if (cancelado) { <div class="alert alert-success mt-4" role="status">El envío fue cancelado.</div> }
-</main>
+</section>
 
 @code {
     [Parameter]
@@ -86,21 +124,27 @@
     private bool cargando = true, enlaceNoDisponible, limiteExcedido;
     private bool procesando, codigoSolicitado, cancelado;
     private string? estado, mensajeCancelacion;
+    private NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses.IdentidadVisualPublicaResponse? identidad;
     private string codigo = "";
     private CancellationTokenSource solicitudes = new();
     private bool PuedeCancelar => estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado";
+    private string? LogoDataUri => identidad?.LogoContenido is { Length: > 0 } bytes && identidad.LogoTipoContenido is "image/png" or "image/jpeg"
+        ? $"data:{identidad.LogoTipoContenido};base64,{Convert.ToBase64String(bytes)}" : null;
+    private string TelefonoHref => identidad?.TelefonoPublico is { } value
+        ? new string(value.Where(character => character is >= '0' and <= '9' || character == '+').ToArray()) : "";
 
     protected override async Task OnParametersSetAsync()
     {
         solicitudes.Cancel(); solicitudes.Dispose(); solicitudes = new();
         var ct = solicitudes.Token;
-        cargando = true; estado = null; enlaceNoDisponible = false; limiteExcedido = false;
+        cargando = true; estado = null; identidad = null; enlaceNoDisponible = false; limiteExcedido = false;
         procesando = false; codigoSolicitado = false; cancelado = false; codigo = ""; mensajeCancelacion = null;
         try
         {
             var respuesta = await SeguimientoClient.ConsultarAsync(Token, ct);
             if (ct.IsCancellationRequested) return;
             estado = respuesta?.Estado;
+            identidad = respuesta?.Identidad;
             enlaceNoDisponible = respuesta is null;
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests) { if (!ct.IsCancellationRequested) limiteExcedido = true; }

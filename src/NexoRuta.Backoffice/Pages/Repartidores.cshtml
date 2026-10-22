@@ -2,11 +2,34 @@
 @model NexoRuta.Backoffice.Features.Reparto.Pages.RepartidoresModel
 @{ ViewData["Title"] = "Repartidores"; }
 
-<h1>Repartidores</h1>
-<p>Creá primero la cuenta en <a asp-page="/Usuarios">Usuarios</a>. Vinculá su perfil y asignale un rol con el permiso de ejecutar la hoja de ruta propia.</p>
+<header class="nr-page-header"><div><h1>Repartidores</h1><p>Creá primero la cuenta en <a asp-page="/Usuarios">Usuarios</a>. Vinculá su perfil y asignale un rol con el permiso de ejecutar la hoja de ruta propia.</p></div></header>
 @if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
 @if (Model.Confirmacion is not null) { <p class="alert alert-success" role="status">@Model.Confirmacion</p> }
+@if (!Model.CargaCompleta)
+{
+    <form method="get" asp-page-handler="Reintentar" class="mb-3">
+        <button class="btn btn-outline-primary" type="submit">Reintentar</button>
+    </form>
+}
+@if (Model.FormularioEnviado)
+{
+    <section class="card mb-4" aria-labelledby="reintentar-repartidor">
+        <div class="card-body">
+            <h2 class="h5" id="reintentar-repartidor">Datos enviados</h2>
+            <p>La operación no quedó confirmada. Conservamos los valores para que puedas reintentar.</p>
+            <form method="post" asp-page-handler="Guardar" data-single-submit class="row g-3 align-items-end">
+                <input type="hidden" name="accesoId" value="@Model.AccesoIdEnviado" />
+                @if (Model.VersionEnviada is { } version) { <input type="hidden" name="version" value="@version" /> }
+                <div class="col-md-6"><label for="reintento-nombre" class="form-label">Nombre del repartidor</label><input id="reintento-nombre" name="nombre" value="@Model.NombreEnviado" class="form-control" maxlength="120" required /></div>
+                <div class="col-md-3"><label for="reintento-activo" class="form-label">Estado del perfil</label><select id="reintento-activo" name="activo" class="form-select"><option value="true" selected="@Model.ActivoEnviado">Activo</option><option value="false" selected="@(!Model.ActivoEnviado)">Inactivo</option></select></div>
+                <div class="col-md-3"><button class="btn btn-outline-primary" type="submit">Reintentar guardado</button></div>
+            </form>
+        </div>
+    </section>
+}
 
+@if (Model.CargaCompleta)
+{
 <section class="card mb-4" aria-labelledby="nuevo-perfil">
     <div class="card-body">
         <h2 class="h5" id="nuevo-perfil">Habilitar un repartidor</h2>
@@ -14,7 +37,7 @@
         { <p>No hay cuentas activas con rol pendientes de vincular.</p> }
         else
         {
-            <form method="post" asp-page-handler="Guardar" data-single-submit class="row g-3">
+            <form method="post" asp-page-handler="Guardar" data-single-submit class="row g-3 align-items-end">
                 <div class="col-md-5"><label for="acceso" class="form-label">Usuario</label>
                     <select name="accesoId" id="acceso" class="form-select" required>
                         <option value="">Seleccionar usuario</option>
@@ -33,7 +56,8 @@
 {
     <section class="card mb-3" aria-label="Perfil de @perfil.Nombre">
         <div class="card-body">
-            <p>@perfil.Email · @(perfil.Activo ? "Activo" : "Inactivo")</p>
+            <h2 class="h5">@perfil.Nombre</h2>
+            <p class="text-secondary">@perfil.Email · @(perfil.Activo ? "Activo" : "Inactivo")</p>
             <form method="post" asp-page-handler="Guardar" data-single-submit class="row g-3 align-items-end">
                 <input type="hidden" name="accesoId" value="@perfil.AccesoId" />
                 <input type="hidden" name="version" value="@perfil.Version" />
@@ -47,4 +71,5 @@
             </form>
         </div>
     </section>
+}
 }

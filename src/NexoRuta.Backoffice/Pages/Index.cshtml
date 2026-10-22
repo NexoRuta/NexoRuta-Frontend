@@ -1,67 +1,252 @@
-﻿@page
+@page
+@using System.Globalization
 @model NexoRuta.Backoffice.Features.Envios.Pages.IndexModel
 @{
-    ViewData["Title"] = "Envíos | Backoffice NexoRuta";
+    ViewData["Title"] = "Envíos recibidos | Backoffice NexoRuta";
 }
 
-<h1>Envíos recibidos</h1>
+<header class="nr-page-header nr-shipments-header">
+    <div>
+        <h1>Envíos recibidos</h1>
+        @if (Model.ConsultaCorrecta)
+        {
+            <p class="nr-shipments-result-count">@Model.TotalResultados @(Model.TotalResultados == 1 ? "resultado" : "resultados")</p>
+        }
+    </div>
+    <form method="get" asp-page="/Index" class="nr-shipments-refresh" data-single-submit data-preserve-scroll>
+        <input type="hidden" name="Buscar" value="@Model.Buscar" />
+        <input type="hidden" name="Estado" value="@Model.Estado" />
+        <input type="hidden" name="Pagina" value="@Model.Pagina" />
+        <button type="submit" class="btn btn-outline-secondary" data-loading-text="Actualizando…">Actualizar</button>
+    </form>
+</header>
+
 @if (Model.Confirmacion is not null)
 {
     <p class="alert alert-success" role="status">@Model.Confirmacion</p>
 }
-@if (Model.UsuarioActual is { } usuarioActual)
-{
-    <p>Operador: <strong>@usuarioActual.OperadorNombre</strong> · Usuario: @usuarioActual.UsuarioEmail</p>
-}
 @if (Model.Error is not null)
 {
-    <p class="alert alert-danger" role="alert">@Model.Error</p>
+    <div class="alert alert-danger nr-shipments-error" role="alert">
+        <span>@Model.Error</span>
+        <a class="btn btn-outline-danger" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, Pagina = Model.Pagina })">Reintentar</a>
+    </div>
 }
-@if (Model.Envios.Count == 0 && Model.Error is null)
+
+<form method="get" asp-page="/Index" class="nr-shipments-filters" data-single-submit>
+    <div class="nr-shipments-search">
+        <label for="shipment-search" class="form-label">Buscar envíos</label>
+        <input id="shipment-search" name="Buscar" type="search" class="form-control" value="@Model.Buscar" placeholder="Código, comercio o destinatario" autocomplete="off" />
+    </div>
+    <div class="nr-shipments-state-filter">
+        <label for="shipment-state" class="form-label">Estado</label>
+        <select id="shipment-state" name="Estado" class="form-select">
+            <option value="">Todos los estados</option>
+            @foreach (var state in Model.EstadosDisponibles)
+            {
+                <option value="@state" selected="@(Model.Estado == state)">@Model.EtiquetaEstado(state)</option>
+            }
+        </select>
+    </div>
+    <input type="hidden" name="Pagina" value="1" />
+    <button type="submit" class="btn btn-primary" data-loading-text="Aplicando…">Aplicar filtros</button>
+    @if (Model.TieneFiltros)
+    {
+        <a class="btn btn-link nr-shipments-clear" asp-page="/Index">Limpiar filtros</a>
+    }
+</form>
+
+@if (Model.ConsultaCorrecta && Model.TotalResultados == 0)
 {
-    <p>Este operador todavía no tiene envíos registrados. Los envíos de los comercios aparecerán aquí cuando se registren con este operador.</p>
-}
-else if (Model.Envios.Count > 0)
-{
-    <table class="table">
-        <thead><tr><th>ID</th><th>Operador / comercio</th><th>Usuario</th><th>Destinatario</th><th>Dirección</th><th>Estado</th><th>Bultos</th>@if (Model.PuedeCancelar) { <th>Acciones</th> }</tr></thead>
-        <tbody>
-        @foreach (var envio in Model.Envios)
+    <section class="nr-shipments-empty" role="status">
+        @if (Model.TieneFiltros)
         {
-            <tr>
-                <td><code>@envio.Id</code></td>
-                <td>@envio.OperadorNombre / @envio.ComercioNombre<br /><small>@envio.OperadorId / @envio.ComercioId</small></td>
-                <td>@envio.UsuarioEmail<br /><small>@envio.CreadoPorUsuarioId</small></td>
-                <td>@envio.DestinatarioNombre</td>
-                <td>@envio.Direccion</td>
-                <td>@envio.Estado</td>
-                <td>
-                    @foreach (var bulto in envio.Bultos)
-                    {
-                        <div>@bulto.Codigo — @bulto.PesoGramos g — @bulto.LargoCentimetros × @bulto.AnchoCentimetros × @bulto.AltoCentimetros cm</div>
-                    }
-                </td>
-                @if (Model.PuedeCancelar)
-                {
-                    <td>
-                    @if (envio.AdmiteCancelacion())
-                    {
-                        <details>
-                            <summary>Cancelar envío</summary>
-                            <form method="post" asp-page-handler="Cancelar">
-                                <input type="hidden" name="EnvioId" value="@envio.Id" />
-                                <input type="hidden" name="Version" value="@envio.Version" />
-                                <label for="motivo-@envio.Id">Motivo de cancelación</label>
-                                <textarea id="motivo-@envio.Id" name="Motivo" required maxlength="500" class="form-control"></textarea>
-                                <p>Se suspenderá la entrega. Si el destinatario ya recibió el paquete, corresponde una devolución.</p>
-                                <button type="submit" class="btn btn-danger">Confirmar cancelación</button>
-                            </form>
-                        </details>
-                    }
-                    </td>
-                }
-            </tr>
+            <h2>No encontramos envíos con esos filtros</h2>
         }
+        else
+        {
+            <h2>Todavía no hay envíos</h2>
+        }
+    </section>
+}
+else if (Model.ConsultaCorrecta && Model.TotalResultados > 0)
+{
+    <table class="table nr-shipments-table">
+        <caption class="visually-hidden">Envíos recibidos. Buscar filtra por identificador, comercio o destinatario.</caption>
+        <thead>
+            <tr>
+                <th id="shipments-col-shipment" scope="col">Envío</th>
+                <th id="shipments-col-commerce" scope="col">Comercio</th>
+                <th id="shipments-col-recipient" scope="col">Destinatario</th>
+                <th id="shipments-col-destination" scope="col">Destino</th>
+                <th id="shipments-col-state" scope="col">Estado</th>
+                <th id="shipments-col-packages" scope="col">Bultos</th>
+                <th id="shipments-col-details" scope="col">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var envio in Model.Envios)
+            {
+                var shortId = Model.AbreviarId(envio.Id);
+                <tr class="nr-shipment-row">
+                    <th scope="row" headers="shipments-col-shipment" data-label="Envío">
+                        <span class="nr-shipment-id">@shortId</span>
+                        <button type="button" class="nr-copy-shipment" data-copy-shipment-id="@envio.Id.ToString("D")" data-copy-status="copy-status-@envio.Id" aria-label="Copiar identificador completo del envío @shortId">Copiar</button>
+                        <span class="visually-hidden" id="copy-status-@envio.Id" role="status" aria-live="polite"></span>
+                    </th>
+                    <td headers="shipments-col-commerce" data-label="Comercio"><span class="nr-shipments-primary-text">@envio.ComercioNombre</span></td>
+                    <td headers="shipments-col-recipient" data-label="Destinatario"><span class="nr-shipments-primary-text">@envio.DestinatarioNombre</span></td>
+                    <td headers="shipments-col-destination" data-label="Destino"><span class="nr-shipment-address">@envio.Direccion</span></td>
+                    <td headers="shipments-col-state" data-label="Estado">
+                        <span class="nr-shipment-status nr-shipment-status--@Model.ClaseEstado(envio.Estado)">
+                            <span aria-hidden="true">@(Model.ClaseEstado(envio.Estado) switch { "success" => "✓", "warning" => "!", "danger" => "×", _ => "•" })</span>
+                            @Model.EtiquetaEstado(envio.Estado)
+                        </span>
+                    </td>
+                    <td headers="shipments-col-packages" data-label="Bultos">
+                        <span class="nr-package-count">@envio.Bultos.Count @(envio.Bultos.Count == 1 ? "bulto" : "bultos")</span>
+                        @if (envio.Bultos.Count > 0)
+                        {
+                            <span class="nr-package-weight">@Model.PesoTotal(envio) kg en total</span>
+                        }
+                    </td>
+                    <td headers="shipments-col-details" data-label="Detalle">
+                        <button type="button" class="btn btn-link nr-shipment-detail-trigger"
+                                data-bs-toggle="offcanvas" data-bs-target="#shipment-detail-dialog"
+                                data-shipment-template="shipment-detail-template-@envio.Id"
+                                data-shipment-id="@envio.Id.ToString("D")" data-shipment-short-id="@shortId"
+                                data-shipment-status-label="@Model.EtiquetaEstado(envio.Estado)"
+                                data-shipment-status-class="@Model.ClaseEstado(envio.Estado)"
+                                data-open-on-load="@(Model.Error is not null && Model.EnvioId == envio.Id ? "true" : "false")"
+                                aria-label="Ver detalle del envío @shortId">Ver detalle</button>
+                        <template id="shipment-detail-template-@envio.Id">
+                            <div class="nr-shipment-detail-content">
+                                <section class="nr-shipment-detail-section" aria-labelledby="shipment-recipient-@envio.Id">
+                                    <h3 id="shipment-recipient-@envio.Id">Destinatario</h3>
+                                    <p class="nr-shipment-detail-recipient">@Model.ValorInformado(envio.DestinatarioNombre)</p>
+                                    <dl class="nr-shipment-detail-list">
+                                        <dt>Dirección</dt><dd>@Model.ValorInformado(envio.Direccion)</dd>
+                                    </dl>
+                                </section>
+                                <section class="nr-shipment-detail-section" aria-labelledby="shipment-organizations-@envio.Id">
+                                    <h3 id="shipment-organizations-@envio.Id">Organizaciones</h3>
+                                    <dl class="nr-shipment-organization-list">
+                                        <dt>Comercio</dt><dd>@Model.ValorInformado(envio.ComercioNombre)</dd>
+                                        <dt>Operador</dt><dd>@Model.ValorInformado(envio.OperadorNombre)</dd>
+                                    </dl>
+                                </section>
+                                <section class="nr-shipment-detail-section" aria-labelledby="shipment-packages-@envio.Id">
+                                    <h3 id="shipment-packages-@envio.Id">Bultos</h3>
+                                    @if (envio.Bultos.Count > 0)
+                                    {
+                                        <p class="nr-shipment-package-summary">@envio.Bultos.Count @(envio.Bultos.Count == 1 ? "bulto" : "bultos") · @Model.PesoTotal(envio) kg en total</p>
+                                        <ul class="nr-shipment-package-list">
+                                            @foreach (var bulto in envio.Bultos)
+                                            {
+                                                <li>
+                                                    <span><strong>Identificador</strong><code>@Model.ValorInformado(bulto.Codigo)</code></span>
+                                                    <span><strong>Peso</strong>@bulto.PesoGramos.ToString("0.##", CultureInfo.GetCultureInfo("es-UY")) g</span>
+                                                    <span><strong>Dimensiones</strong>@bulto.LargoCentimetros.ToString("0.##", CultureInfo.GetCultureInfo("es-UY")) × @bulto.AnchoCentimetros.ToString("0.##", CultureInfo.GetCultureInfo("es-UY")) × @bulto.AltoCentimetros.ToString("0.##", CultureInfo.GetCultureInfo("es-UY")) cm</span>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <p>No hay bultos registrados.</p>
+                                    }
+                                </section>
+                                <details class="nr-detail-technical">
+                                    <summary><span>Información técnica</span><span class="nr-detail-technical-hint">Identificadores y versión</span></summary>
+                                    <dl class="nr-shipment-detail-list">
+                                        <dt>Identificador completo</dt><dd><code>@envio.Id</code></dd>
+                                        <dt>ID de comercio</dt><dd><code>@envio.ComercioId</code></dd>
+                                        <dt>ID de operador</dt><dd><code>@envio.OperadorId</code></dd>
+                                        <dt>ID de usuario</dt><dd><code>@envio.CreadoPorUsuarioId</code></dd>
+                                        <dt>Correo administrativo</dt><dd>@Model.ValorInformado(envio.UsuarioEmail)</dd>
+                                        <dt>Versión de concurrencia</dt><dd>@envio.Version</dd>
+                                    </dl>
+                                </details>
+                                @if (Model.PuedeCancelar && envio.AdmiteCancelacion())
+                                {
+                                    <section class="nr-shipment-actions" aria-labelledby="shipment-actions-@envio.Id">
+                                        <h3 id="shipment-actions-@envio.Id">Acciones</h3>
+                                        @if (Model.Error is not null && Model.EnvioId == envio.Id)
+                                        {
+                                            <p class="alert alert-danger" role="alert">@Model.Error</p>
+                                        }
+                                        <details class="nr-cancel-shipment">
+                                            <summary>Cancelar envío</summary>
+                                            <form method="post" asp-page-handler="Cancelar" data-single-submit>
+                                                <input type="hidden" name="EnvioId" value="@envio.Id" />
+                                                <input type="hidden" name="Version" value="@envio.Version" />
+                                                <input type="hidden" name="Buscar" value="@Model.Buscar" />
+                                                <input type="hidden" name="Estado" value="@Model.Estado" />
+                                                <input type="hidden" name="Pagina" value="@Model.Pagina" />
+                                                <label for="motivo-@envio.Id">Motivo de cancelación</label>
+                                                <textarea id="motivo-@envio.Id" name="Motivo" required maxlength="500" class="form-control">@Model.Motivo</textarea>
+                                                <p>Se suspenderá la entrega. Si el destinatario ya recibió el paquete, corresponde una devolución.</p>
+                                                <button type="submit" class="btn btn-danger" data-loading-text="Cancelando…">Confirmar cancelación</button>
+                                            </form>
+                                        </details>
+                                    </section>
+                                }
+                            </div>
+                        </template>
+                    </td>
+                </tr>
+            }
         </tbody>
     </table>
+    <footer class="nr-shipments-footer">
+        <p class="nr-shipments-range" aria-live="polite">Mostrando @Model.PrimerResultado–@Model.UltimoResultado de @Model.TotalResultados envíos</p>
+        @if (Model.TotalPaginas > 1)
+        {
+            <nav class="nr-shipments-pagination" aria-label="Paginación de envíos">
+                <span>Página @Model.Pagina de @Model.TotalPaginas</span>
+                <div>
+                    @if (Model.Pagina > 1)
+                    {
+                        <a class="btn btn-outline-secondary" rel="prev" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, Pagina = Model.Pagina - 1 })">Anterior</a>
+                    }
+                    else
+                    {
+                        <span class="btn btn-outline-secondary" aria-disabled="true">Anterior</span>
+                    }
+                    @if (Model.Pagina < Model.TotalPaginas)
+                    {
+                        <a class="btn btn-outline-secondary" rel="next" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, Pagina = Model.Pagina + 1 })">Siguiente</a>
+                    }
+                    else
+                    {
+                        <span class="btn btn-outline-secondary" aria-disabled="true">Siguiente</span>
+                    }
+                </div>
+            </nav>
+        }
+    </footer>
+}
+
+@section PageDialogs {
+    <div class="offcanvas offcanvas-end nr-shipment-detail-dialog" tabindex="-1" id="shipment-detail-dialog"
+         aria-labelledby="shipment-detail-title" data-bs-backdrop="true" data-bs-keyboard="true">
+        <div class="offcanvas-header nr-shipment-detail-header">
+            <h2 class="offcanvas-title" id="shipment-detail-title" tabindex="-1" data-detail-initial-focus>Detalle del envío</h2>
+            <button type="button" class="btn btn-outline-secondary nr-shipment-detail-close" data-bs-dismiss="offcanvas" aria-label="Cerrar detalle del envío">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                <span>Cerrar</span>
+            </button>
+        </div>
+        <div class="nr-shipment-detail-identity" aria-live="polite">
+            <p id="shipment-detail-short-id" class="nr-shipment-detail-short-id"></p>
+            <button type="button" class="btn btn-outline-secondary nr-shipment-detail-copy" id="shipment-detail-copy"
+                    data-copy-shipment-id="" data-copy-status="shipment-detail-copy-status" aria-label="Copiar identificador completo del envío">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+                <span>Copiar ID</span>
+            </button>
+            <span id="shipment-detail-status" class="nr-shipment-status"></span>
+            <span id="shipment-detail-copy-status" class="visually-hidden" role="status" aria-live="polite"></span>
+        </div>
+        <div id="shipment-detail-body" class="offcanvas-body nr-shipment-detail-body"></div>
+    </div>
 }

@@ -18,7 +18,7 @@ public sealed class RestablecerContrasenaModel(AuthApiClient auth, IDataProtecti
     private const string CookiePath = "/restablecer-contrasena";
     private readonly IDataProtector protector = dataProtection.CreateProtector("NexoRuta.PasswordRecovery.Cookie.v1");
 
-    [BindProperty, Required, StringLength(1024, MinimumLength = 1)]
+    [BindProperty, Required(ErrorMessage = "Ingresá una contraseña nueva."), StringLength(1024, MinimumLength = 12, ErrorMessage = "La contraseña nueva no cumple la política de seguridad. Usá al menos 12 caracteres.")]
     public string NuevaPassword { get; set; } = "";
 
     public bool PuedeRestablecer { get; private set; }
@@ -38,6 +38,8 @@ public sealed class RestablecerContrasenaModel(AuthApiClient auth, IDataProtecti
             return RedirectToPage();
         }
 
+        if (invalid)
+            Response.Cookies.Delete(CookieName, new CookieOptions { Path = CookiePath });
         PuedeRestablecer = !invalid && Request.Cookies.ContainsKey(CookieName);
         if (!PuedeRestablecer)
             Error = "El enlace no es válido o venció. Solicitá uno nuevo.";
@@ -69,7 +71,19 @@ public sealed class RestablecerContrasenaModel(AuthApiClient auth, IDataProtecti
             Response.Cookies.Delete(CookieName, new CookieOptions { Path = CookiePath });
             Guardada = true;
         }
-        catch (NexoRutaApiException error) { Error = error.Message; }
+        catch (NexoRutaApiException error) when (error.StatusCode == System.Net.HttpStatusCode.BadRequest &&
+                                                  error.Message.Contains("política de seguridad", StringComparison.OrdinalIgnoreCase))
+        {
+            Error = "La contraseña nueva no cumple la política de seguridad. Usá al menos 12 caracteres.";
+        }
+        catch (NexoRutaApiException error) when (error.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            return InvalidLink();
+        }
+        catch (NexoRutaApiException)
+        {
+            Error = "No se pudo guardar la contraseña. Intentá nuevamente.";
+        }
         catch (CryptographicException) { return InvalidLink(); }
         catch (JsonException) { return InvalidLink(); }
         catch (HttpRequestException) { Error = "No se pudo conectar con la API. Intentá nuevamente más tarde."; }

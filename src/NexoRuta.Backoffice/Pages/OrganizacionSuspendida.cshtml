@@ -1,7 +1,7 @@
 @page "/OrganizacionSuspendida"
 @model NexoRuta.Backoffice.Features.Sesion.Pages.OrganizacionSuspendidaModel
 @{ ViewData["Title"] = "Organización suspendida"; }
-<h1>Organización suspendida</h1>
+<header class="nr-page-header"><div><h1>Organización suspendida</h1><p>Estado y solicitudes vinculadas a este operador.</p></div></header>
 @if (Model.Error is not null) { <p class="alert alert-warning" role="alert">@Model.Error</p> }
 @if (Model.Estado is { } estado)
 {
@@ -10,7 +10,8 @@
 }
 <p>Las cuentas y los envíos históricos se conservan. Después de la reactivación, ingresá nuevamente para obtener una sesión vigente.</p>
 @if (Model.Confirmacion is not null) { <p class="alert alert-success" role="status">@Model.Confirmacion</p> }
-<h2>Solicitudes de reactivación</h2>
+<section class="nr-content-section" aria-labelledby="reactivacion-heading">
+<h2 id="reactivacion-heading">Solicitudes de reactivación</h2>
 @if (Model.Solicitudes.Count == 0) { <p>Aún no hay solicitudes.</p> }
 else
 {
@@ -21,7 +22,7 @@ else
 }
 @if (Model.Estado is { EsPropietario: true } && !Model.Solicitudes.Any(x => x.Estado == "Pendiente"))
 {
-    <form method="post" data-single-submit class="card p-3 mb-3">
+    <form method="post" data-single-submit class="card p-3 mb-3 nr-form-stack">
         <p>Solicitar la reactivación no activa el operador inmediatamente. Plataforma debe resolver la solicitud.</p>
         <label asp-for="Motivo" class="form-label">Motivo</label>
         <textarea asp-for="Motivo" class="form-control" maxlength="2000" required></textarea>
@@ -33,3 +34,4 @@ else
 }
 else if (Model.Estado is { EsPropietario: false }) { <p>Solo el dueño registrado puede solicitar la reactivación.</p> }
 <form method="post" asp-page="/Salir" data-single-submit><button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button></form>
+</section>

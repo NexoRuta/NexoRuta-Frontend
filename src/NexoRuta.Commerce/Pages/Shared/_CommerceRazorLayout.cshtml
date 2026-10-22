@@ -1,0 +1,42 @@
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] | NexoRuta Comercio</title>
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/portal-design.css" />
+    <link rel="stylesheet" href="/app.css" />
+</head>
+<body class="nr-app-shell nr-commerce-shell">
+    <a class="nr-skip-link" href="#main-content">Saltar al contenido principal</a>
+    <header class="nr-topbar">
+        <a class="nr-brand" href="/" aria-label="NexoRuta Comercio, inicio">
+            <span class="nr-brand-mark" aria-hidden="true">N</span>
+            <span>NexoRuta <small>Comercio</small></span>
+        </a>
+        <div class="nr-topbar-actions">
+            <form method="post" action="/salir" data-single-submit>
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
+            </form>
+            <button class="navbar-toggler nr-menu-toggle d-lg-none" type="button" data-commerce-nav-toggle aria-controls="commerceNavigation" aria-expanded="false" aria-label="Mostrar u ocultar navegación principal">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+        </div>
+    </header>
+    <div class="nr-portal-layout has-sidebar">
+        <aside id="commerceNavigation" class="nr-sidebar">
+            <partial name="_CommerceNavigation" />
+        </aside>
+        <div class="nr-main-column">
+            <main class="nr-main-content" id="main-content" tabindex="-1">
+                @RenderBody()
+            </main>
+            <footer class="nr-footer">NexoRuta <span aria-hidden="true">·</span> Portal de comercios</footer>
+        </div>
+    </div>
+    <script src="/js/site.js"></script>
+</body>
+</html>

@@ -46,7 +46,7 @@
         }
         else
         {
-            <div class="table-responsive"><table class="table align-middle">
+            <div class="table-responsive" role="region" aria-label="Zonas activas; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0"><table class="table align-middle">
                 <thead><tr><th>Nombre</th><th>Estado</th><th>Franjas activas</th><th>Revisión</th><th>Acciones</th></tr></thead>
                 <tbody>@foreach (var zona in Model.Activas)
                 {
@@ -70,7 +70,7 @@
         }
         else
         {
-            <div class="table-responsive"><table class="table align-middle">
+            <div class="table-responsive" role="region" aria-label="Zonas inactivas; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0"><table class="table align-middle">
                 <thead><tr><th>Nombre</th><th>Estado</th><th>Franjas activas</th><th>Revisión</th><th>Acciones</th></tr></thead>
                 <tbody>@foreach (var zona in Model.Inactivas)
                 {

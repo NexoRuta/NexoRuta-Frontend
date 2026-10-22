@@ -4,8 +4,7 @@
     ViewData["Title"] = "Roles y permisos | Backoffice NexoRuta";
 }
 
-<h1>Roles y permisos</h1>
-<p>Los permisos disponibles son los definidos por la API; esta pantalla no crea ni elimina definiciones de permisos.</p>
+<header class="nr-page-header"><div><h1>Roles y permisos</h1><p>Los permisos disponibles son los definidos por la API; esta pantalla no crea ni elimina definiciones de permisos.</p></div></header>
 @if (Model.Error is not null)
 {
     <p class="alert alert-danger" role="alert">@Model.Error <a href="/roles">Recargar estado</a></p>
@@ -15,9 +14,9 @@
     <p class="alert alert-success" role="status">@Model.Confirmacion</p>
 }
 
-<section aria-labelledby="alta-rol">
+<section class="nr-content-section" aria-labelledby="alta-rol">
     <h2 id="alta-rol">Crear rol</h2>
-    <form method="post" asp-page-handler="Crear" data-single-submit>
+    <form method="post" asp-page-handler="Crear" data-single-submit class="nr-form-stack">
         <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
         <div class="mb-3">
             <label asp-for="Codigo" class="form-label">Código</label>
@@ -33,11 +32,11 @@
     </form>
 </section>
 
-<section class="mt-5" aria-labelledby="catalogo-roles">
+<section class="nr-content-section" aria-labelledby="catalogo-roles">
     <h2 id="catalogo-roles">Roles de la organización</h2>
     @if (Model.Roles.Count == 0 && Model.Error is null)
     {
-        <p role="status">No hay roles configurados para esta organización.</p>
+        <p class="nr-empty-state" role="status">No hay roles configurados para esta organización.</p>
     }
     @if (Model.Permisos.Count == 0 && Model.Error is null)
     {
@@ -72,7 +71,7 @@
                            value="@(Model.RolEditadoId == rol.Id ? Model.NombreIntentado : rol.Nombre)" required />
                     <button type="submit" class="btn btn-outline-primary">Renombrar</button>
                 </form>
-                <form method="post" asp-page-handler="Permisos" data-single-submit>
+                <form method="post" asp-page-handler="Permisos" data-single-submit class="nr-form-stack">
                     <input type="hidden" name="id" value="@rol.Id" />
                     <fieldset>
                         <legend class="h6">Permisos asignados</legend>
