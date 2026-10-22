@@ -1,0 +1,21 @@
+@page "/organizacion-suspendida"
+@model NexoRuta.Commerce.Features.Sesion.Pages.OrganizacionSuspendidaModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{ ViewData["Title"] = "Organización suspendida"; }
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Organización suspendida | NexoRuta Commerce</title><link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" /></head>
+<body class="bg-light"><main class="container py-5" style="max-width:720px">
+<div class="card shadow-sm"><div class="card-body p-4">
+<h1>Organización suspendida</h1>
+@if (Model.Error is not null) { <p class="alert alert-warning" role="alert">@Model.Error</p> }
+@if (Model.Estado is { } estado)
+{
+    <p class="alert alert-danger" role="status">@estado.Nombre (@estado.TipoOrganizacion) está suspendida.</p>
+    <p>@estado.Mensaje</p>
+}
+<p>Las cuentas y los envíos históricos se conservan. Después de la reactivación, ingresá nuevamente para obtener una sesión vigente.</p>
+<p><a class="btn btn-primary" href="/reactivacion">Consultar o solicitar reactivación</a></p>
+<form method="post" asp-page="/Salir" data-single-submit><button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button></form>
+</div></div></main></body></html>

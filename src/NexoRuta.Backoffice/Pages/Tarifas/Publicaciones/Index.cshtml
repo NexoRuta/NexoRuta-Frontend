@@ -1,0 +1,58 @@
+@page "/tarifas/publicaciones"
+@model NexoRuta.Backoffice.Features.Tarifas.Pages.PublicacionesIndexModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Historial de tarifas | Backoffice NexoRuta";
+}
+
+<h1>Historial de publicaciones</h1>
+<p>Las publicaciones son de solo lectura. El número publicado identifica el cuadro histórico; no es una versión de concurrencia.</p>
+<p><a asp-page="/Tarifas/Index">Volver al tarifario</a></p>
+
+@if (Model.Error is not null)
+{
+    <p class="alert alert-danger" role="alert">@Model.Error</p>
+}
+@if (Model.Resultado is null)
+{
+    <p>No se pudo cargar el historial.</p>
+}
+else if (Model.Resultado.Items.Count == 0)
+{
+    <p role="status">Todavía no hay publicaciones.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <caption>Publicaciones de tarifas del operador</caption>
+            <thead><tr><th scope="col">Número</th><th scope="col">Fecha</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead>
+            <tbody>
+            @foreach (var publication in Model.Resultado.Items)
+            {
+                var isCurrent = publication.VersionTarifarioId == Model.VersionVigenteId;
+                <tr>
+                    <td>@publication.NumeroVersionPublicada</td>
+                    <td>@publication.PublicadaUtc?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</td>
+                    <td>@(isCurrent ? "Vigente" : "Histórica")</td>
+                    <td class="d-flex flex-wrap gap-2">
+                        <a asp-page="/Tarifas/Publicaciones/Detalle" asp-route-versionId="@publication.VersionTarifarioId">Consultar</a>
+                        <a asp-page="/Tarifas/Simular" asp-route-versionTarifarioId="@publication.VersionTarifarioId">Simular</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <nav class="d-flex align-items-center gap-3" aria-label="Paginación de publicaciones">
+        <span>Página @Model.Pagina de @Model.Paginas · @Model.Resultado.Total publicaciones</span>
+        @if (Model.Pagina > 1)
+        {
+            <a asp-page="/Tarifas/Publicaciones/Index" asp-route-Pagina="@(Model.Pagina - 1)" asp-route-TamanoPagina="@Model.TamanoPagina">Anterior</a>
+        }
+        @if (Model.Pagina < Model.Paginas)
+        {
+            <a asp-page="/Tarifas/Publicaciones/Index" asp-route-Pagina="@(Model.Pagina + 1)" asp-route-TamanoPagina="@Model.TamanoPagina">Siguiente</a>
+        }
+    </nav>
+}

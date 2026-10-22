@@ -1,0 +1,71 @@
+@page "/"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@layout PublicLayout
+@using NexoRuta.ApiClient.Core.Session
+@inject AuthenticationStateProvider AuthenticationState
+@inject IConfiguration Configuration
+
+<PageTitle>NexoRuta | Gestión de envíos</PageTitle>
+<section class="row g-4 align-items-center mb-5" aria-labelledby="bienvenida">
+    <div class="col-lg-7">
+        <p class="text-primary fw-semibold">Comercios y operadores, en un mismo recorrido</p>
+        <h1 id="bienvenida" class="display-4 fw-bold">Tu gestión de envíos comienza acá.</h1>
+        <p class="lead text-secondary">NexoRuta es una plataforma de gestión de envíos. Creá tu cuenta personal, registrá tu comercio u operador y accedé a las herramientas de tu organización.</p>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+            @if (tipo == SesionUsuario.SinOrganizacion)
+            {
+                <a class="btn btn-primary btn-lg" href="/organizacion">Crear mi organización</a>
+            }
+            else if (tipo == SesionUsuario.Comercio)
+            {
+                <a class="btn btn-primary btn-lg" href="/envios">Área de trabajo</a>
+            }
+            else
+            {
+                <a class="btn btn-primary btn-lg" href="/registrarse">Crear cuenta</a>
+                <a class="btn btn-outline-primary btn-lg" href="/ingresar">Ingresar</a>
+            }
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm p-4">
+            <h2 class="h4">Empezá en tres pasos</h2>
+            <ol class="ps-3 mb-0">
+                <li class="py-2"><strong>Creá tu cuenta.</strong> Registrate con tu correo y contraseña.</li>
+                <li class="py-2"><strong>Registrá tu organización.</strong> Elegí crear un comercio o un operador.</li>
+                <li class="py-2"><strong>Comenzá a operar.</strong> Ingresá al portal correspondiente para gestionar tus envíos.</li>
+            </ol>
+        </div>
+    </div>
+</section>
+<section id="otros-accesos" class="border-top pt-4" aria-labelledby="portales">
+    <h2 id="portales" class="h4">¿Ya tenés una cuenta?</h2>
+    <p>El área de comercios está en Commerce. Los operadores ingresan por Backoffice y la administración de plataforma se mantiene separada en Admin.</p>
+    <div class="d-flex flex-wrap gap-3">
+        <a href="/ingresar">Ingresar a Commerce</a>
+        @if (PortalUrl("BackofficeLoginUrl") is { } backoffice)
+        {
+            <a href="@backoffice">Ingresar a Backoffice</a>
+        }
+        @if (PortalUrl("AdminLoginUrl") is { } admin)
+        {
+            <a href="@admin">Acceso separado a Admin</a>
+        }
+    </div>
+    <p class="small text-secondary mt-3">Cada portal tiene su propia sesión. No se transfieren credenciales entre aplicaciones.</p>
+</section>
+
+@code {
+    private string? tipo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+        if (user.Identity?.IsAuthenticated == true)
+            tipo = user.FindFirst(SesionUsuario.ClaimTipoAcceso)?.Value;
+    }
+
+    private string? PortalUrl(string key)
+        => Uri.TryCreate(Configuration[$"Portales:{key}"], UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https"
+            ? uri.AbsoluteUri : null;
+}

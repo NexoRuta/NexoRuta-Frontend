@@ -1,0 +1,18 @@
+@using Microsoft.AspNetCore.Authorization
+@using NexoRuta.Commerce.Core.Security
+@inject IAuthorizationService Authorization
+
+<nav class="d-flex flex-wrap gap-2 border-bottom pb-3 mb-4" aria-label="Navegación del comercio">
+    <a class="btn btn-outline-primary" href="/">Inicio</a>
+    <a class="btn btn-outline-primary" href="/envios">Mis envíos</a>
+    <a class="btn btn-outline-primary" href="/envios/crear">Crear envío</a>
+    <a class="btn btn-outline-primary" href="/mi-comercio">Mi comercio</a>
+    @if ((await Authorization.AuthorizeAsync(User, ApiPermissionAuthorizationHandler.UsersManagePolicy)).Succeeded)
+    {
+        <a class="btn btn-outline-primary" href="/usuarios">Usuarios</a>
+    }
+    @if ((await Authorization.AuthorizeAsync(User, ApiPermissionAuthorizationHandler.ConfigManagePolicy)).Succeeded)
+    {
+        <a class="btn btn-outline-primary" href="/roles">Roles y permisos</a>
+    }
+</nav>

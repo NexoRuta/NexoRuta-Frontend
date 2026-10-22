@@ -1,4 +1,4 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">NexoRuta.Commerce</a>
     </div>
@@ -9,10 +9,33 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            <NavLink class="nav-link" href="envios/crear" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Crear envío
             </NavLink>
         </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="envios" Match="NavLinkMatch.All">Mis envíos</NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="mi-comercio" Match="NavLinkMatch.All">Mi comercio</NavLink>
+        </div>
+        <AuthorizeView Policy="@ApiPermissionAuthorizationHandler.UsersManagePolicy">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/usuarios">Usuarios</NavLink>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <CommerceAuthorizationMessage />
+            </NotAuthorized>
+        </AuthorizeView>
+        <AuthorizeView Policy="@ApiPermissionAuthorizationHandler.ConfigManagePolicy">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/roles">Roles y permisos</NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
     </nav>
 </div>
 

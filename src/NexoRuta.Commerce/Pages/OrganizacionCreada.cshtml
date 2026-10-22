@@ -1,0 +1,13 @@
+@page "/organizacion-creada/{tipo}"
+@model NexoRuta.Commerce.Features.Sesion.Pages.OrganizacionCreadaModel
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Organización creada | NexoRuta</title><link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" /></head>
+<body><main class="container py-5">
+    <h1>Organización creada</h1>
+    <p>Ingresá nuevamente con el mismo correo y contraseña para acceder a tu organización.</p>
+    @if (Model.Operador) { <p>Tu operador se administra desde Backoffice. Las sesiones de cada portal son independientes.</p> }
+    @if (Model.IngresoUrl is not null) { <a href="@Model.IngresoUrl">Ingresar @(Model.Operador ? "a Backoffice" : "a Commerce")</a> }
+    else { <p>Ingresá a Backoffice desde su dirección habitual.</p> }
+</main></body></html>

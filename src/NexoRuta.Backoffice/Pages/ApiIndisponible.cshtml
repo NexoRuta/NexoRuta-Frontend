@@ -1,0 +1,15 @@
+@page "/api-indisponible"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8" /><title>API no disponible | Backoffice</title></head>
+<body>
+    <partial name="Shared/_StandaloneZonesNavigation" />
+    <main>
+        <h1>API no disponible</h1>
+        <p>No pudimos confirmar tus permisos porque la API no está disponible. No se concedió acceso; volvé a intentarlo más tarde.</p>
+        <a href="/usuarios">Volver a intentar</a>
+    </main>
+</body>
+</html>

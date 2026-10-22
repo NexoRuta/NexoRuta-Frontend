@@ -1,0 +1,166 @@
+@page "/tarifas/simular"
+@model NexoRuta.Backoffice.Features.Tarifas.Pages.SimularModel
+@using NexoRuta.ApiClient.Features.Tarifas.Contracts
+@using NexoRuta.Backoffice.Features.Tarifas
+@{
+    ViewData["Title"] = "Simular tarifa | Backoffice NexoRuta";
+}
+
+<link rel="stylesheet" href="~/css/tarifas.css" asp-append-version="true" />
+<h1>Simulador de tarifas</h1>
+<p>Es una simulación informativa. No registra un envío ni publica o modifica el tarifario.</p>
+<p><a asp-page="/Tarifas/Index">Volver al tarifario</a></p>
+<p class="alert alert-info">Se usan exclusivamente tarifas guardadas. Si modificaste el editor, guardá primero para simular esos cambios.</p>
+@if (Model.Error is not null)
+{
+    <p class="alert @(Model.Conflict ? "alert-warning" : "alert-danger")" role="alert">@Model.Error</p>
+}
+<div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+<form method="post" data-single-submit>
+    <section class="card tarifario-card mb-4" aria-labelledby="simulation-version-title">
+        <div class="card-body">
+            <h2 id="simulation-version-title" class="h4">Configuración guardada</h2>
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-8">
+                    <label for="version-tarifario" class="form-label">Borrador o publicación</label>
+                    <select id="version-tarifario" name="VersionTarifarioId" class="form-select" required>
+                        <option value="">Seleccioná una versión</option>
+                        @foreach (var version in Model.Versiones)
+                        {
+                            <option value="@version.Id.ToString("D")" selected="@(Model.VersionTarifarioId == version.Id.ToString("D") ? "selected" : null)">@Model.VersionLabel(version)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <button class="btn btn-outline-primary" type="submit" asp-page-handler="CargarVersion" formnovalidate>Cargar versión</button>
+                </div>
+            </div>
+            @if (Model.Versiones.Count == 0)
+            {
+                <p role="status" class="mt-3">No hay borrador guardado ni publicaciones para simular.</p>
+            }
+            @if (Model.VersionSeleccionada is { } selected)
+            {
+                <p class="form-text mt-2">Versión cargada: @selected.Estado. Una simulación no incluye cambios que todavía no guardaste.</p>
+                <div class="row g-3 align-items-end mt-1">
+                    <div class="col-12 col-md-7">
+                        <label for="zona-simulacion" class="form-label">Zona</label>
+                        <select id="zona-simulacion" name="ZonaId" class="form-select" required>
+                            <option value="">Seleccioná una zona configurada</option>
+                            @foreach (var zoneId in selected.Tarifas.Select(rate => rate.ZonaId).Distinct())
+                            {
+                                var inactive = Model.ZonaInactiva(zoneId);
+                                <option value="@zoneId.ToString("D")" selected="@(Model.ZonaId == zoneId.ToString("D") ? "selected" : null)">@Model.ZonaNombre(zoneId)@(inactive ? " — Inactiva (no operativa)" : " — Activa")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-5">
+                        <button class="btn btn-outline-primary" type="submit" asp-page-handler="CargarZona" formnovalidate>Cargar modalidades</button>
+                    </div>
+                </div>
+                @if (Model.Modalidades.Count > 0)
+                {
+                    <div class="mt-3">
+                        <label for="modalidad-simulacion" class="form-label">Modalidad</label>
+                        <select id="modalidad-simulacion" name="Modalidad" class="form-select" required>
+                            <option value="">Seleccioná una modalidad configurada</option>
+                            @foreach (var modality in Model.Modalidades)
+                            {
+                                <option value="@modality.ToString()" selected="@(Model.Modalidad == modality.ToString() ? "selected" : null)">@(modality == ModalidadTarifaria.Estandar ? "Estándar" : "Urgente")</option>
+                            }
+                        </select>
+                    </div>
+                }
+            }
+        </div>
+    </section>
+
+    <section aria-labelledby="parcels-title" class="mb-4">
+        <h2 id="parcels-title" class="h4">Bultos</h2>
+        <p>Ingresá peso en gramos y dimensiones en centímetros. Se requiere al menos un bulto.</p>
+        @for (var i = 0; i < Model.Bultos.Count; i++)
+        {
+            <fieldset class="card tariff-rate-card mb-3" aria-labelledby="parcel-title-@i">
+                <legend id="parcel-title-@i" class="float-none w-auto px-2">Bulto @(i + 1)</legend>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <label for="parcel-@i-weight" class="form-label">Peso (gramos)</label>
+                            <input id="parcel-@i-weight" name="Bultos[@i].PesoGramos" value="@Model.Bultos[i].PesoGramos" class="form-control" inputmode="decimal" autocomplete="off" required maxlength="48" />
+                            <span class="text-danger" asp-validation-for="Bultos[i].PesoGramos"></span>
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <label for="parcel-@i-length" class="form-label">Largo (centímetros)</label>
+                            <input id="parcel-@i-length" name="Bultos[@i].LargoCentimetros" value="@Model.Bultos[i].LargoCentimetros" class="form-control" inputmode="decimal" autocomplete="off" required maxlength="48" />
+                            <span class="text-danger" asp-validation-for="Bultos[i].LargoCentimetros"></span>
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <label for="parcel-@i-width" class="form-label">Ancho (centímetros)</label>
+                            <input id="parcel-@i-width" name="Bultos[@i].AnchoCentimetros" value="@Model.Bultos[i].AnchoCentimetros" class="form-control" inputmode="decimal" autocomplete="off" required maxlength="48" />
+                            <span class="text-danger" asp-validation-for="Bultos[i].AnchoCentimetros"></span>
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <label for="parcel-@i-height" class="form-label">Alto (centímetros)</label>
+                            <input id="parcel-@i-height" name="Bultos[@i].AltoCentimetros" value="@Model.Bultos[i].AltoCentimetros" class="form-control" inputmode="decimal" autocomplete="off" required maxlength="48" />
+                            <span class="text-danger" asp-validation-for="Bultos[i].AltoCentimetros"></span>
+                        </div>
+                    </div>
+                    @if (Model.Bultos.Count > 1)
+                    {
+                        <button class="btn btn-sm btn-outline-danger mt-3" type="submit" asp-page-handler="QuitarBulto" asp-route-indice="@i" formnovalidate>Quitar bulto</button>
+                    }
+                </div>
+            </fieldset>
+        }
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-secondary" type="submit" asp-page-handler="AgregarBulto" formnovalidate disabled="@(Model.Bultos.Count >= TarifasUi.MaxParcels)">Agregar bulto</button>
+            <button class="btn btn-primary" type="submit" asp-page-handler="Simular" disabled="@(Model.VersionSeleccionada is null || Model.Modalidades.Count == 0)">Simular tarifa guardada</button>
+        </div>
+    </section>
+</form>
+
+@if (Model.Resultado is { } result)
+{
+    <section class="card tarifario-card mb-4" aria-labelledby="simulation-result-title" aria-live="polite">
+        <div class="card-body">
+            <h2 id="simulation-result-title" class="h4">Resultado de simulación</h2>
+            <p class="alert alert-info">Esta simulación no registra un envío.</p>
+            @if (Model.ZonaSeleccionadaInactiva)
+            {
+                <p class="alert alert-warning">La zona está inactiva; este resultado no representa una oferta operativa.</p>
+            }
+            <p><strong>Origen:</strong> @(result.Origen == OrigenSimulacionTarifario.Borrador ? "Borrador guardado" : "Publicación")
+                @if (result.NumeroVersionPublicada is { } number) { <span>n.º @number</span> }
+            </p>
+            <p><strong>Versión:</strong> @result.VersionTarifarioId · concurrencia @result.VersionConcurrencia</p>
+            <p><strong>Zona y modalidad:</strong> @Model.ZonaNombre(result.ZonaId) · @(result.Modalidad == ModalidadTarifaria.Estandar ? "Estándar" : "Urgente")</p>
+            <dl class="row tariff-measure-list">
+                <dt class="col-sm-6">Peso total</dt><dd class="col-sm-6">@TarifasUi.FormatExact(result.PesoTotalKg) kg</dd>
+                <dt class="col-sm-6">Volumen total</dt><dd class="col-sm-6">@TarifasUi.FormatExact(result.VolumenTotalM3) m³</dd>
+                <dt class="col-sm-6">Precio base</dt><dd class="col-sm-6">UYU @TarifasUi.FormatExact(result.ImporteBaseUyu)</dd>
+                <dt class="col-sm-6">Componente por peso</dt><dd class="col-sm-6">UYU @TarifasUi.FormatExact(result.ComponentePesoUyu)</dd>
+                <dt class="col-sm-6">Componente por volumen</dt><dd class="col-sm-6">UYU @TarifasUi.FormatExact(result.ComponenteVolumenUyu)</dd>
+                <dt class="col-sm-6">Subtotal</dt><dd class="col-sm-6">UYU @TarifasUi.FormatExact(result.SubtotalUyu)</dd>
+                <dt class="col-sm-6">Recargos</dt><dd class="col-sm-6">UYU @TarifasUi.FormatExact(result.RecargosUyu)</dd>
+                <dt class="col-sm-6">Bonificaciones</dt><dd class="col-sm-6">UYU @TarifasUi.FormatExact(result.BonificacionesUyu)</dd>
+                <dt class="col-sm-6">Total antes del piso cero</dt><dd class="col-sm-6">UYU @TarifasUi.FormatExact(result.TotalPrevioPisoUyu)</dd>
+            </dl>
+            @if (result.Ajustes.Count > 0)
+            {
+                <h3 class="h6">Ajustes aplicados</h3>
+                <ul>
+                @foreach (var adjustment in result.Ajustes)
+                {
+                    <li>@adjustment.Nombre — @TarifasUi.AdjustmentLabel(adjustment.Tipo), @TarifasUi.FormatExact(adjustment.ValorConfigurado) @(adjustment.Base == BaseAjusteTarifario.SubtotalOriginal ? "% sobre subtotal" : "UYU"): UYU @TarifasUi.FormatExact(adjustment.ImporteUyu)</li>
+                }
+                </ul>
+            }
+            @if (result.PisoCeroAplicado)
+            {
+                <p class="alert alert-warning">El total previo era negativo; se aplicó el piso cero.</p>
+            }
+            <p class="tariff-result-total">Total final: UYU @TarifasUi.FormatTotal(result.TotalFinalUyu)</p>
+        </div>
+    </section>
+}

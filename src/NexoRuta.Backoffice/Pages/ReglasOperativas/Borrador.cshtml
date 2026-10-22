@@ -1,0 +1,164 @@
+@page "/reglas-operativas/borrador"
+@model NexoRuta.Backoffice.Features.ReglasOperativas.Pages.BorradorModel
+@using NexoRuta.Backoffice.Features.ReglasOperativas
+@{
+    ViewData["Title"] = "Borrador de reglas operativas | Backoffice NexoRuta";
+}
+<link rel="stylesheet" href="~/css/reglas-operativas.css" asp-append-version="true" />
+
+<h1>Editar reglas operativas</h1>
+<p><a asp-page="/ReglasOperativas/Index">Volver al estado de reglas</a></p>
+@if (Model.Notice is not null) { <p class="alert alert-success" role="status">@Model.Notice</p> }
+@if (Model.Error is not null)
+{
+    <div class="alert @(Model.Conflict ? "alert-warning" : "alert-danger")" role="alert">
+        @Model.Error
+        @if (Model.Conflict) { <a class="d-block mt-2" asp-page="/ReglasOperativas/Borrador">Recargar borrador actual</a> }
+    </div>
+}
+<p class="alert alert-info" data-unsaved-message hidden tabindex="-1">Hay cambios sin guardar. Guardá el borrador antes de publicar o salir.</p>
+
+@if (!string.IsNullOrEmpty(Model.VersionConcurrencia))
+{
+    <form method="post" asp-page-handler="Guardar" data-single-submit data-unsaved-form data-unsaved-initial="@(Model.LocalChangesPending ? "true" : "false")">
+        <input type="hidden" asp-for="VersionConcurrencia" />
+        <input type="hidden" name="@ReglasOperativasUi.DraftCollectionMarker" value="true" />
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+        <section class="card rules-section mb-3" aria-labelledby="attempts-title">
+            <div class="card-body">
+                <h2 id="attempts-title" class="h4">Intentos de entrega</h2>
+                <p>Se cuentan visitas reales. Reprogramar no agrega un intento ni reinicia la espera.</p>
+                <div class="mb-3">
+                    <label asp-for="MaxIntentosEntrega" class="form-label">Máximo de intentos de entrega</label>
+                    <input asp-for="MaxIntentosEntrega" class="form-control" type="number" min="1" max="@ReglasOperativasUi.MaxAttempts" inputmode="numeric" />
+                    <span asp-validation-for="MaxIntentosEntrega" class="text-danger"></span>
+                </div>
+                <fieldset>
+                    <legend class="h6">Espera mínima después de un intento fallido</legend>
+                    <p class="form-text">Ingresá días, horas y minutos. Si completás solo una parte, las otras se toman como cero; si dejás todo vacío, el valor queda sin configurar.</p>
+                    <partial name="_DurationFields" model="@(new DurationFieldsViewModel("IntervaloEntreIntentos", "Espera mínima", Model.IntervaloEntreIntentos))" />
+                </fieldset>
+            </div>
+        </section>
+
+        <section class="card rules-section mb-3" aria-labelledby="proof-title">
+            <div class="card-body">
+                <h2 id="proof-title" class="h4">Prueba requerida para entregar</h2>
+                <p>Se exigirán todas las opciones seleccionadas.</p>
+                @foreach (var option in ReglasOperativasUi.ProofOptions)
+                {
+                    var id = "proof-" + option.Value;
+                    <div class="form-check mb-2">
+                        @if (Model.RequisitosPrueba?.Contains(option.Value.ToString(), StringComparer.Ordinal) == true)
+                        {
+                            <input class="form-check-input" id="@id" type="checkbox" name="RequisitosPrueba" value="@option.Value" checked />
+                        }
+                        else
+                        {
+                            <input class="form-check-input" id="@id" type="checkbox" name="RequisitosPrueba" value="@option.Value" />
+                        }
+                        <label class="form-check-label" for="@id">@option.Label</label>
+                    </div>
+                }
+                <span asp-validation-for="RequisitosPrueba" class="text-danger"></span>
+            </div>
+        </section>
+
+        <section class="card rules-section mb-3" aria-labelledby="motives-title">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+                    <div>
+                        <h2 id="motives-title" class="h4">Motivos de no entrega</h2>
+                        <p>Los códigos son estables. Para dejar de ofrecer un motivo, desmarcá su disponibilidad.</p>
+                    </div>
+                    <button class="btn btn-outline-primary" type="submit" formaction="?handler=AgregarMotivo" formnovalidate>Agregar motivo</button>
+                </div>
+                <span asp-validation-for="Motivos" class="text-danger"></span>
+                @if (Model.Motivos is null || Model.Motivos.Count == 0)
+                {
+                    <p>No hay motivos configurados.</p>
+                }
+                @for (var i = 0; i < (Model.Motivos?.Count ?? 0); i++)
+                {
+                    <fieldset class="border rounded p-3 mb-3">
+                        <legend class="float-none w-auto px-2 h6">@(Model.Motivos![i].EsNuevo ? "Motivo nuevo" : "Motivo configurado")</legend>
+                        <input type="hidden" asp-for="Motivos[i].EsNuevo" />
+                        <div class="mb-3">
+                            <label asp-for="Motivos[i].Codigo" class="form-label">Código estable</label>
+                            @if (Model.Motivos[i].EsNuevo)
+                            {
+                                <input asp-for="Motivos[i].Codigo" class="form-control" maxlength="40" autocomplete="off" placeholder="DOMICILIO_CERRADO" />
+                            }
+                            else
+                            {
+                                <input asp-for="Motivos[i].Codigo" class="form-control" readonly />
+                            }
+                            <div class="form-text">1–40 caracteres: A–Z, números y guion bajo; debe comenzar con una letra. Ejemplo: DOMICILIO_CERRADO.</div>
+                            <span asp-validation-for="Motivos[i].Codigo" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Motivos[i].Descripcion" class="form-label">Descripción</label>
+                            <input asp-for="Motivos[i].Descripcion" class="form-control" maxlength="120" />
+                            <span asp-validation-for="Motivos[i].Descripcion" class="text-danger"></span>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" asp-for="Motivos[i].Disponible" />
+                                <label class="form-check-label" asp-for="Motivos[i].Disponible">Disponible para seleccionar</label>
+                            </div>
+                            @if (Model.Motivos[i].EsNuevo)
+                            {
+                        <button class="btn btn-outline-danger btn-sm" type="submit" formaction="?handler=QuitarMotivoNuevo&amp;indice=@i" formnovalidate data-confirm-remove="true" data-confirm-message="¿Quitar este motivo nuevo de la edición local?">Quitar motivo nuevo</button>
+                            }
+                            else if (!Model.Motivos[i].Disponible)
+                            {
+                                <span class="text-muted">Dejado de ofrecer; se conserva en esta versión.</span>
+                            }
+                        </div>
+                    </fieldset>
+                }
+            </div>
+        </section>
+
+        <section class="card rules-section mb-3" aria-labelledby="policy-title">
+            <div class="card-body">
+                <h2 id="policy-title" class="h4">Cuando se agotan los intentos</h2>
+                <label asp-for="PoliticaDevolucionAlAgotarIntentos" class="form-label">Política de continuidad</label>
+                <select asp-for="PoliticaDevolucionAlAgotarIntentos" class="form-select">
+                    <option value="">Seleccioná una opción</option>
+                    <option value="DecisionOperativa">Un responsable decide cómo continuar</option>
+                    <option value="IniciarAutomaticamente">Iniciar la devolución automáticamente</option>
+                </select>
+                <span asp-validation-for="PoliticaDevolucionAlAgotarIntentos" class="text-danger"></span>
+                <p class="form-text mt-2">Iniciar una devolución no significa que el paquete ya fue recibido de vuelta.</p>
+            </div>
+        </section>
+
+        <section class="card rules-section mb-3" aria-labelledby="deadlines-title">
+            <div class="card-body">
+                <h2 id="deadlines-title" class="h4">Plazos de entrega</h2>
+                <p>Tiempo máximo desde la admisión. Se cuenta en horas corridas, incluidos fines de semana. Estos plazos no son las franjas semanales de entrega de una zona.</p>
+                <fieldset class="mb-3">
+                    <legend class="h6">Estándar</legend>
+                    <partial name="_DurationFields" model="@(new DurationFieldsViewModel("PlazoEstandar", "Plazo Estándar", Model.PlazoEstandar))" />
+                </fieldset>
+                <fieldset>
+                    <legend class="h6">Urgente</legend>
+                    <partial name="_DurationFields" model="@(new DurationFieldsViewModel("PlazoUrgente", "Plazo Urgente", Model.PlazoUrgente))" />
+                </fieldset>
+            </div>
+        </section>
+
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <button class="btn btn-primary" type="submit" disabled="@Model.Conflict">Guardar borrador</button>
+            <a class="btn btn-outline-secondary" asp-page="/ReglasOperativas/Index">Cancelar</a>
+        </div>
+    </form>
+    <a class="btn btn-outline-primary mb-4" asp-page="/ReglasOperativas/Publicar" data-requires-clean>Revisar y publicar</a>
+    <script src="~/js/tarifas-editor.js" asp-append-version="true"></script>
+}
+else if (Model.Error is null)
+{
+    <p>El borrador no está disponible.</p>
+}

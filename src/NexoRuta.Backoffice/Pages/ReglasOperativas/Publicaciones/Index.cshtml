@@ -1,0 +1,38 @@
+@page "/reglas-operativas/publicaciones"
+@model NexoRuta.Backoffice.Features.ReglasOperativas.Pages.PublicacionesIndexModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Historial de reglas operativas | Backoffice NexoRuta";
+}
+<h1>Historial de reglas operativas</h1>
+<p><a asp-page="/ReglasOperativas/Index">Volver a reglas operativas</a></p>
+@if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+@if (Model.Resultado is { } result)
+{
+    @if (result.Items.Count == 0) { <p>Todavía no hay publicaciones históricas.</p> }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <caption>Publicaciones ordenadas de la más reciente a la más antigua.</caption>
+                <thead><tr><th scope="col">Publicación</th><th scope="col">Fecha</th><th scope="col">Estado</th><th scope="col">Acción</th></tr></thead>
+                <tbody>
+                @foreach (var item in result.Items)
+                {
+                    <tr>
+                        <th scope="row">Versión @item.NumeroVersionPublicada</th>
+                        <td>@item.PublicadaUtc?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</td>
+                        <td>@NexoRuta.Backoffice.Features.ReglasOperativas.ReglasOperativasUi.PublicationStatusLabel(Model.VersionVigenteId == item.VersionReglasOperativasId)</td>
+                        <td><a asp-page="/ReglasOperativas/Publicaciones/Detalle" asp-route-versionId="@item.VersionReglasOperativasId">Ver publicación</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+    <nav class="d-flex gap-3 align-items-center" aria-label="Paginación de publicaciones">
+        @if (result.Pagina > 1) { <a asp-page="/ReglasOperativas/Publicaciones/Index" asp-route-pagina="@(result.Pagina - 1)">Anterior</a> }
+        <span>Página @result.Pagina · @result.Total publicaciones</span>
+        @if (result.Pagina * result.TamanoPagina < result.Total) { <a asp-page="/ReglasOperativas/Publicaciones/Index" asp-route-pagina="@(result.Pagina + 1)">Siguiente</a> }
+    </nav>
+}

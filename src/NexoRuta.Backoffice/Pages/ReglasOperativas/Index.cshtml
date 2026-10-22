@@ -1,0 +1,87 @@
+@page "/reglas-operativas"
+@model NexoRuta.Backoffice.Features.ReglasOperativas.Pages.IndexModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Reglas operativas | Backoffice NexoRuta";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1>Reglas operativas</h1>
+        <p>Configurá cómo se gestionan los intentos, las pruebas y los plazos de entrega.</p>
+    </div>
+    <a class="btn btn-outline-primary" asp-page="/ReglasOperativas/Publicaciones/Index">Ver historial</a>
+</div>
+
+@if (Model.Notice is not null) { <p class="alert alert-success" role="status">@Model.Notice</p> }
+@if (Model.Error is not null)
+{
+    <p class="alert alert-danger" role="alert">@Model.Error <a asp-page="/ReglasOperativas/Index">Recargar estado</a></p>
+}
+
+<p class="alert alert-info">Guardar conserva los cambios en el borrador. Publicar los convierte en la configuración vigente.</p>
+
+@if (Model.Estado is null)
+{
+    <p>El estado de las reglas no está disponible. No se muestran valores operativos predeterminados.</p>
+}
+else
+{
+    @if (Model.Estado.PublicacionVigente is { } current)
+    {
+        <section class="card mb-3" aria-labelledby="current-rules-title">
+            <div class="card-body">
+                <h2 id="current-rules-title" class="h4">Reglas publicadas vigentes</h2>
+                <p>Publicación <strong>@current.NumeroVersionPublicada</strong>
+                    · @current.PublicadaUtc?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</p>
+                <a class="btn btn-outline-primary" asp-page="/ReglasOperativas/Publicaciones/Detalle" asp-route-versionId="@current.VersionReglasOperativasId">Ver reglas vigentes</a>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="card mb-3" aria-labelledby="no-current-rules-title">
+            <div class="card-body">
+                <h2 id="no-current-rules-title" class="h4">Sin reglas vigentes</h2>
+                <p>Todavía no hay una publicación activa. Un borrador no cambia el comportamiento operativo.</p>
+            </div>
+        </section>
+    }
+
+    @if (Model.Estado.Borrador is { } draft)
+    {
+        <section class="card mb-3" aria-labelledby="draft-rules-title">
+            <div class="card-body">
+                <h2 id="draft-rules-title" class="h4">Cambios en preparación</h2>
+                <p>Hay un borrador editable. Guardarlo no lo publica ni ejecuta acciones sobre envíos.</p>
+                <a class="btn btn-primary" asp-page="/ReglasOperativas/Borrador">Editar borrador</a>
+            </div>
+        </section>
+    }
+    else if (Model.Estado.PublicacionVigente is not null)
+    {
+        <section class="card mb-3" aria-labelledby="copy-rules-title">
+            <div class="card-body">
+                <h2 id="copy-rules-title" class="h4">Sin cambios en preparación</h2>
+                <p>La publicación no se puede editar. Podés crear una copia independiente para preparar cambios.</p>
+                <form method="post" asp-page-handler="CrearBorrador" data-single-submit>
+                    <button class="btn btn-primary" type="submit">Crear copia para editar</button>
+                </form>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="card mb-3" aria-labelledby="initial-rules-title">
+            <div class="card-body">
+                <h2 id="initial-rules-title" class="h4">Configuración inicial</h2>
+                <p>El borrador puede guardarse incompleto; solo se aplicará después de una publicación explícita.</p>
+                <form method="post" asp-page-handler="CrearBorrador" data-single-submit>
+                    <button class="btn btn-primary" type="submit">Configurar reglas</button>
+                </form>
+            </div>
+        </section>
+    }
+}
+
+<p><a asp-page="/ReglasOperativas/Publicaciones/Index">Ver historial</a></p>

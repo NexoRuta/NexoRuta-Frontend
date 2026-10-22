@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] | NexoRuta Admin</title>
+    <link rel="stylesheet" href="~/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="bg-light">
+    <a class="visually-hidden-focusable" href="#main">Skip to content</a>
+    <header class="bg-white border-bottom mb-4">
+        <nav class="container d-flex flex-wrap align-items-center gap-3 py-3" aria-label="Main navigation">
+            <a class="navbar-brand fw-bold me-auto" href="/">NexoRuta <span class="badge text-bg-dark">Admin</span></a>
+            @if (Context.Items.ContainsKey(NexoRuta.Admin.Core.Security.ApiPermissionAuthorizationHandler.PermissionsCacheKey))
+            {
+                <a href="/operadores">Operators</a><a href="/comercios">Commerces</a><a href="/solicitudes-baja">Cancellation requests</a><a href="/solicitudes-reactivacion">Solicitudes de reactivación</a>
+            }
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <form method="post" asp-page="/Salir" data-single-submit>
+                    <button class="btn btn-outline-secondary" type="submit">Sign out</button>
+                </form>
+            }
+        </nav>
+    </header>
+    <main id="main" class="container pb-5">@RenderBody()</main>
+    <footer class="container border-top py-3 text-muted small">NexoRuta · Platform administration · Not an operator or commerce workspace</footer>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

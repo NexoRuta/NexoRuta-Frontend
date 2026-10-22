@@ -1,0 +1,57 @@
+@page "/reglas-operativas/publicar"
+@model NexoRuta.Backoffice.Features.ReglasOperativas.Pages.PublicarModel
+@using NexoRuta.Backoffice.Features.ReglasOperativas
+@using System.Globalization
+@{
+    ViewData["Title"] = "Publicar reglas operativas | Backoffice NexoRuta";
+}
+<h1>Revisar y publicar reglas</h1>
+<p><a asp-page="/ReglasOperativas/Borrador">Volver al borrador</a></p>
+@if (Model.Error is not null)
+{
+    <div class="alert @(Model.Conflict ? "alert-warning" : "alert-danger")" role="alert">
+        @Model.Error
+        @if (Model.Conflict) { <a class="d-block mt-2" asp-page="/ReglasOperativas/Publicar">Recargar borrador actual</a> }
+    </div>
+}
+@if (Model.Borrador is { } draft)
+{
+    <section class="card mb-4" aria-labelledby="rules-publication-summary">
+        <div class="card-body">
+            <h2 id="rules-publication-summary" class="h4">Resumen de la publicación</h2>
+            <p>La publicación queda inmutable. Para hacer cambios después, creá una copia en un nuevo borrador.</p>
+            @if (Model.MissingSections().Count > 0)
+            {
+                <div class="alert alert-warning"><strong>Requiere atención:</strong><ul class="mb-0">
+                @foreach (var missingSection in Model.MissingSections()) { <li>@missingSection</li> }
+                </ul><p class="mb-0 mt-2">La API mantiene la validación definitiva.</p></div>
+            }
+            <dl class="row">
+                <dt class="col-sm-4">Máximo de intentos de entrega</dt><dd class="col-sm-8">@(draft.MaxIntentosEntrega?.ToString(CultureInfo.InvariantCulture) ?? "Sin completar")</dd>
+                <dt class="col-sm-4">Espera mínima después de un intento fallido</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(draft.IntervaloEntreIntentosMinutos)</dd>
+                <dt class="col-sm-4">Prueba requerida</dt><dd class="col-sm-8">@(draft.RequisitosPrueba.Count == 0 ? "Sin requisitos" : string.Join(", ", draft.RequisitosPrueba.Select(ReglasOperativasUi.ProofLabel)))</dd>
+                <dt class="col-sm-4">Cuando se agotan los intentos</dt><dd class="col-sm-8">@ReglasOperativasUi.PolicyLabel(draft.PoliticaDevolucionAlAgotarIntentos)</dd>
+                <dt class="col-sm-4">Plazo Estándar</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(draft.PlazoEstandarMinutos)</dd>
+                <dt class="col-sm-4">Plazo Urgente</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(draft.PlazoUrgenteMinutos)</dd>
+            </dl>
+            <h3 class="h5">Motivos de no entrega</h3>
+            @if (draft.Motivos.Count == 0) { <p>Sin motivos.</p> }
+            else
+            {
+                <ul>@foreach (var motive in draft.Motivos) { <li>@motive.Codigo — @motive.Descripcion (@ReglasOperativasUi.MotiveAvailabilityLabel(motive.Disponible))</li> }</ul>
+            }
+            <p>Publicar solo cambia la configuración vigente; no inicia devoluciones ni modifica envíos.</p>
+        </div>
+    </section>
+    <form method="post" data-single-submit>
+        <input type="hidden" asp-for="VersionConcurrencia" />
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" asp-for="ConfirmarPublicacion" />
+            <label class="form-check-label" asp-for="ConfirmarPublicacion">Confirmo publicar estas reglas como versión vigente e inmutable.</label>
+            <span asp-validation-for="ConfirmarPublicacion" class="text-danger"></span>
+        </div>
+        <button class="btn btn-primary" type="submit" disabled="@Model.Conflict">Publicar reglas</button>
+        <a class="btn btn-outline-secondary" asp-page="/ReglasOperativas/Borrador">Seguir editando</a>
+    </form>
+}

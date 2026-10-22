@@ -1,0 +1,144 @@
+@page "/envios/{EnvioId:guid}/destino"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
+@using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Core.Exceptions
+@using NexoRuta.ApiClient.Features.Envios.Clients
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
+@using NexoRuta.Commerce.Components.Features.Envios.Shared
+@inject DestinosEnvioApiClient Destinos
+@inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Confirmar ubicación | NexoRuta</PageTitle>
+<h1>Ubicación del destino</h1>
+<p><a href="/envios">Volver a mis envíos</a></p>
+@if (mensaje is not null) { <p class="alert alert-warning" role="status">@mensaje</p> }
+@if (ocupado) { <p role="status">Consultando…</p> }
+@if (destino is not null)
+{
+    <p><strong>@destino.Direccion</strong></p>
+    @if (destino.ConfirmadaEnUtc is not null) { <p>El destino tiene una ubicación confirmada.</p> }
+    @if (destino.Estado != "Admitido")
+    { <p class="alert alert-info">El destino ya no puede modificarse después de la recepción en depósito.</p> }
+    else
+    {
+        <p>Revisá el punto antes de confirmar. Si no coincide con la dirección, mové el marcador o corregí las coordenadas.</p>
+        <button class="btn btn-outline-primary" disabled="@ocupado" @onclick="BuscarAsync">Volver a buscar la dirección</button>
+        @if (propuestas is not null)
+        {
+            @if (propuestas.Propuestas.Count == 0) { <p role="status">No encontramos coincidencias. Indicá el punto manualmente o volvé a buscar.</p> }
+            <ul>
+                @foreach (var propuesta in propuestas.Propuestas)
+                {
+                    <li><button class="btn btn-link text-start" disabled="@ocupado" @onclick="() => Elegir(propuesta)">@propuesta.Descripcion</button></li>
+                }
+            </ul>
+            <p class="small">@propuestas.Atribucion</p>
+            @if (propuestas.Atribucion.Contains("Geoapify", StringComparison.Ordinal))
+            { <p class="small"><a href="https://www.geoapify.com/" rel="noopener noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer">© OpenStreetMap contributors</a></p> }
+        }
+    }
+    <SelectorDestino @key="EnvioId" Latitud="punto.Latitud" Longitud="punto.Longitud" PuntoCambiado="ElegirEnMapa" />
+    <EditForm Model="punto" OnValidSubmit="ConfirmarAsync" FormName="confirmar-destino">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <fieldset disabled="@(ocupado || destino.Estado != "Admitido")">
+            <label>Latitud <InputNumber @bind-Value="punto.Latitud" @bind-Value:after="CambioPunto" step="any" /></label>
+            <ValidationMessage For="() => punto.Latitud" />
+            <label>Longitud <InputNumber @bind-Value="punto.Longitud" @bind-Value:after="CambioPunto" step="any" /></label>
+            <ValidationMessage For="() => punto.Longitud" />
+            <label><InputCheckbox @bind-Value="revisado" /> Revisé que el punto corresponde a la dirección del destinatario.</label>
+            <button class="btn btn-primary" type="submit" disabled="@(!revisado || punto.Latitud is null || punto.Longitud is null)">Confirmar ubicación del destino</button>
+        </fieldset>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public Guid EnvioId { get; set; }
+    private CancellationTokenSource solicitudes = new();
+    private DestinoEnvioResponse? destino;
+    private PropuestasDestinoResponse? propuestas;
+    private PuntoFormulario punto = new();
+    private string token = "", mensaje = "";
+    private bool ocupado, revisado;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        solicitudes.Cancel(); solicitudes.Dispose(); solicitudes = new();
+        var ct = solicitudes.Token;
+        destino = null; propuestas = null; punto = new(); revisado = false; mensaje = "";
+        ocupado = true;
+        try
+        {
+            token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
+            var actual = await Destinos.ObtenerAsync(EnvioId, token, ct);
+            if (ct.IsCancellationRequested) return;
+            destino = actual; punto.Latitud = actual.Latitud; punto.Longitud = actual.Longitud;
+            if (actual.ConfirmadaEnUtc is null && actual.Estado == "Admitido") await ConsultarPropuestas(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (HttpRequestException ex) { if (!ct.IsCancellationRequested) MostrarError(ex); }
+        finally { if (!ct.IsCancellationRequested) ocupado = false; }
+    }
+    private async Task ConsultarPropuestas(CancellationToken ct)
+    {
+        var resultado = await Destinos.ProponerAsync(EnvioId, token, ct);
+        if (ct.IsCancellationRequested) return;
+        if (resultado.Version != destino?.Version || resultado.Direccion != destino.Direccion)
+        { propuestas = null; mensaje = "La dirección cambió durante la consulta. Recargá la página antes de confirmar."; destino = null; return; }
+        propuestas = resultado;
+    }
+    private async Task BuscarAsync()
+    {
+        if (ocupado || destino is null) return;
+        var ct = solicitudes.Token; ocupado = true; mensaje = "";
+        try { await ConsultarPropuestas(ct); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (HttpRequestException ex) { if (!ct.IsCancellationRequested) MostrarError(ex); }
+        finally { if (!ct.IsCancellationRequested) ocupado = false; }
+    }
+    private void Elegir(PropuestaDestinoResponse propuesta) => ElegirEnMapa((propuesta.Latitud, propuesta.Longitud));
+    private void ElegirEnMapa((double Latitud, double Longitud) elegido)
+    {
+        if (ocupado || destino?.Estado != "Admitido") return;
+        punto.Latitud = elegido.Latitud; punto.Longitud = elegido.Longitud; CambioPunto();
+    }
+    private void CambioPunto() { revisado = false; mensaje = ""; }
+    private async Task ConfirmarAsync()
+    {
+        if (ocupado || !revisado || destino?.Estado != "Admitido" || punto.Latitud is not { } lat || punto.Longitud is not { } lon) return;
+        var ct = solicitudes.Token; ocupado = true; mensaje = "";
+        try
+        {
+            await Destinos.ConfirmarAsync(EnvioId, destino.Version, lat, lon, token, ct);
+            var actual = await Destinos.ObtenerAsync(EnvioId, token, ct);
+            if (ct.IsCancellationRequested) return;
+            destino = actual; revisado = false; mensaje = "Ubicación confirmada. El destino quedó listo para su planificación.";
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (HttpRequestException ex) { if (!ct.IsCancellationRequested) MostrarError(ex); }
+        finally { if (!ct.IsCancellationRequested) ocupado = false; }
+    }
+    private void MostrarError(HttpRequestException ex)
+    {
+        if (ex.StatusCode == HttpStatusCode.Unauthorized) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); return; }
+        mensaje = ex.StatusCode switch {
+            HttpStatusCode.NotFound => "El envío no está disponible en tu comercio.",
+            HttpStatusCode.Forbidden => "No tenés permiso para gestionar el destino.",
+            HttpStatusCode.Conflict => "El destino o el envío cambiaron. Recargá antes de confirmar.",
+            HttpStatusCode.TooManyRequests => "Esperá un minuto antes de buscar nuevamente.",
+            HttpStatusCode.ServiceUnavailable => "No se pudo consultar la dirección. Podés indicar el punto manualmente o volver a intentar más tarde.",
+            _ => "No pudimos completar la operación. Revisá los datos y la conexión." };
+        if (ex.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.NotFound or HttpStatusCode.Forbidden) destino = null;
+    }
+    public void Dispose() { solicitudes.Cancel(); solicitudes.Dispose(); }
+    private sealed class PuntoFormulario
+    {
+        [Required, Range(-90, 90)] public double? Latitud { get; set; }
+        [Required, Range(-180, 180)] public double? Longitud { get; set; }
+    }
+}

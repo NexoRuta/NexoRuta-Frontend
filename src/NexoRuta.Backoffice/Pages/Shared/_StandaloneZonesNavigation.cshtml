@@ -1,0 +1,23 @@
+@inject Microsoft.AspNetCore.Authorization.IAuthorizationService AuthorizationService
+@{
+    var showZones = false;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var operatorContext = await AuthorizationService.AuthorizeAsync(User, null, NexoRuta.ApiClient.Core.Session.SesionUsuario.Operador);
+        if (operatorContext.Succeeded)
+        {
+            var permission = await AuthorizationService.AuthorizeAsync(User, null, NexoRuta.Backoffice.Features.ZonasCobertura.ZonaCoberturaUi.PermisoGestionar);
+            showZones = permission.Succeeded;
+        }
+    }
+}
+@if (showZones)
+{
+    <nav class="container py-2" aria-label="Navegación operativa">
+        <a href="@NexoRuta.Backoffice.Features.ZonasCobertura.ZonaCoberturaUi.ListRoute">Zonas y franjas</a>
+        <span aria-hidden="true"> · </span>
+        <a href="@NexoRuta.Backoffice.Features.Tarifas.TarifasUi.HomeRoute">Tarifas</a>
+        <span aria-hidden="true"> · </span>
+        <a href="@NexoRuta.Backoffice.Features.ReglasOperativas.ReglasOperativasUi.HomeRoute">Reglas operativas</a>
+    </nav>
+}

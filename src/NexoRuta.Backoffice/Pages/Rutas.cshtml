@@ -1,0 +1,104 @@
+@page "/rutas"
+@model NexoRuta.Backoffice.Features.Reparto.Pages.RutasModel
+@{ ViewData["Title"] = "Rutas y depósito"; }
+<h1>Rutas y depósito</h1>
+@if (Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
+@if (Model.Confirmacion is not null) { <div class="alert alert-success" role="status">@Model.Confirmacion</div> }
+<form method="get" class="d-flex gap-2 align-items-end mb-4">
+    <div><label asp-for="Fecha">Fecha de las rutas</label><input asp-for="Fecha" type="date" class="form-control" required /></div>
+    <button class="btn btn-outline-primary">Consultar</button>
+</form>
+@if (Model.Recursos is { } recursos)
+{
+    <p>Horas en @recursos.Politica.ZonaHoraria. Se carga una sola vez en depósito y se rinde al regresar.</p>
+    <h2>Rutas del día</h2>
+    @if (Model.Rutas.Count == 0) { <p>No hay rutas para esta fecha.</p> }
+    @foreach (var ruta in Model.Rutas)
+    {
+        <section class="card card-body mb-3">
+            <h3 class="h5">@Model.Repartidor(ruta.RepartidorAccesoId) · @ruta.Matricula · @ruta.Estado</h3>
+            @if (ruta.IncidenciasCierre.Count > 0)
+            {
+                <div class="alert alert-warning" role="status">
+                    <strong>Cierre con incidencia: bultos sin entrega ni rendición</strong>
+                    <ul>@foreach (var incidencia in ruta.IncidenciasCierre)
+                    {
+                        <li>@incidencia.Codigo · registrado al cerrar la jornada. Custodia actual:
+                            @(ruta.Paradas.SelectMany(p => p.Bultos).Single(b => b.Id == incidencia.BultoId).Custodia).</li>
+                    }</ul>
+                    <p class="mb-0">La incidencia se conserva como historial. Solo confirmar la recepción en depósito cuando los bultos estén físicamente presentes.</p>
+                </div>
+            }
+            <div class="table-responsive"><table class="table"><caption>Paradas en orden de recorrido</caption>
+                <thead><tr><th>Orden</th><th>Hora</th><th>Destino</th><th>Bultos</th><th>Estado</th></tr></thead>
+                <tbody>@foreach (var p in ruta.Paradas.OrderBy(p => p.Orden))
+                {
+                    <tr><td>@p.Orden</td><td>@Model.Hora(p.LlegadaEstimadaUtc, ruta.Politica.ZonaHoraria)</td><td>@p.Destinatario<br />@p.Direccion</td>
+                        <td>@foreach (var b in p.Bultos) { <div>@b.Codigo · @b.Custodia</div> }</td>
+                        <td>@p.Estado @if (!p.Activa) { <div>Fuera de esta ruta: @p.MotivoSuspension</div> }</td></tr>
+                }</tbody>
+            </table></div>
+            @if (ruta.Estado == "Planificada" && ruta.Paradas.Count > 0)
+            {
+                <form method="post" asp-page-handler="Despachar" data-single-submit>
+                    <input type="hidden" asp-for="Fecha" /><input type="hidden" name="rutaId" value="@ruta.Id" /><input type="hidden" name="version" value="@ruta.Version" />
+                    <button class="btn btn-primary">Despachar esta ruta</button>
+                    <p class="mt-2 mb-0">Requiere todos los bultos recibidos físicamente en depósito y los destinos confirmados.</p>
+                </form>
+            }
+        </section>
+    }
+    <details class="card card-body mb-4">
+        <summary class="h4">Planificar una ruta</summary>
+        <p>Elegí repartidor, vehículo y envíos. Definí el orden y la hora estimada de cada parada. El servidor valida capacidad, disponibilidad y destinos.</p>
+        <form method="post" asp-page-handler="Planificar" data-single-submit>
+            <input type="hidden" asp-for="Fecha" />
+            <label asp-for="RepartidorAccesoId">Repartidor</label><select asp-for="RepartidorAccesoId" class="form-select mb-2" required><option value="">Seleccionar</option>
+                @foreach (var r in recursos.Repartidores) { <option value="@r.AccesoId">@r.Nombre</option> }</select>
+            <label asp-for="VehiculoId">Vehículo</label><select asp-for="VehiculoId" class="form-select mb-3" required><option value="">Seleccionar</option>
+                @foreach (var v in recursos.Vehiculos) { <option value="@v.Id">@v.Matricula · @v.PesoMaximoGramos g · @v.VolumenMaximoCm3 cm³</option> }</select>
+            <div class="table-responsive"><table class="table"><caption>Envíos en depósito o reprogramados</caption><thead><tr><th>Incluir</th><th>Destino</th><th>Orden</th><th>Hora</th></tr></thead><tbody>
+            @for (var i = 0; i < Model.Plan.Count; i++)
+            {
+                var envio = Model.Envios.Single(e => e.Id == Model.Plan[i].EnvioId);
+                <tr><td><input type="hidden" asp-for="Plan[i].EnvioId" /><input asp-for="Plan[i].Incluir" aria-label="Incluir envío a @envio.DestinatarioNombre" /></td>
+                    <td>@envio.DestinatarioNombre · @envio.Direccion<br />@string.Join(", ", envio.Bultos.Select(b => b.Codigo))</td>
+                    <td><input asp-for="Plan[i].Orden" type="number" min="1" max="500" class="form-control" aria-label="Orden de @envio.DestinatarioNombre" /></td>
+                    <td><input asp-for="Plan[i].Hora" type="time" class="form-control" aria-label="Hora de @envio.DestinatarioNombre" /></td></tr>
+            }
+            </tbody></table></div>
+            <label class="d-block mb-3"><input asp-for="CrearBorrador" /> Crear borrador sin paradas para recibir una reasignación. No podrá despacharse vacío.</label>
+            <button class="btn btn-primary">Guardar planificación</button>
+        </form>
+    </details>
+    <h2>Recepción en depósito</h2>
+    <p>Confirmá únicamente cuando hayas recibido todos los bultos del envío. Requiere rendición declarada o una incidencia registrada al cerrar la jornada; recibir nunca elimina esa incidencia.</p>
+    @foreach (var envio in Model.Envios.Where(e => e.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion"
+        || Model.Rutas.Any(r => r.IncidenciasCierre.Any(i => i.EnvioId == e.Id)) && e.Estado is ("EnTransito" or "NoEntregado")))
+    {
+        <form method="post" asp-page-handler="Recibir" class="card card-body mb-2" data-single-submit>
+            <input type="hidden" asp-for="Fecha" /><input type="hidden" name="envioId" value="@envio.Id" /><input type="hidden" name="version" value="@envio.Version" />
+            <p>@envio.DestinatarioNombre · @envio.Estado · @string.Join(", ", envio.Bultos.Select(b => b.Codigo))</p>
+            <button class="btn btn-outline-primary align-self-start">Confirmar recepción de todos los bultos</button>
+        </form>
+    }
+    <h2 class="mt-4">Postergar una entrega</h2>
+    <p>Seleccioná arriba la fecha futura y planificá su ruta destino. El bulto vuelve con su repartidor actual y requiere recepción antes del nuevo despacho.</p>
+    @if (!Model.Rutas.Any(r => r.Estado == "Planificada")) { <p>No hay rutas planificadas en esta fecha para recibir una reasignación.</p> }
+    else
+    {
+        @foreach (var envio in Model.Envios.Where(e => e.Estado is "AsignadoRuta" or "EnTransito" or "NoEntregado"))
+        {
+            <details class="card card-body mb-2"><summary>@envio.DestinatarioNombre · @envio.Direccion · @envio.Estado</summary>
+            <form method="post" asp-page-handler="Reasignar" class="mt-3" data-single-submit>
+                <input type="hidden" asp-for="Fecha" /><input type="hidden" name="envioId" value="@envio.Id" /><input type="hidden" name="versionEnvio" value="@envio.Version" />
+                <label for="destino-@envio.Id">Ruta destino</label><select id="destino-@envio.Id" name="destino" class="form-select mb-2" required><option value="">Seleccionar</option>
+                    @foreach (var r in Model.Rutas.Where(r => r.Estado == "Planificada" && r.Paradas.All(p => p.EnvioId != envio.Id)))
+                    { <option value="@r.Id:@r.Version">@Model.Repartidor(r.RepartidorAccesoId) · @r.Matricula · @r.Paradas.Count parada(s)</option> }</select>
+                <label for="hora-@envio.Id">Hora de llegada (al final de esa ruta)</label><input id="hora-@envio.Id" type="time" name="hora" class="form-control mb-2" required />
+                <label for="motivo-@envio.Id">Motivo</label><textarea id="motivo-@envio.Id" name="motivo" class="form-control mb-3" required maxlength="500"></textarea>
+                <button class="btn btn-outline-primary">Postergar a esa ruta</button>
+            </form></details>
+        }
+    }
+}
