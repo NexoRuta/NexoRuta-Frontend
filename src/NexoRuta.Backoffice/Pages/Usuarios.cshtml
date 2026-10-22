@@ -4,8 +4,7 @@
     ViewData["Title"] = "Usuarios | Backoffice NexoRuta";
 }
 
-<h1>Usuarios y accesos</h1>
-<p>La desactivación afecta el acceso a la organización; no elimina la identidad global del usuario.</p>
+<header class="nr-page-header"><div><h1>Usuarios y accesos</h1><p>La desactivación afecta el acceso a la organización; no elimina la identidad global del usuario.</p></div></header>
 @if (Model.Error is not null)
 {
     <p class="alert alert-danger" role="alert">@Model.Error <a href="/usuarios">Recargar estado</a></p>
@@ -15,13 +14,13 @@
     <p class="alert alert-success" role="status">@Model.Confirmacion</p>
 }
 
-<section aria-labelledby="alta-usuario">
+<section class="nr-content-section" aria-labelledby="alta-usuario">
     <h2 id="alta-usuario">Crear usuario y acceso</h2>
     @if (Model.Roles.Count == 0)
     {
         <p role="status">No hay roles disponibles en esta organización para asignar.</p>
     }
-    <form method="post" asp-page-handler="Crear" data-single-submit>
+    <form method="post" asp-page-handler="Crear" data-single-submit class="nr-form-stack">
         <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
         <div class="mb-3">
             <label asp-for="Email" class="form-label">Correo</label>
@@ -48,7 +47,7 @@
     </form>
 </section>
 
-<section class="mt-5" aria-labelledby="listado-usuarios">
+<section class="nr-content-section" aria-labelledby="listado-usuarios">
     <h2 id="listado-usuarios">Accesos de la organización</h2>
     @if (Model.Usuarios.Count == 0 && Model.Error is null)
     {
@@ -56,9 +55,10 @@
     }
     else if (Model.Usuarios.Count > 0)
     {
-        <div class="table-responsive">
+        <div class="table-responsive" role="region" aria-label="Accesos de la organización; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0">
             <table class="table align-middle">
-                <thead><tr><th>Identidad</th><th>Acceso</th><th>Rol asignado</th><th>Acciones</th></tr></thead>
+                <caption class="visually-hidden">Usuarios y accesos de la organización</caption>
+                <thead><tr><th scope="col">Identidad</th><th scope="col">Acceso</th><th scope="col">Rol asignado</th><th scope="col">Acciones</th></tr></thead>
                 <tbody>
                 @foreach (var usuario in Model.Usuarios)
                 {

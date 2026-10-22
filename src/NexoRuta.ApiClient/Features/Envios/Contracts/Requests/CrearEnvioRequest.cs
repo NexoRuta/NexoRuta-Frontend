@@ -10,7 +10,7 @@ public sealed class CrearEnvioRequest
     [Required, StringLength(160)]
     public string DestinatarioNombre { get; set; } = "";
 
-    [Required, EmailAddress, StringLength(254)]
+    [Required, EmailAddress(ErrorMessage = "Ingresá un correo electrónico válido."), StringLength(254)]
     public string DestinatarioEmail { get; set; } = "";
 
     [Required, StringLength(240)]

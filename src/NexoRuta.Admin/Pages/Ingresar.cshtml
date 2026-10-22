@@ -1,18 +1,29 @@
 @page "/ingresar"
 @model NexoRuta.Admin.Features.Sesion.Pages.IngresarModel
-@{ ViewData["Title"] = "Sign in"; }
-<section class="card mx-auto login-card"><div class="card-body p-4">
-    <p class="text-muted">NexoRuta · Platform</p><h1 class="h3">Sign in</h1>
-    <p>Only platform administrators can use this portal.</p>
-    @if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{ ViewData["Title"] = "Ingresar"; Layout = "_AuthLayout"; }
+<section class="nr-auth-panel" aria-labelledby="login-heading">
+    <h1 id="login-heading">Ingresar</h1>
+    @if (Model.Error is not null) { <p class="nr-auth-message" role="alert">@Model.Error</p> }
     <form method="post" asp-page="/Ingresar" data-single-submit>
         <input type="hidden" asp-for="ReturnUrl" />
-        <div asp-validation-summary="All" class="text-danger" role="alert"></div>
-        <label asp-for="Email" class="form-label">Email</label>
-        <input asp-for="Email" class="form-control mb-3" type="email" autocomplete="username" required maxlength="254" />
-        <label for="Password" class="form-label">Password</label>
-        <input name="Password" id="Password" type="password" class="form-control mb-3" autocomplete="current-password" required />
-        <button type="submit" class="btn btn-primary w-100">Sign in</button>
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <div class="nr-auth-field">
+            <label asp-for="Email" class="form-label">Correo electrónico</label>
+            <input asp-for="Email" class="form-control" type="email" autocomplete="username" required maxlength="254" aria-describedby="Email-validation" />
+            <span asp-validation-for="Email" id="Email-validation" class="text-danger"></span>
+        </div>
+        <div class="nr-auth-field">
+            <div class="nr-auth-label-row">
+                <label asp-for="Password" class="form-label">Contraseña</label>
+                <a href="/recuperar-contrasena">¿Olvidaste tu contraseña?</a>
+            </div>
+            <div class="nr-password-control">
+                <input asp-for="Password" class="form-control" type="password" autocomplete="current-password" required aria-describedby="Password-validation" />
+                <button class="nr-password-toggle" type="button" data-password-toggle aria-controls="Password" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button>
+            </div>
+            <span asp-validation-for="Password" id="Password-validation" class="text-danger"></span>
+        </div>
+        <button type="submit" class="btn btn-primary nr-auth-submit">Ingresar</button>
     </form>
-    <p><a href="/recuperar-contrasena">¿Olvidaste tu contraseña?</a></p>
-</div></section>
+</section>

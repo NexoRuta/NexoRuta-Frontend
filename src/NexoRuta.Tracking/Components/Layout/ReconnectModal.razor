@@ -1,31 +1,32 @@
 ﻿<script type="module" src="@Assets["Components/Layout/ReconnectModal.razor.js"]"></script>
 
-<dialog id="components-reconnect-modal" data-nosnippet>
+<dialog id="components-reconnect-modal" data-nosnippet aria-labelledby="reconnect-title">
     <div class="components-reconnect-container">
+        <h2 id="reconnect-title" class="visually-hidden">Conexión con NexoRuta</h2>
         <div class="components-rejoining-animation" aria-hidden="true">
             <div></div>
             <div></div>
         </div>
-        <p class="components-reconnect-first-attempt-visible">
-            Rejoining the server...
+        <p id="reconnect-status" class="components-reconnect-first-attempt-visible" role="status">
+            Reconectando con el servidor…
         </p>
-        <p class="components-reconnect-repeated-attempt-visible">
-            Rejoin failed... trying again in <span id="components-seconds-to-next-attempt"></span> seconds.
+        <p class="components-reconnect-repeated-attempt-visible" role="status">
+            No pudimos reconectar. Vamos a intentar de nuevo en <span id="components-seconds-to-next-attempt"></span> segundos.
         </p>
-        <p class="components-reconnect-failed-visible">
-            Failed to rejoin.<br />Please retry or reload the page.
+        <p class="components-reconnect-failed-visible" role="alert">
+            No se pudo restablecer la conexión. Volvé a intentar o recargá la página.
         </p>
-        <button id="components-reconnect-button" class="components-reconnect-failed-visible">
-            Retry
+        <button id="components-reconnect-button" class="components-reconnect-failed-visible btn btn-primary" type="button">
+            Reintentar
         </button>
-        <p class="components-pause-visible">
-            The session has been paused by the server.
+        <p class="components-pause-visible" role="status">
+            El servidor pausó la sesión.
         </p>
-        <p class="components-resume-failed-visible">
-            Failed to resume the session.<br />Please retry or reload the page.
+        <p class="components-resume-failed-visible" role="alert">
+            No se pudo reanudar la sesión. Volvé a intentar o recargá la página.
         </p>
-        <button id="components-resume-button" class="components-pause-visible components-resume-failed-visible">
-            Resume
+        <button id="components-resume-button" class="components-pause-visible components-resume-failed-visible btn btn-primary" type="button">
+            Reanudar sesión
         </button>
     </div>
 </dialog>

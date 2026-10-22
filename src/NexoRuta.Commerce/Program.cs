@@ -57,6 +57,14 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Comercio)
         .AddRequirements(new ApiPermissionRequirement("configuracion.gestionar")));
+    options.AddPolicy(ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Comercio)
+        .AddRequirements(new ApiPermissionRequirement("envios.crear")));
+    options.AddPolicy(ApiPermissionAuthorizationHandler.ShipmentsReadPolicy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Comercio)
+        .AddRequirements(new ApiPermissionRequirement("envios.consultar")));
 });
 builder.Services.AddScoped<IAuthorizationHandler, ApiPermissionAuthorizationHandler>();
 builder.Services.AddHttpClient("NexoRuta", client =>

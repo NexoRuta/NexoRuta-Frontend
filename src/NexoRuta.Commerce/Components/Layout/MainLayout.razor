@@ -1,27 +1,38 @@
 @inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <a href="/" class="me-3">Inicio</a>
+<div class="nr-app-shell nr-commerce-shell">
+    <a class="nr-skip-link" href="#main-content">Saltar al contenido principal</a>
+    <header class="nr-topbar">
+        <a class="nr-brand" href="/" aria-label="NexoRuta Comercio, inicio">
+            <span class="nr-brand-mark" aria-hidden="true">N</span>
+            <span>NexoRuta <small>Comercio</small></span>
+        </a>
+        <div class="nr-topbar-actions">
             <form method="post" action="/salir" data-single-submit>
                 <AntiforgeryToken />
-                <button type="submit" class="btn btn-link">Cerrar sesión</button>
+                <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
             </form>
+            <button class="navbar-toggler nr-menu-toggle d-lg-none" type="button" data-commerce-nav-toggle aria-controls="commerceNavigation" aria-expanded="false" aria-label="Mostrar u ocultar navegación principal">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
         </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
+    </header>
+    <div class="nr-portal-layout has-sidebar">
+        <aside id="commerceNavigation" class="nr-sidebar">
+            <NavMenu />
+        </aside>
+        <div class="nr-main-column">
+            <main class="nr-main-content" id="main-content" tabindex="-1">
+                <div class="nr-page nr-page-commerce">
+                    @Body
+                </div>
+            </main>
+            <footer class="nr-footer">NexoRuta <span aria-hidden="true">·</span> Portal de comercios</footer>
+        </div>
+    </div>
 </div>
-
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+<div id="blazor-error-ui" data-nosnippet role="alert">
+    <span>Ocurrió un error al procesar la pantalla.</span>
+    <a href="." class="reload">Recargar</a>
+    <button type="button" class="dismiss" aria-label="Cerrar aviso">×</button>
 </div>

@@ -11,6 +11,81 @@ public sealed partial class BackofficeSessionAndPagesTests
     private static readonly Guid VehiculoPrueba = Guid.Parse("00000000-0000-0000-0000-000000000703");
 
     [Fact]
+    public async Task BackofficeShowsUnavailableStateInsteadOfDefaultsWhenRepartoEndpointsAreMissing()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar", "envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var delivery = await client.GetAsync("/configuracion-reparto");
+        var deliveryHtml = await delivery.Content.ReadAsStringAsync();
+        Assert.Contains("role=\"alert\"", deliveryHtml);
+        Assert.Contains("Reintentar", deliveryHtml);
+        Assert.DoesNotContain("Guardar nueva versión", deliveryHtml);
+        Assert.DoesNotContain("No hay vehículos", deliveryHtml);
+
+        using var couriers = await client.GetAsync("/repartidores");
+        var couriersHtml = await couriers.Content.ReadAsStringAsync();
+        Assert.Contains("role=\"alert\"", couriersHtml);
+        Assert.Contains("Reintentar", couriersHtml);
+        Assert.DoesNotContain("No hay cuentas activas con rol pendientes de vincular", couriersHtml);
+        Assert.DoesNotContain("Habilitar un repartidor", couriersHtml);
+
+        using var routes = await client.GetAsync("/rutas");
+        var routesHtml = await routes.Content.ReadAsStringAsync();
+        var date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("America/Montevideo")).DateTime).ToString("yyyy-MM-dd");
+        Assert.Contains($"value=\"{date}\"", routesHtml);
+        Assert.Contains("role=\"alert\"", routesHtml);
+        Assert.Contains("Reintentar", routesHtml);
+        Assert.DoesNotContain("No hay rutas para esta fecha", routesHtml);
+        Assert.DoesNotContain("Planificar una ruta", routesHtml);
+    }
+
+    [Fact]
+    public async Task ConfigurationPostDoesNotWriteUntilItsReadEndpointsAreAvailable()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/ingresar");
+
+        using var response = await client.PostAsync("/configuracion-reparto?handler=Politica", Form(token,
+            ("Politica.Version", "0"), ("Politica.ZonaHoraria", "America/Montevideo"),
+            ("Politica.MaximoParadas", "100"), ("Politica.RequiereFotoIntento", "false"),
+            ("Politica.BloquearDiscrepanciasCarga", "false")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain(api.Calls, call => call.Path == "/api/reparto/configuracion" && call.Method == HttpMethod.Put);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("America/Montevideo", html);
+        Assert.Contains("role=\"alert\"", html);
+    }
+
+    [Fact]
+    public async Task RepartidoresKeepSubmittedValuesWhenTheApiFailsAndCanBeRetried()
+    {
+        var api = new FakeApi();
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/ingresar");
+
+        using var response = await client.PostAsync("/repartidores?handler=Guardar", Form(token,
+            ("accesoId", TargetAccessId.ToString()), ("nombre", "Repartidor conservado"), ("activo", "true")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Repartidor conservado", html);
+        Assert.Contains("Reintentar guardado", html);
+        Assert.Contains("role=\"alert\"", html);
+    }
+
+    [Fact]
     public async Task RutasPermitePlanificarRecibirYPostergarConVersionesYHoraDelOperador()
     {
         var api = new FakeApi { IncludeReparto = true };

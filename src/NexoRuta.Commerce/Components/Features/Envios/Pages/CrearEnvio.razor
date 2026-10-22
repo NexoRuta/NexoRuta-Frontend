@@ -1,4 +1,5 @@
 @page "/envios/crear"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy)]
 
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Requests
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
@@ -8,6 +9,8 @@
 @using NexoRuta.ApiClient.Core.Exceptions
 @using NexoRuta.ApiClient.Features.Envios.Clients
 @using NexoRuta.ApiClient.Features.Operadores.Clients
+@using NexoRuta.ApiClient.Features.IdentidadVisual
+@using NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses
 @using NexoRuta.ApiClient.Features.Usuarios.Clients
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Navigation
@@ -19,11 +22,16 @@
 @implements IDisposable
 
 <PageTitle>Alta de envío | NexoRuta</PageTitle>
-<h1>Alta de envío</h1>
+<header class="nr-page-heading">
+    <div>
+        <p class="nr-eyebrow">ENVÍOS</p>
+        <h1>Crear envío</h1>
+        <p>Completá los datos del destinatario, el operador y el paquete para registrar el envío.</p>
+    </div>
+</header>
 @if (usuarioActual is not null)
 {
-    <p>Comercio: <strong>@usuarioActual.ComercioNombre</strong> · Cuenta:
-        @usuarioActual.UsuarioEmail · Rol: @usuarioActual.RolCodigo</p>
+    <p class="nr-context-banner">Operás como <strong>@usuarioActual.ComercioNombre</strong> · @usuarioActual.UsuarioEmail · @usuarioActual.RolCodigo</p>
     }
 
     @if (!string.IsNullOrWhiteSpace(error))
@@ -33,7 +41,7 @@
     @if (creado is not null)
     {
         <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para
-            @creado.ComercioNombre con @creado.OperadorNombre; bulto @creado.CodigoBulto.</p>
+            @creado.ComercioNombre con @(identidad?.Nombre ?? creado.OperadorNombre); bulto @creado.CodigoBulto.</p>
         <p><a class="btn btn-primary" href="/envios/@creado.Id/destino">Continuar: revisar y confirmar ubicación</a></p>
         }
         @if (usuarioActual is not null && operadores.Count == 0 && error is null)
@@ -41,12 +49,12 @@
             <p class="alert alert-warning" role="status">Todavía no hay operadores registrados para crear un envío.</p>
         }
 
-        <EditForm Model="formulario" OnValidSubmit="CrearAsync" FormName="crear-envio">
+        <EditForm class="nr-form-stack nr-creation-form" Model="formulario" OnValidSubmit="CrearAsync" FormName="crear-envio">
             <DataAnnotationsValidator />
             <ValidationSummary />
-            <fieldset disabled="@(enviando || usuarioActual is null || operadores.Count == 0)">
+            <fieldset class="nr-form-stack" disabled="@(enviando || cargandoIdentidad || usuarioActual is null || operadores.Count == 0)">
                 <label for="envio-operador">Operador</label>
-                <InputSelect id="envio-operador" @bind-Value="formulario.OperadorId">
+                <InputSelect id="envio-operador" @bind-Value="formulario.OperadorId" @bind-Value:after="OperadorSeleccionadoAsync">
                     <option value="">Seleccioná un operador</option>
                     @foreach (var operador in operadores)
                     {
@@ -54,7 +62,35 @@
                     }
                 </InputSelect>
                 <ValidationMessage For="() => formulario.OperadorId" />
-                <h2>Destinatario</h2>
+                @if (cargandoIdentidad)
+                {
+                    <section class="operator-identity-loading" aria-busy="true" aria-label="Cargando identidad del operador">
+                        <p class="visually-hidden" role="status">Cargando la identidad del operador seleccionado.</p>
+                        <div class="operator-identity-skeleton" aria-hidden="true"><span></span><span></span></div>
+                    </section>
+                }
+                else if (errorIdentidad is not null)
+                {
+                    <p class="alert alert-warning" role="alert">@errorIdentidad</p>
+                }
+                else if (identidad is not null)
+                {
+                    <section class="operator-identity-preview" style="--nr-operator-accent: @(ColorMarca.AcentoSobreBlanco(identidad.ColorPrimario) ?? "var(--bs-primary)");" aria-labelledby="identidad-seleccionada">
+                        @if (identidad.LogoContenido is { Length: > 0 } && identidad.LogoTipoContenido is "image/png" or "image/jpeg")
+                        { <img class="operator-identity-logo" src="@LogoDataUri" alt="Logo de @identidad.Nombre" /> }
+                        <h2 id="identidad-seleccionada" class="h5">@identidad.Nombre</h2>
+                        @if (identidad.CorreoPublico is not null) { <p><span class="fw-semibold">Contacto:</span> <a href="mailto:@identidad.CorreoPublico">@identidad.CorreoPublico</a></p> }
+                        @if (identidad.TelefonoPublico is not null) { <p><span class="fw-semibold">Teléfono:</span> <a href="tel:@TelefonoHref">@identidad.TelefonoPublico</a></p> }
+                        @if (ColorMarca.TieneFormatoValido(identidad.ColorPrimario) || ColorMarca.TieneFormatoValido(identidad.ColorSecundario))
+                        {
+                            <ul class="operator-brand-colors" aria-label="Colores de marca del operador">
+                                @if (ColorMarca.TieneFormatoValido(identidad.ColorPrimario)) { <li><span class="operator-brand-swatch" style="background-color:@identidad.ColorPrimario"></span>Color primario</li> }
+                                @if (ColorMarca.TieneFormatoValido(identidad.ColorSecundario)) { <li><span class="operator-brand-swatch" style="background-color:@identidad.ColorSecundario"></span>Color secundario</li> }
+                            </ul>
+                        }
+                    </section>
+                }
+                <h2 class="h4">Destinatario</h2>
                 <label>Nombre
                     <InputText @bind-Value="formulario.DestinatarioNombre" />
                 </label>
@@ -68,7 +104,7 @@
                     <InputText @bind-Value="formulario.Direccion" />
                 </label>
                 <ValidationMessage For="() => formulario.Direccion" />
-                <h2>Bulto</h2>
+                <h2 class="h4">Paquete</h2>
                 <label>Código
                     <InputText @bind-Value="formulario.CodigoBulto" />
                 </label>
@@ -89,7 +125,7 @@
                     <InputNumber @bind-Value="formulario.AltoCentimetros" />
                 </label>
                 <ValidationMessage For="() => formulario.AltoCentimetros" />
-                <button type="submit">@(enviando ? "Guardando…" : "Crear envío")</button>
+            <button class="btn btn-primary" type="submit" disabled="@(enviando || cargandoIdentidad)">@(enviando ? "Guardando…" : "Crear envío")</button>
             </fieldset>
         </EditForm>
 
@@ -100,8 +136,17 @@
     private IReadOnlyList<OperadorDisponibleResponse> operadores = [];
     private EnvioCreadoResponse? creado;
     private string? error;
+    private string? errorIdentidad;
+    private IdentidadVisualPublicaResponse? identidad;
+    private bool cargandoIdentidad;
+    private int identidadSolicitud;
+    private CancellationTokenSource? identidadCancelacion;
     private bool enviando;
     private string token = "";
+    private string? LogoDataUri => identidad?.LogoContenido is { Length: > 0 } bytes && identidad.LogoTipoContenido is "image/png" or "image/jpeg"
+        ? $"data:{identidad.LogoTipoContenido};base64,{Convert.ToBase64String(bytes)}" : null;
+    private string TelefonoHref => identidad?.TelefonoPublico is { } value
+        ? new string(value.Where(character => character is >= '0' and <= '9' || character == '+').ToArray()) : "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -124,6 +169,8 @@
 
     private async Task CrearAsync()
     {
+        if (enviando) return;
+
         var cancellationToken = cancelacion.Token;
         enviando = true; error = null; creado = null;
         try
@@ -142,8 +189,52 @@
         finally { enviando = false; }
     }
 
+    private async Task OperadorSeleccionadoAsync()
+    {
+        var solicitud = Interlocked.Increment(ref identidadSolicitud);
+        var anterior = identidadCancelacion;
+        anterior?.Cancel();
+        identidad = null; errorIdentidad = null;
+        if (formulario.OperadorId is not { } operatorId)
+        {
+            identidadCancelacion = null;
+            cargandoIdentidad = false;
+            return;
+        }
+
+        var carga = CancellationTokenSource.CreateLinkedTokenSource(cancelacion.Token);
+        identidadCancelacion = carga;
+        cargandoIdentidad = true;
+        try
+        {
+            var resultado = await OperadoresClient.ObtenerIdentidadVisualAsync(operatorId, token, carga.Token);
+            if (solicitud == identidadSolicitud && formulario.OperadorId == operatorId)
+                identidad = resultado;
+        }
+        catch (OperationCanceledException) when (carga.IsCancellationRequested) { }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        { if (solicitud == identidadSolicitud) Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        { if (solicitud == identidadSolicitud) errorIdentidad = "El operador seleccionado ya no está disponible. Elegí otro."; }
+        catch (NexoRutaApiException)
+        { if (solicitud == identidadSolicitud) errorIdentidad = "No pudimos consultar la marca de este operador. Intentá nuevamente."; }
+        catch (HttpRequestException)
+        { if (solicitud == identidadSolicitud) errorIdentidad = "No pudimos consultar la marca de este operador. Intentá nuevamente."; }
+        finally
+        {
+            if (solicitud == identidadSolicitud)
+            {
+                cargandoIdentidad = false;
+                identidadCancelacion = null;
+            }
+            carga.Dispose();
+        }
+    }
+
     public void Dispose()
     {
+        Interlocked.Increment(ref identidadSolicitud);
+        identidadCancelacion?.Cancel();
         cancelacion.Cancel();
         cancelacion.Dispose();
     }

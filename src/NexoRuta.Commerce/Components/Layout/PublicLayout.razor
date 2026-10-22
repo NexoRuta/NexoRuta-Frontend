@@ -1,12 +1,18 @@
 @inherits LayoutComponentBase
 
-<div class="bg-light min-vh-100 d-flex flex-column">
-    <header class="bg-white border-bottom">
-        <nav class="container py-3 d-flex justify-content-between align-items-center" aria-label="Navegación pública">
-            <a class="h4 mb-0 text-decoration-none" href="/">NexoRuta</a>
-            <a href="/">Inicio</a>
+<div class="nr-app-shell nr-public-shell">
+    <a class="nr-skip-link" href="#main-content">Saltar al contenido principal</a>
+    <header class="nr-topbar">
+        <a class="nr-brand" href="/" aria-label="NexoRuta, inicio">
+            <span class="nr-brand-mark" aria-hidden="true">N</span>
+            <span>NexoRuta <small>Comercios y operadores</small></span>
+        </a>
+        <nav class="nr-topbar-actions" aria-label="Navegación pública">
+            <a class="nr-nav-link" href="/">Inicio</a>
         </nav>
     </header>
-    <main class="container py-5 flex-grow-1">@Body</main>
-    <footer class="container py-4 text-secondary border-top">Gestión de envíos para comercios y operadores.</footer>
+    <main class="nr-public-content" id="main-content" tabindex="-1">
+        <div class="nr-page nr-page-public">@Body</div>
+    </main>
+    <footer class="nr-footer nr-public-footer">Gestión de envíos para comercios y operadores.</footer>
 </div>

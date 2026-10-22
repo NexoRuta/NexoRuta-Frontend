@@ -2,26 +2,13 @@
 @model NexoRuta.Commerce.Features.Roles.Pages.IndexModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
-    Layout = null;
+    Layout = "_CommerceRazorLayout";
+    ViewData["Title"] = "Roles y permisos";
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Roles y permisos | NexoRuta Commerce</title>
-    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
-</head>
-<body class="bg-light">
-    <main class="container py-4">
-        <header class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
-            <div><p class="text-muted mb-1"><a href="/">NexoRuta · Portal de comercios</a></p><h1 class="h3 mb-0">Roles y permisos del comercio</h1></div>
-            <form method="post" action="/salir" data-single-submit>
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
-            </form>
-        </header>
-        <partial name="_CommerceNavigation" />
+<div class="nr-page nr-page-commerce">
+    <header class="nr-page-heading">
+        <div><h1>Roles y permisos del comercio</h1></div>
+    </header>
 
         @if (Model.Error is not null)
         {
@@ -136,7 +123,4 @@
                 </article>
             }
         </section>
-    </main>
-    <script src="/js/site.js"></script>
-</body>
-</html>
+    </div>

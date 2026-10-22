@@ -1,14 +1,21 @@
 @page "/rutas"
 @model NexoRuta.Backoffice.Features.Reparto.Pages.RutasModel
 @{ ViewData["Title"] = "Rutas y depósito"; }
-<h1>Rutas y depósito</h1>
+<header class="nr-page-header"><div><h1>Rutas y depósito</h1><p>Consultá las paradas y gestioná el despacho y la rendición por fecha.</p></div></header>
 @if (Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
 @if (Model.Confirmacion is not null) { <div class="alert alert-success" role="status">@Model.Confirmacion</div> }
-<form method="get" class="d-flex gap-2 align-items-end mb-4">
+<form method="get" class="nr-filter-form d-flex flex-wrap gap-2 align-items-end">
     <div><label asp-for="Fecha">Fecha de las rutas</label><input asp-for="Fecha" type="date" class="form-control" required /></div>
     <button class="btn btn-outline-primary">Consultar</button>
 </form>
-@if (Model.Recursos is { } recursos)
+@if (!Model.CargaCompleta)
+{
+    <form method="get" asp-page-handler="Reintentar" class="mb-4">
+        <input type="hidden" name="fecha" value="@(Model.Fecha.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture))" />
+        <button class="btn btn-outline-primary" type="submit">Reintentar</button>
+    </form>
+}
+@if (Model.CargaCompleta && Model.Recursos is { } recursos)
 {
     <p>Horas en @recursos.Politica.ZonaHoraria. Se carga una sola vez en depósito y se rinde al regresar.</p>
     <h2>Rutas del día</h2>
@@ -29,7 +36,7 @@
                     <p class="mb-0">La incidencia se conserva como historial. Solo confirmar la recepción en depósito cuando los bultos estén físicamente presentes.</p>
                 </div>
             }
-            <div class="table-responsive"><table class="table"><caption>Paradas en orden de recorrido</caption>
+            <div class="table-responsive" role="region" aria-label="Paradas en orden de recorrido; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0"><table class="table"><caption>Paradas en orden de recorrido</caption>
                 <thead><tr><th>Orden</th><th>Hora</th><th>Destino</th><th>Bultos</th><th>Estado</th></tr></thead>
                 <tbody>@foreach (var p in ruta.Paradas.OrderBy(p => p.Orden))
                 {
@@ -57,7 +64,7 @@
                 @foreach (var r in recursos.Repartidores) { <option value="@r.AccesoId">@r.Nombre</option> }</select>
             <label asp-for="VehiculoId">Vehículo</label><select asp-for="VehiculoId" class="form-select mb-3" required><option value="">Seleccionar</option>
                 @foreach (var v in recursos.Vehiculos) { <option value="@v.Id">@v.Matricula · @v.PesoMaximoGramos g · @v.VolumenMaximoCm3 cm³</option> }</select>
-            <div class="table-responsive"><table class="table"><caption>Envíos en depósito o reprogramados</caption><thead><tr><th>Incluir</th><th>Destino</th><th>Orden</th><th>Hora</th></tr></thead><tbody>
+            <div class="table-responsive" role="region" aria-label="Envíos en depósito o reprogramados; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0"><table class="table"><caption>Envíos en depósito o reprogramados</caption><thead><tr><th>Incluir</th><th>Destino</th><th>Orden</th><th>Hora</th></tr></thead><tbody>
             @for (var i = 0; i < Model.Plan.Count; i++)
             {
                 var envio = Model.Envios.Single(e => e.Id == Model.Plan[i].EnvioId);

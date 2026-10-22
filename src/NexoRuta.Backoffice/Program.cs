@@ -7,6 +7,7 @@ using NexoRuta.ApiClient.Features.Auth.Clients;
 using NexoRuta.ApiClient.Features.Roles.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.ApiClient.Features.Organizaciones.Clients;
+using NexoRuta.ApiClient.Features.IdentidadVisual.Clients;
 using NexoRuta.ApiClient.Features.ZonasCobertura.Clients;
 using NexoRuta.ApiClient.Features.Reparto.Clients;
 using NexoRuta.ApiClient.Features.Tarifas.Clients;
@@ -93,7 +94,8 @@ builder.Services.AddHttpClient("NexoRuta", client =>
       .AddTypedClient<OrganizacionSuspendidaApiClient>()
       .AddTypedClient<ZonasCoberturaApiClient>()
       .AddTypedClient<TarifasApiClient>()
-      .AddTypedClient<ReglasOperativasApiClient>();
+      .AddTypedClient<ReglasOperativasApiClient>()
+      .AddTypedClient<IdentidadVisualApiClient>();
 
 var app = builder.Build();
 

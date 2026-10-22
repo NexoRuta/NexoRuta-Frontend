@@ -1,4 +1,5 @@
 @page "/envios"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)]
 @rendermode InteractiveServer
 @using System.Net
 @using Microsoft.AspNetCore.Components.Authorization
@@ -7,40 +8,74 @@
 @using NexoRuta.ApiClient.Features.Envios.Clients
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
 @using NexoRuta.ApiClient.Features.Usuarios.Clients
+@using NexoRuta.ApiClient.Features.Operadores.Clients
+@using NexoRuta.ApiClient.Features.IdentidadVisual
+@using NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses
 @inject EnviosApiClient ApiClient
 @inject UsuariosApiClient UsuariosClient
+@inject OperadoresApiClient OperadoresClient
 @inject AuthenticationStateProvider AuthenticationState
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @implements IDisposable
 
 <PageTitle>Mis envíos | NexoRuta</PageTitle>
-<h1>Mis envíos</h1>
-<p><a href="/envios/crear">Crear envío</a></p>
-<button class="btn btn-outline-secondary mb-2" disabled="@(cargando || consultando is not null)" @onclick="CargarAsync">Actualizar lista</button>
+<header class="nr-page-heading">
+    <div>
+        <p class="nr-eyebrow">ENVÍOS</p>
+        <h1>Mis envíos</h1>
+        <p>Consultá el estado, la identidad del operador y las acciones disponibles para cada envío.</p>
+    </div>
+    <div class="nr-page-actions">
+        <a class="btn btn-primary" href="/envios/crear">Crear envío</a>
+        <button class="btn btn-outline-secondary" aria-controls="shipments-list" disabled="@(cargando || consultando is not null)" @onclick="CargarAsync">Actualizar lista</button>
+    </div>
+</header>
 @if (mensaje is not null)
 {
     <p class="alert alert-warning" role="alert">@mensaje</p>
 }
 @if (cargando)
 {
-    <p role="status">Cargando envíos…</p>
+    <div id="shipments-list" aria-busy="true" aria-label="Cargando envíos">
+        <p class="visually-hidden" role="status">Cargando envíos y las identidades de sus operadores.</p>
+        <div class="shipments-loading-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+    </div>
 }
 else if (envios.Count == 0 && mensaje is null)
 {
-    <p role="status">Todavía no tenés envíos.</p>
+    <section id="shipments-list" class="nr-state nr-empty" aria-labelledby="sin-envios-titulo">
+        <h2 id="sin-envios-titulo" class="h4">Todavía no tenés envíos</h2>
+        <p role="status">Cuando registres uno, vas a poder seguir su estado desde esta pantalla.</p>
+        <a class="btn btn-primary" href="/envios/crear">Crear envío</a>
+    </section>
 }
 else if (envios.Count > 0)
 {
-    <div class="table-responsive">
+    <div id="shipments-list" class="nr-scroll-region" role="region" aria-label="Lista de envíos" tabindex="0">
+      <div class="table-responsive">
         <table class="table">
             <thead><tr><th scope="col">Envío</th><th scope="col">Operador</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead>
             <tbody>
                 @foreach (var envio in envios)
                 {
                     <tr @key="envio.Id">
-                        <td>@envio.Id</td><td>@envio.OperadorNombre</td><td>@envio.Estado</td>
-                        <td><button class="btn btn-primary" disabled="@(consultando is not null)"
+                        <td>@envio.Id</td>
+                        <td>
+                            @if (identidades.TryGetValue(envio.OperadorId, out var marca))
+                            {
+                                <div class="shipment-operator-brand" style="--nr-operator-accent: @(ColorMarca.AcentoSobreBlanco(marca.ColorPrimario) ?? "var(--bs-primary)");">
+                                    @if (marca.LogoContenido is { Length: > 0 } && marca.LogoTipoContenido is "image/png" or "image/jpeg")
+                                    { <img class="operator-identity-logo" src="@LogoDataUri(marca)" alt="Logo de @marca.Nombre" /> }
+                                    <strong>@marca.Nombre</strong>
+                                    @if (marca.CorreoPublico is not null) { <div><a href="mailto:@marca.CorreoPublico" aria-label="Correo público de @marca.Nombre">@marca.CorreoPublico</a></div> }
+                                    @if (marca.TelefonoPublico is not null) { <div><a href="tel:@TelefonoHref(marca.TelefonoPublico)" aria-label="Teléfono público de @marca.Nombre">@marca.TelefonoPublico</a></div> }
+                                </div>
+                            }
+                            else { @envio.OperadorNombre }
+                        </td>
+                        <td>@envio.Estado</td>
+                        <td><div class="nr-row-actions"><button class="btn btn-primary" disabled="@(consultando is not null)"
                             aria-label="Ver seguimiento del envío @envio.Id" @onclick="() => VerSeguimientoAsync(envio.Id)">
                             @(consultando == envio.Id ? "Consultando…" : "Ver seguimiento")
                         </button>
@@ -50,11 +85,12 @@ else if (envios.Count > 0)
                         {
                             <button class="btn btn-outline-danger" disabled="@(consultando is not null)" @onclick="() => PrepararCancelacion(envio)">Cancelar envío</button>
                         }
-                        </td>
+                        </div></td>
                     </tr>
                 }
             </tbody>
         </table>
+      </div>
     </div>
 }
 @if (aCancelar is not null)
@@ -79,6 +115,7 @@ else if (envios.Count > 0)
     private bool cargando = true;
     private string? mensaje;
     private bool puedeCancelar;
+    private IReadOnlyDictionary<Guid, IdentidadVisualPublicaResponse> identidades = new Dictionary<Guid, IdentidadVisualPublicaResponse>();
     private EnvioResponse? aCancelar;
     private string motivoCancelacion = "";
 
@@ -87,12 +124,19 @@ else if (envios.Count > 0)
     private async Task CargarAsync()
     {
         cargando = true; mensaje = null; aCancelar = null; puedeCancelar = false;
+        identidades = new Dictionary<Guid, IdentidadVisualPublicaResponse>();
         var cancellationToken = cancelacion.Token;
         try
         {
             token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
             cancellationToken.ThrowIfCancellationRequested();
             envios = await ApiClient.ListarEnviosAsync(token, cancellationToken);
+            var results = await Task.WhenAll(envios.Select(item => item.OperadorId).Distinct()
+                .Select(operatorId => ObtenerIdentidadAsync(operatorId, cancellationToken)));
+            identidades = results.Where(result => result.Identity is not null)
+                .ToDictionary(result => result.OperatorId, result => result.Identity!);
+            if (results.Any(result => result.Failed))
+                mensaje = "No pudimos cargar la identidad de uno o más operadores. Se muestra el nombre del envío.";
             puedeCancelar = (await UsuariosClient.ObtenerPermisosActualesAsync(token, cancellationToken)).Contains("envios.crear");
         }
         catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
@@ -105,6 +149,28 @@ else if (envios.Count > 0)
         catch (OperationCanceledException) { mensaje = "La consulta tardó demasiado. Intentá nuevamente."; }
         finally { cargando = false; }
     }
+
+    private async Task<(Guid OperatorId, IdentidadVisualPublicaResponse? Identity, bool Failed)> ObtenerIdentidadAsync(
+        Guid operatorId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return (operatorId, await OperadoresClient.ObtenerIdentidadVisualAsync(operatorId, token, cancellationToken), false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized) { throw; }
+        catch (Exception exception) when (exception is NexoRutaApiException or HttpRequestException)
+        {
+            return (operatorId, null, true);
+        }
+    }
+
+    private static string? LogoDataUri(IdentidadVisualPublicaResponse identity)
+        => identity.LogoContenido is { Length: > 0 } bytes && identity.LogoTipoContenido is "image/png" or "image/jpeg"
+            ? $"data:{identity.LogoTipoContenido};base64,{Convert.ToBase64String(bytes)}" : null;
+
+    private static string TelefonoHref(string phone)
+        => new(phone.Where(character => character is >= '0' and <= '9' || character == '+').ToArray());
 
     private void PrepararCancelacion(EnvioResponse envio)
     {

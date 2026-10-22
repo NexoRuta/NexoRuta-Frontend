@@ -4,7 +4,7 @@
     ViewData["Title"] = "Mi operador";
 }
 
-<h1>Mi operador</h1>
+<header class="nr-page-header"><div><h1>Mi operador</h1><p>Datos administrativos y solicitudes del operador actual.</p></div></header>
 @if (Model.Error is not null)
 {
     <p class="alert alert-danger" role="alert">@Model.Error</p>
@@ -13,39 +13,38 @@
 {
     <p class="alert alert-success" role="status">@Model.Confirmacion</p>
 }
-@if (Model.Organizacion is not null)
+@if (Model.Organizacion is { } currentOrganization)
 {
-    <dl>
+    <dl class="nr-summary-list">
         <dt>Nombre</dt>
-        <dd>@Model.Organizacion.Nombre</dd>
+        <dd>@currentOrganization.Nombre</dd>
         <dt>Estado</dt>
-        <dd>@Model.Organizacion.Estado</dd>
+        <dd>@currentOrganization.Estado</dd>
     </dl>
-    @if (Model.Organizacion.EsPropietario)
-    {
-        <form method="post" asp-page-handler="Guardar" data-single-submit>
-            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-            <input type="hidden" asp-for="Version" />
-            <div class="mb-3">
-                <label asp-for="Nombre" class="form-label">Nombre del operador</label>
-                <input asp-for="Nombre" class="form-control" maxlength="160" />
-                <span asp-validation-for="Nombre" class="text-danger"></span>
-            </div>
-            <button class="btn btn-primary" type="submit">Guardar cambios</button>
-        </form>
-    }
-    else if (!Model.Organizacion.TieneDuenoRegistrado)
-    {
-        <p class="alert alert-warning" role="status">Este operador no tiene un dueño registrado. Podés consultar sus datos, pero la edición está deshabilitada hasta resolver su propiedad.</p>
-    }
-    else
-    {
-        <p class="text-secondary">Solo el dueño registrado puede editar los datos del operador.</p>
-    }
 }
-@if (Model.Organizacion is { } organization)
+@if (Model.MostrarFormularioNombre)
 {
-    <section class="mt-5" aria-labelledby="baja-heading">
+    <form method="post" asp-page-handler="Guardar" data-single-submit class="nr-form-stack">
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <input type="hidden" asp-for="Version" />
+        <div class="mb-3">
+            <label asp-for="Nombre" class="form-label">Nombre del operador</label>
+            <input asp-for="Nombre" class="form-control" maxlength="160" />
+            <span asp-validation-for="Nombre" class="text-danger"></span>
+        </div>
+        <button class="btn btn-primary" type="submit">Guardar cambios</button>
+    </form>
+}
+else if (Model.Organizacion is { EsPropietario: false, TieneDuenoRegistrado: false })
+{
+    <p class="alert alert-warning" role="status">Este operador no tiene un dueño registrado. Podés consultar sus datos, pero la edición está deshabilitada hasta resolver su propiedad.</p>
+}
+else if (Model.Organizacion is { EsPropietario: false })
+{
+    <p class="text-secondary">Solo el dueño registrado puede editar los datos del operador.</p>
+}@if (Model.Organizacion is { } organization)
+{
+    <section class="nr-content-section" aria-labelledby="baja-heading">
         <h2 id="baja-heading">Solicitud de baja</h2>
         <p>La solicitud requiere una resolución de plataforma. Mientras esté pendiente, el operador continúa activo. No se borran organizaciones, accesos, envíos ni historial.</p>
         @if (Model.Solicitudes.Any(x => x.Estado == "Pendiente"))

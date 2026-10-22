@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost/"
+      "url": "http://127.0.0.1:5417/"
     }
   ],
   "paths": {
@@ -3105,7 +3105,64 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeguimientoEstadoResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeguimientoEstadoResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeguimientoEstadoResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -8214,6 +8271,321 @@
         }
       }
     },
+    "/api/configuracion/identidad-visual": {
+      "get": {
+        "tags": [
+          "IdentidadVisualOperador"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualAdministracionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualAdministracionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualAdministracionResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "IdentidadVisualOperador"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "VersionEsperada": {
+                    "maximum": 2147483647,
+                    "minimum": 0,
+                    "pattern": "^-?(?:0|[1-9]\\d*)$",
+                    "type": [
+                      "integer",
+                      "string"
+                    ],
+                    "format": "int32"
+                  },
+                  "NombreComercial": {
+                    "type": "string"
+                  },
+                  "CorreoPublico": {
+                    "type": "string"
+                  },
+                  "TelefonoPublico": {
+                    "type": "string"
+                  },
+                  "ColorPrimario": {
+                    "type": "string"
+                  },
+                  "ColorSecundario": {
+                    "type": "string"
+                  },
+                  "QuitarLogo": {
+                    "type": "boolean"
+                  },
+                  "Logo": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualAdministracionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualAdministracionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualAdministracionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/configuracion/identidad-visual/versiones": {
+      "get": {
+        "tags": [
+          "IdentidadVisualOperador"
+        ],
+        "parameters": [
+          {
+            "name": "limite",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "antesDeVersion",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualHistorialResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualHistorialResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualHistorialResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/operadores/{operadorId}/identidad-visual": {
+      "get": {
+        "tags": [
+          "IdentidadVisualPublica"
+        ],
+        "parameters": [
+          {
+            "name": "operadorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualPublicaResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualPublicaResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentidadVisualPublicaResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/envios/{envioId}/cancelacion": {
       "post": {
         "tags": [
@@ -11652,6 +12024,234 @@
           }
         }
       },
+      "IdentidadVisualAdministracionResponse": {
+        "required": [
+          "version",
+          "nombreComercial",
+          "nombreMostrado",
+          "correoPublico",
+          "telefonoPublico",
+          "colorPrimario",
+          "colorSecundario",
+          "logoContenido",
+          "logoTipoContenido"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nombreComercial": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nombreMostrado": {
+            "type": "string"
+          },
+          "correoPublico": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telefonoPublico": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "colorPrimario": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "colorSecundario": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "logoContenido": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "byte"
+          },
+          "logoTipoContenido": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IdentidadVisualHistorialResponse": {
+        "required": [
+          "versiones",
+          "cursorAnterior"
+        ],
+        "type": "object",
+        "properties": {
+          "versiones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentidadVisualVersionResponse"
+            }
+          },
+          "cursorAnterior": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "IdentidadVisualPublicaResponse": {
+        "required": [
+          "nombre",
+          "correoPublico",
+          "telefonoPublico",
+          "colorPrimario",
+          "colorSecundario",
+          "logoContenido",
+          "logoTipoContenido"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "correoPublico": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telefonoPublico": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "colorPrimario": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "colorSecundario": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "logoContenido": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "byte"
+          },
+          "logoTipoContenido": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IdentidadVisualVersionResponse": {
+        "required": [
+          "version",
+          "autorUsuarioId",
+          "creadoEnUtc",
+          "nombreComercial",
+          "correoPublico",
+          "telefonoPublico",
+          "colorPrimario",
+          "colorSecundario",
+          "logoContenido",
+          "logoTipoContenido"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "autorUsuarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "creadoEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nombreComercial": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "correoPublico": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "telefonoPublico": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "colorPrimario": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "colorSecundario": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "logoContenido": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "byte"
+          },
+          "logoTipoContenido": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IFormFile": {
+        "type": "string",
+        "format": "binary"
+      },
       "IncidenciaCierreDatos": {
         "required": [
           "operacionId",
@@ -13148,6 +13748,21 @@
           }
         }
       },
+      "SeguimientoEstadoResponse": {
+        "required": [
+          "estado",
+          "identidad"
+        ],
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string"
+          },
+          "identidad": {
+            "$ref": "#/components/schemas/IdentidadVisualPublicaResponse"
+          }
+        }
+      },
       "SesionMovilResponse": {
         "required": [
           "accessToken",
@@ -14414,6 +15029,12 @@
     },
     {
       "name": "NotificacionesReparto"
+    },
+    {
+      "name": "IdentidadVisualOperador"
+    },
+    {
+      "name": "IdentidadVisualPublica"
     },
     {
       "name": "CancelacionesEnvio"

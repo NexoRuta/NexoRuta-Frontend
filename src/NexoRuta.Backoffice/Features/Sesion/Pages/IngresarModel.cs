@@ -17,10 +17,10 @@ public sealed class IngresarModel(AuthApiClient authClient, UsuariosApiClient us
 {
     public string? Error { get; private set; }
 
-    [BindProperty, Required, EmailAddress, StringLength(254)]
+    [BindProperty, Required(ErrorMessage = "Ingresá un correo electrónico."), EmailAddress(ErrorMessage = "Ingresá un correo electrónico válido."), StringLength(254, ErrorMessage = "El correo no puede superar los 254 caracteres.")]
     public string Email { get; set; } = "";
 
-    [BindProperty, Required]
+    [BindProperty, Required(ErrorMessage = "Ingresá tu contraseña.")]
     public string Password { get; set; } = "";
 
     public async Task OnGetAsync(bool expirada = false)
@@ -78,7 +78,12 @@ public sealed class IngresarModel(AuthApiClient authClient, UsuariosApiClient us
                 return LocalRedirect("/");
             }
         }
-        catch (NexoRutaApiException exception) { Error = exception.Message; }
+        catch (NexoRutaApiException exception)
+        {
+            Error = exception.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.BadRequest
+                ? "El correo o la contraseña no son correctos."
+                : "No se pudo iniciar sesión. Intentá nuevamente.";
+        }
         catch (HttpRequestException) { Error = "No se pudo conectar con la API de NexoRuta."; }
 
         return LimpiarPassword();

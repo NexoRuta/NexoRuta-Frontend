@@ -7,9 +7,7 @@
 }
 
 <link rel="stylesheet" href="~/css/tarifas.css" asp-append-version="true" />
-<h1>Simulador de tarifas</h1>
-<p>Es una simulación informativa. No registra un envío ni publica o modifica el tarifario.</p>
-<p><a asp-page="/Tarifas/Index">Volver al tarifario</a></p>
+<header class="nr-page-header"><div><h1>Simulador de tarifas</h1><p>Es una simulación informativa. No registra un envío ni publica o modifica el tarifario.</p></div><a class="btn btn-outline-secondary" asp-page="/Tarifas/Index">Volver al tarifario</a></header>
 <p class="alert alert-info">Se usan exclusivamente tarifas guardadas. Si modificaste el editor, guardá primero para simular esos cambios.</p>
 @if (Model.Error is not null)
 {

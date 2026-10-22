@@ -1,38 +1,36 @@
 @page "/restablecer-contrasena"
 @model NexoRuta.Commerce.Features.Sesion.Pages.RestablecerContrasenaModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@{ Layout = null; }
-<!doctype html>
-<html lang="es">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="referrer" content="no-referrer" />
-    <title>Restablecer contraseña | NexoRuta</title>
-</head>
-<body>
-<main>
-    <h1>Guardá tu contraseña nueva</h1>
+@{ Layout = "_AuthLayout"; ViewData["Title"] = "Nueva contraseña"; }
+<section class="nr-auth-panel" aria-labelledby="reset-heading">
+    <h1 id="reset-heading">Nueva contraseña</h1>
     @if (Model.Guardada)
     {
-        <p role="status">La contraseña se guardó. Ingresá con la nueva contraseña en el portal correspondiente.</p>
-        <p><a href="/ingresar">Ingresar a Commerce</a></p>
+        <p class="nr-auth-message" role="status">La contraseña se guardó. Ya podés ingresar con ella.</p>
+        <a class="btn btn-primary nr-auth-submit" href="/ingresar">Volver al ingreso</a>
     }
     else
     {
-        <p>Usá al menos 12 caracteres. El enlace vence a los 15 minutos.</p>
-        @if (Model.Error is not null) { <p role="alert">@Model.Error</p> }
+        @if (Model.Error is not null) { <p class="nr-auth-message" role="alert">@Model.Error</p> }
         @if (Model.PuedeRestablecer)
         {
             <form method="post" asp-page="/RestablecerContrasena" data-single-submit>
-                <label asp-for="NuevaPassword">Contraseña nueva</label>
-                <input asp-for="NuevaPassword" type="password" autocomplete="new-password" required maxlength="1024" />
-                <span asp-validation-for="NuevaPassword" role="alert"></span>
-                <button type="submit">Guardar contraseña</button>
+                <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+                <div class="nr-auth-field">
+                    <label asp-for="NuevaPassword" class="form-label">Contraseña nueva</label>
+                    <div class="nr-password-control">
+                        <input asp-for="NuevaPassword" class="form-control" type="password" autocomplete="new-password" required maxlength="1024" aria-describedby="NuevaPassword-help NuevaPassword-validation" />
+                        <button class="nr-password-toggle" type="button" data-password-toggle aria-controls="NuevaPassword" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button>
+                    </div>
+                    <span id="NuevaPassword-help" class="nr-auth-help">Usá al menos 12 caracteres.</span>
+                    <span asp-validation-for="NuevaPassword" id="NuevaPassword-validation" class="text-danger"></span>
+                </div>
+                <button type="submit" class="btn btn-primary nr-auth-submit">Guardar contraseña</button>
             </form>
         }
-        <p><a href="/recuperar-contrasena">Solicitar otro enlace</a></p>
+        else
+        {
+            <a class="btn btn-primary nr-auth-submit" href="/recuperar-contrasena">Solicitar otro enlace</a>
+        }
     }
-</main>
-</body>
-</html>
+</section>
