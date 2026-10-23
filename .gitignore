@@ -490,3 +490,7 @@ $RECYCLE.BIN/
 !/scripts/release/deploy.sh
 !/scripts/release/test-deploy.sh
 odd/
+
+# Isolated build inputs generated from pinned backend sources.
+.build/
+.ci/

@@ -13,8 +13,13 @@
   <Target Name="GenerateOfficialDepartmentAsset"
           BeforeTargets="PrepareForBuild"
           Condition="'$(MSBuildProjectName)' == 'NexoRuta.Backoffice'">
+    <PropertyGroup>
+      <!-- Integrated checkouts use the backend; isolated release contexts receive its archived asset. -->
+      <OfficialDepartmentSource Condition="'$(OfficialDepartmentSource)' == '' And Exists('$(MSBuildThisFileDirectory)..\backend\src\ZonasCobertura\Data\departamentos-uruguay.geojson')">$(MSBuildThisFileDirectory)..\backend\src\ZonasCobertura\Data\departamentos-uruguay.geojson</OfficialDepartmentSource>
+      <OfficialDepartmentSource Condition="'$(OfficialDepartmentSource)' == ''">$(MSBuildThisFileDirectory).build\departamentos-uruguay.geojson</OfficialDepartmentSource>
+    </PropertyGroup>
     <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\data" />
-    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\backend\src\ZonasCobertura\Data\departamentos-uruguay.geojson"
+    <Copy SourceFiles="$(OfficialDepartmentSource)"
           DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\data\departamentos-uruguay.geojson"
           SkipUnchangedFiles="true" />
   </Target>
