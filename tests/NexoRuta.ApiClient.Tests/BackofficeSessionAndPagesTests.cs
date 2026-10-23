@@ -48,7 +48,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("Consultar / editar", html);
         Assert.DoesNotContain("jwt-user", html);
         Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/zonas" && call.Token == "jwt-user");
-        using var independentPage = await client.GetAsync("/ingresar");
+        using var independentPage = await client.GetAsync("/mi-operador");
         var independentHtml = await independentPage.Content.ReadAsStringAsync();
         Assert.Contains("href=\"/zonas\"", independentHtml);
         Assert.Contains("href=\"/tarifas\"", independentHtml);
@@ -142,7 +142,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/reglas-operativas" && call.Token == "jwt-user");
 
         using var standalone = await client.GetAsync("/ingresar");
-        Assert.Contains("href=\"/reglas-operativas\"", await standalone.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("href=\"/reglas-operativas\"", await standalone.Content.ReadAsStringAsync());
 
         api.PermissionOverrides["jwt-user"] = [];
         using var denied = await client.GetAsync("/reglas-operativas/borrador");
@@ -1852,7 +1852,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.StartsWith("/ingresar", anonymous.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
         await LoginAsync(client, "commerce@example.test");
 
-        using var home = await client.GetAsync("/envios");
+        using var home = await client.GetAsync("/mi-comercio");
         Assert.Equal(HttpStatusCode.OK, home.StatusCode);
         Assert.DoesNotContain("href=\"/usuarios\"", await home.Content.ReadAsStringAsync());
 
@@ -1875,7 +1875,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         await LoginAsync(client, "commerce@example.test");
 
-        using var home = await client.GetAsync("/envios");
+        using var home = await client.GetAsync("/mi-comercio");
         Assert.Contains("href=\"/roles\"", await home.Content.ReadAsStringAsync());
         using var response = await client.GetAsync("/roles");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

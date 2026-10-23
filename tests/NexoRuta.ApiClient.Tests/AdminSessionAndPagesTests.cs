@@ -125,7 +125,9 @@ public sealed class AdminSessionAndPagesTests
         using var rejected = await Login(client);
         Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
         var html = await rejected.Content.ReadAsStringAsync();
-        Assert.Contains("no tiene acceso a la administración de plataforma", WebUtility.HtmlDecode(html));
+        Assert.Contains(type == "Plataforma" && !permission
+            ? "no tiene permisos para administrar la plataforma"
+            : "no tiene acceso a la administración de plataforma", WebUtility.HtmlDecode(html));
         Assert.DoesNotContain(Password, html);
         Assert.Contains(rejected.Headers.GetValues("Set-Cookie"), x => x.StartsWith("NexoRuta.Admin=;", StringComparison.Ordinal));
         Assert.StartsWith("/ingresar", (await client.GetAsync("/")).Headers.Location!.AbsolutePath);

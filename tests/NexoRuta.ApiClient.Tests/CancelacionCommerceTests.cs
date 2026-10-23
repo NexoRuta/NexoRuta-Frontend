@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NexoRuta.ApiClient.Features.Envios.Clients;
+using NexoRuta.ApiClient.Features.Operadores.Clients;
 using NexoRuta.ApiClient.Features.Envios.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.Commerce.Components.Features.Envios.Pages;
@@ -27,6 +28,7 @@ public sealed partial class SeguimientoPagesTests
         using var http = new HttpClient(new Handler(request =>
         {
             Assert.Equal(ApiToken, request.Headers.Authorization!.Parameter);
+            if (request.RequestUri!.AbsolutePath == $"/api/operadores/{Guid.Empty}/identidad-visual") return Respuesta(404, "{}");
             if (request.RequestUri!.AbsolutePath == "/api/usuarios/actual/permisos") return Respuesta(200, "[\"envios.crear\"]");
             if (request.RequestUri.AbsolutePath == "/api/envios") return Respuesta(200, JsonSerializer.Serialize(new[] {
                 new { id = Envio, version = 8, operadorNombre = "Operador de prueba", estado, bultos = Array.Empty<object>() } }));
@@ -39,7 +41,7 @@ public sealed partial class SeguimientoPagesTests
                 ? JsonSerializer.Serialize(new { cancelacionId = Guid.NewGuid(), envioId = Envio, version = 9, estado })
                 : "{\"detail\":\"El envío cambió. Actualizá su estado antes de cancelar.\"}");
         })) { BaseAddress = new Uri("http://api.test/") };
-        var services = Servicios(page); services.AddSingleton(new EnviosApiClient(http)); services.AddSingleton(new UsuariosApiClient(http));
+        var services = Servicios(page); services.AddSingleton(new EnviosApiClient(http)); services.AddSingleton(new UsuariosApiClient(http)); services.AddSingleton(new OperadoresApiClient(http));
         services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication()); services.AddSingleton<NavigationManager>(navigation);
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         using var provider = services.BuildServiceProvider();

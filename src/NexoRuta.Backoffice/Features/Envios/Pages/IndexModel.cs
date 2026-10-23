@@ -34,8 +34,8 @@ public class IndexModel(EnviosApiClient apiClient, UsuariosApiClient usuariosCli
     public int UltimoResultado { get; private set; }
     public IReadOnlyList<string> EstadosDisponibles { get; private set; } = [];
     public bool TieneFiltros => !string.IsNullOrWhiteSpace(Buscar) || !string.IsNullOrWhiteSpace(Estado);
-    [BindProperty(SupportsGet = true)] public string Buscar { get; set; } = "";
-    [BindProperty(SupportsGet = true)] public string Estado { get; set; } = "";
+    [BindProperty(SupportsGet = true), DisplayFormat(ConvertEmptyStringToNull = false)] public string Buscar { get; set; } = "";
+    [BindProperty(SupportsGet = true), DisplayFormat(ConvertEmptyStringToNull = false)] public string Estado { get; set; } = "";
     [BindProperty(Name = "Pagina", SupportsGet = true)] public int PaginaSolicitada { get; set; } = 1;
     [BindProperty] public Guid EnvioId { get; set; }
     [BindProperty, Range(0, long.MaxValue)] public long Version { get; set; }

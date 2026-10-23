@@ -435,6 +435,10 @@ public sealed class AltaPropiaPagesTests
                 if (ResetFailureStatus is { } resetFailure) return Json(resetFailure, new { message = ResetFailureMessage });
                 return new HttpResponseMessage(HttpStatusCode.NoContent);
             }
+            if (path == "/api/usuarios/actual/permisos")
+                return Json(HttpStatusCode.OK, Member ? new[] { "envios.crear", "envios.consultar" } : Array.Empty<string>());
+            if (path == "/api/operadores" || path == "/api/envios")
+                return Json(HttpStatusCode.OK, Array.Empty<object>());
             if (path == "/api/usuarios/actual") return Json(HttpStatusCode.OK, new {
                 UsuarioId = Guid.NewGuid(), AccesoId = Member ? Guid.NewGuid() : (Guid?)null,
                 UsuarioEmail = "person@example.test", Tipo = TypeOverride ?? (Member ? "Comercio" : "SinOrganizacion")
