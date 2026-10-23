@@ -8,4 +8,14 @@
           DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\css\portal-design.css"
           SkipUnchangedFiles="true" />
   </Target>
+
+  <!-- Keep the versioned backend GeoJSON canonical while exposing a generated Backoffice wwwroot file in every host. -->
+  <Target Name="GenerateOfficialDepartmentAsset"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(MSBuildProjectName)' == 'NexoRuta.Backoffice'">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\data" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\backend\src\ZonasCobertura\Data\departamentos-uruguay.geojson"
+          DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\data\departamentos-uruguay.geojson"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>
