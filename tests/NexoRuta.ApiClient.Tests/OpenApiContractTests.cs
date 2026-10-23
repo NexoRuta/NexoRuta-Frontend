@@ -542,6 +542,28 @@ public sealed class OpenApiContractTests
             .GetProperty("post").GetProperty("responses").EnumerateObject().Select(x => x.Name));
     }
 
+    [Fact]
+    public async Task OperatorVisualIdentityAndPublicTrackingMatchTheirVersionedContracts()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+        var settings = paths.GetProperty("/api/configuracion/identidad-visual");
+        AssertSchema(typeof(NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses.IdentidadVisualAdministracionResponse),
+            settings.GetProperty("get").GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Contains("409", settings.GetProperty("put").GetProperty("responses").EnumerateObject().Select(x => x.Name));
+
+        AssertSchema(typeof(NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses.IdentidadVisualHistorialResponse),
+            paths.GetProperty("/api/configuracion/identidad-visual/versiones").GetProperty("get").GetProperty("responses").GetProperty("200")
+                .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses.IdentidadVisualPublicaResponse),
+            paths.GetProperty("/api/operadores/{operadorId}/identidad-visual").GetProperty("get").GetProperty("responses").GetProperty("200")
+                .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(NexoRuta.ApiClient.Features.Seguimiento.Contracts.Responses.SeguimientoEstadoResponse),
+            paths.GetProperty("/api/public/seguimiento/{token}").GetProperty("get").GetProperty("responses").GetProperty("200")
+                .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+    }
+
     private static void AssertSchema(Type type, JsonElement schema, JsonElement document)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
@@ -561,6 +583,15 @@ public sealed class OpenApiContractTests
                 Assert.Equal("int64", schema.GetProperty("format").GetString());
             if (type == typeof(DateTime) || type == typeof(DateTimeOffset))
                 Assert.Equal("date-time", schema.GetProperty("format").GetString());
+        }
+        else if (type == typeof(byte[]))
+        {
+            var declared = schema.GetProperty("type");
+            IEnumerable<string?> types = declared.ValueKind == JsonValueKind.Array
+                ? declared.EnumerateArray().Select(x => x.GetString())
+                : [declared.GetString()];
+            Assert.Contains("string", types);
+            Assert.Equal("byte", schema.GetProperty("format").GetString());
         }
         else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
         {

@@ -11,7 +11,7 @@ namespace NexoRuta.Admin.Features.Sesion.Pages;
 [AllowAnonymous]
 public sealed class SolicitarRecuperacionModel(AuthApiClient auth) : PageModel
 {
-    [BindProperty, Required, EmailAddress, StringLength(254)]
+    [BindProperty, Required(ErrorMessage = "Ingresá un correo electrónico."), EmailAddress(ErrorMessage = "Ingresá un correo electrónico válido."), StringLength(254, ErrorMessage = "El correo no puede superar los 254 caracteres.")]
     public string Email { get; set; } = "";
     public bool SolicitudEnviada { get; private set; }
     public string? Error { get; private set; }

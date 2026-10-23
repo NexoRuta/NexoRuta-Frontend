@@ -1,41 +1,87 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">NexoRuta.Commerce</a>
-    </div>
-</div>
+@inject Microsoft.AspNetCore.Authorization.IAuthorizationService Authorization
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthenticationStateProvider
+@inject NexoRuta.Commerce.Core.Security.CommerceAuthorizationState AuthorizationState
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<nav class="nr-navigation" aria-label="Navegación principal" aria-busy="@(cargando ? "true" : "false")">
+    @if (cargando && gruposVisibles.Count == 0)
+    {
+        <div class="nr-nav-group" aria-hidden="true">
+            <p class="nr-nav-heading"><span class="placeholder col-5"></span></p>
+            <ul class="nr-nav-list">
+                <li><span class="nr-nav-link placeholder col-9"></span></li>
+                <li><span class="nr-nav-link placeholder col-7"></span></li>
+            </ul>
+        </div>
+        <span class="visually-hidden" role="status">Cargando navegación y permisos.</span>
+    }
+    else
+    {
+        @foreach (var group in gruposVisibles)
+        {
+            <div class="nr-nav-group">
+                <p class="nr-nav-heading">@group.Label</p>
+                <ul class="nr-nav-list">
+                    @foreach (var link in group.Links)
+                    {
+                        <li><NavLink class="nr-nav-link" href="@link.Href" Match="NavLinkMatch.All">@link.Label</NavLink></li>
+                    }
+                </ul>
+            </div>
+        }
+        @if (cargando)
+        {
+            <span class="visually-hidden" role="status">Actualizando permisos de navegación.</span>
+        }
+        @if (AuthorizationState.Failure is NexoRuta.Commerce.Core.Security.CommerceAuthorizationFailure.ApiUnavailable or NexoRuta.Commerce.Core.Security.CommerceAuthorizationFailure.SessionExpired)
+        {
+            <CommerceAuthorizationMessage />
+        }
+    }
+</nav>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="envios/crear" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Crear envío
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="envios" Match="NavLinkMatch.All">Mis envíos</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="mi-comercio" Match="NavLinkMatch.All">Mi comercio</NavLink>
-        </div>
-        <AuthorizeView Policy="@ApiPermissionAuthorizationHandler.UsersManagePolicy">
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/usuarios">Usuarios</NavLink>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <CommerceAuthorizationMessage />
-            </NotAuthorized>
-        </AuthorizeView>
-        <AuthorizeView Policy="@ApiPermissionAuthorizationHandler.ConfigManagePolicy">
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/roles">Roles y permisos</NavLink>
-                </div>
-            </Authorized>
-        </AuthorizeView>
-    </nav>
-</div>
+@code {
+    private IReadOnlyList<CommerceNavigationGroup> gruposVisibles = [];
+    private bool cargando = true;
 
+    protected override Task OnInitializedAsync() => ActualizarNavegacionAsync();
+
+    private async Task ActualizarNavegacionAsync()
+    {
+        cargando = true;
+        AuthorizationState.Clear();
+
+        try
+        {
+            var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var grupos = new List<CommerceNavigationGroup>();
+            foreach (var group in CommerceNavigationCatalog.Groups)
+            {
+                var links = new List<CommerceNavigationLink>();
+                foreach (var link in group.Links)
+                {
+                    if (link.PermissionPolicy is null ||
+                        (await Authorization.AuthorizeAsync(user, resource: null, link.PermissionPolicy)).Succeeded)
+                        links.Add(link);
+
+                    if (AuthorizationState.Failure is NexoRuta.Commerce.Core.Security.CommerceAuthorizationFailure.ApiUnavailable or NexoRuta.Commerce.Core.Security.CommerceAuthorizationFailure.SessionExpired)
+                        break;
+                }
+
+                if (links.Count > 0) grupos.Add(group with { Links = links });
+                if (AuthorizationState.Failure is NexoRuta.Commerce.Core.Security.CommerceAuthorizationFailure.ApiUnavailable or NexoRuta.Commerce.Core.Security.CommerceAuthorizationFailure.SessionExpired)
+                    break;
+            }
+
+            gruposVisibles = grupos;
+        }
+        catch (HttpRequestException)
+        {
+            AuthorizationState.SetFailure(NexoRuta.Commerce.Core.Security.CommerceAuthorizationFailure.ApiUnavailable);
+            gruposVisibles = [];
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

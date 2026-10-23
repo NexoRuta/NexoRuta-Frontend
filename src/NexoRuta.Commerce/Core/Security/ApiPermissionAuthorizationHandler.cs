@@ -31,6 +31,8 @@ public sealed class ApiPermissionAuthorizationHandler(
 {
     public const string UsersManagePolicy = "commerce.usuarios.gestionar";
     public const string ConfigManagePolicy = "commerce.configuracion.gestionar";
+    public const string ShipmentsCreatePolicy = "commerce.envios.crear";
+    public const string ShipmentsReadPolicy = "commerce.envios.consultar";
     public const string PermissionsCacheKey = "NexoRuta.Commerce.ApiPermissions";
     public const string ExpiredSessionItemKey = "NexoRuta.Commerce.ApiSessionExpired";
     public const string ApiUnavailableItemKey = "NexoRuta.Commerce.ApiUnavailable";

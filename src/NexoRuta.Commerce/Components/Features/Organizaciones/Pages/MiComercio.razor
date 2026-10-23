@@ -14,7 +14,13 @@
 @implements IDisposable
 
 <PageTitle>Mi comercio | NexoRuta</PageTitle>
-<h1>Mi comercio</h1>
+<header class="nr-page-heading">
+    <div>
+        <p class="nr-eyebrow">COMERCIO</p>
+        <h1>Mi comercio</h1>
+        <p>Consultá los datos y el estado de tu organización.</p>
+    </div>
+</header>
 @if (error is not null)
 {
     <p class="alert alert-danger" role="alert">@error</p>
@@ -25,11 +31,13 @@
 }
 @if (cargando)
 {
-    <p role="status">Cargando datos del comercio…</p>
+    <div class="nr-detail-skeleton" aria-busy="true" aria-label="Cargando datos del comercio">
+        <p class="visually-hidden" role="status">Cargando nombre y estado del comercio.</p><span></span><span></span>
+    </div>
 }
 else if (organizacion is not null)
 {
-    <dl>
+    <dl class="nr-summary-list">
         <dt>Nombre</dt>
         <dd>@organizacion.Nombre</dd>
         <dt>Estado</dt>
@@ -37,10 +45,10 @@ else if (organizacion is not null)
     </dl>
     @if (organizacion.EsPropietario)
     {
-        <EditForm Model="formulario" OnValidSubmit="GuardarAsync" FormName="editar-mi-comercio" data-single-submit>
+        <EditForm class="nr-form-stack" Model="formulario" OnValidSubmit="GuardarAsync" FormName="editar-mi-comercio" data-single-submit>
             <DataAnnotationsValidator />
             <ValidationSummary />
-            <fieldset disabled="@guardando">
+            <fieldset class="nr-form-stack" disabled="@guardando">
                 <label for="nombre-comercio">Nombre del comercio</label>
                 <InputText id="nombre-comercio" @bind-Value="formulario.Nombre" maxlength="160" />
                 <ValidationMessage For="() => formulario.Nombre" />
@@ -73,7 +81,7 @@ else if (organizacion is not null)
         }
         @if (organization.EsPropietario && organization.Estado == "Activa" && !solicitudes.Any(x => x.Estado == "Pendiente"))
         {
-            <EditForm Model="formularioBaja" OnValidSubmit="SolicitarBajaAsync" FormName="solicitar-baja-comercio" data-single-submit>
+            <EditForm class="nr-form-stack" Model="formularioBaja" OnValidSubmit="SolicitarBajaAsync" FormName="solicitar-baja-comercio" data-single-submit>
                 <DataAnnotationsValidator /><ValidationSummary />
                 <fieldset disabled="@solicitandoBaja" class="card p-3">
                     <label for="motivo-baja-comercio">Motivo</label>

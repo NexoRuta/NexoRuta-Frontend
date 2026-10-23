@@ -1,4 +1,5 @@
 @page "/envios/{EnvioId:guid}/destino"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy)]
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using System.Net
@@ -14,13 +15,26 @@
 @implements IDisposable
 
 <PageTitle>Confirmar ubicación | NexoRuta</PageTitle>
-<h1>Ubicación del destino</h1>
-<p><a href="/envios">Volver a mis envíos</a></p>
+<header class="nr-page-heading">
+    <div>
+        <p class="nr-eyebrow">ENVÍOS · DESTINO</p>
+        <h1>Ubicación del destino</h1>
+        <p>Revisá el punto de entrega antes de confirmar.</p>
+    </div>
+    <div class="nr-page-actions"><a class="btn btn-outline-secondary" href="/envios">Volver a mis envíos</a></div>
+</header>
 @if (mensaje is not null) { <p class="alert alert-warning" role="status">@mensaje</p> }
-@if (ocupado) { <p role="status">Consultando…</p> }
+@if (destino is null && ocupado)
+{
+    <div class="nr-detail-skeleton" aria-busy="true" aria-label="Cargando ubicación del destino">
+        <p class="visually-hidden" role="status">Consultando dirección y punto de entrega.</p><span></span><span></span><span></span>
+    </div>
+}
+else if (ocupado) { <p role="status">Actualizando los datos del destino…</p> }
 @if (destino is not null)
 {
-    <p><strong>@destino.Direccion</strong></p>
+    <section class="nr-destination-panel" aria-labelledby="direccion-destino-titulo">
+    <h2 id="direccion-destino-titulo" class="h4">@destino.Direccion</h2>
     @if (destino.ConfirmadaEnUtc is not null) { <p>El destino tiene una ubicación confirmada.</p> }
     @if (destino.Estado != "Admitido")
     { <p class="alert alert-info">El destino ya no puede modificarse después de la recepción en depósito.</p> }
@@ -43,10 +57,10 @@
         }
     }
     <SelectorDestino @key="EnvioId" Latitud="punto.Latitud" Longitud="punto.Longitud" PuntoCambiado="ElegirEnMapa" />
-    <EditForm Model="punto" OnValidSubmit="ConfirmarAsync" FormName="confirmar-destino">
+    <EditForm class="nr-form-stack nr-destination-form" Model="punto" OnValidSubmit="ConfirmarAsync" FormName="confirmar-destino">
         <DataAnnotationsValidator />
         <ValidationSummary />
-        <fieldset disabled="@(ocupado || destino.Estado != "Admitido")">
+        <fieldset class="nr-form-stack" disabled="@(ocupado || destino.Estado != "Admitido")">
             <label>Latitud <InputNumber @bind-Value="punto.Latitud" @bind-Value:after="CambioPunto" step="any" /></label>
             <ValidationMessage For="() => punto.Latitud" />
             <label>Longitud <InputNumber @bind-Value="punto.Longitud" @bind-Value:after="CambioPunto" step="any" /></label>
@@ -55,6 +69,7 @@
             <button class="btn btn-primary" type="submit" disabled="@(!revisado || punto.Latitud is null || punto.Longitud is null)">Confirmar ubicación del destino</button>
         </fieldset>
     </EditForm>
+    </section>
 }
 
 @code {

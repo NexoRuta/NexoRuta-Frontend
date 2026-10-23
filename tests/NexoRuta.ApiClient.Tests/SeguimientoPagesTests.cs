@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NexoRuta.ApiClient.Core.Session;
 using NexoRuta.ApiClient.Features.Envios.Clients;
+using NexoRuta.ApiClient.Features.Operadores.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.ApiClient.Features.Seguimiento.Clients;
 using NexoRuta.Commerce.Components.Features.Envios.Pages;
@@ -42,6 +43,7 @@ public sealed partial class SeguimientoPagesTests
         {
             Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
             Assert.Equal(ApiToken, request.Headers.Authorization.Parameter);
+            if (request.RequestUri!.AbsolutePath == $"/api/operadores/{Guid.Empty}/identidad-visual") return Respuesta(404, "{}");
             if (request.RequestUri!.AbsolutePath == "/api/usuarios/actual/permisos") return Respuesta(200, "[]");
             if (request.RequestUri!.AbsolutePath == "/api/envios")
                 return Respuesta(200, JsonSerializer.Serialize(new[] { new { id = Envio,
@@ -53,7 +55,7 @@ public sealed partial class SeguimientoPagesTests
         })) { BaseAddress = new Uri("http://api.test/") };
         var services = Servicios(page);
         services.AddSingleton(new EnviosApiClient(http));
-        services.AddSingleton(new UsuariosApiClient(http));
+        services.AddSingleton(new UsuariosApiClient(http)); services.AddSingleton(new OperadoresApiClient(http));
         services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
         services.AddSingleton<NavigationManager>(navigation);
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
@@ -93,7 +95,7 @@ public sealed partial class SeguimientoPagesTests
     }
 
     [Theory]
-    [InlineData(200, "Estado actual:")]
+    [InlineData(200, "Estado actual")]
     [InlineData(404, "El enlace no existe, venció o fue revocado.")]
     [InlineData(429, "Demasiadas consultas.")]
     [InlineData(500, "No pudimos consultar el estado.")]

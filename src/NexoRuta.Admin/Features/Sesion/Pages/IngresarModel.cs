@@ -16,9 +16,9 @@ namespace NexoRuta.Admin.Features.Sesion.Pages;
 
 public sealed class IngresarModel(AuthApiClient auth, UsuariosApiClient users) : PageModel
 {
-    [BindProperty, Required, EmailAddress, StringLength(254)]
+    [BindProperty, Required(ErrorMessage = "Ingresá un correo electrónico."), EmailAddress(ErrorMessage = "Ingresá un correo electrónico válido."), StringLength(254, ErrorMessage = "El correo no puede superar los 254 caracteres.")]
     public string Email { get; set; } = "";
-    [BindProperty, Required]
+    [BindProperty, Required(ErrorMessage = "Ingresá tu contraseña.")]
     public string Password { get; set; } = "";
     [BindProperty(SupportsGet = true)]
     public string? ReturnUrl { get; set; }
@@ -28,7 +28,7 @@ public sealed class IngresarModel(AuthApiClient auth, UsuariosApiClient users) :
     {
         if (!expirada) return;
         await HttpContext.SignOutAsync();
-        Error = "Your session expired or was revoked. Sign in again.";
+        Error = "Tu sesión expiró o fue revocada. Ingresá nuevamente.";
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -36,13 +36,13 @@ public sealed class IngresarModel(AuthApiClient auth, UsuariosApiClient users) :
         await HttpContext.SignOutAsync();
         try
         {
-            if (!ModelState.IsValid) { Error = "Enter a valid email and password."; return Page(); }
+            if (!ModelState.IsValid) { Error = "Ingresá un correo válido y tu contraseña."; return Page(); }
             var login = await auth.LoginAsync(new LoginRequest(Email.Trim(), Password), HttpContext.RequestAborted);
             if (string.IsNullOrWhiteSpace(login.AccessToken) || !string.Equals(login.TokenType, "Bearer", StringComparison.OrdinalIgnoreCase))
-                throw new NexoRutaApiException("Unsupported API session.", HttpStatusCode.BadGateway);
+                throw new NexoRutaApiException("La API devolvió una sesión no compatible.", HttpStatusCode.BadGateway);
             if (login.Contexto != SesionUsuario.Plataforma)
             {
-                Error = "This account does not have platform administration access.";
+                Error = "Esta cuenta no tiene acceso a la administración de plataforma.";
                 Password = "";
                 ModelState.Remove(nameof(Password));
                 return Page();
@@ -51,31 +51,31 @@ public sealed class IngresarModel(AuthApiClient auth, UsuariosApiClient users) :
             if (actor.Tipo != SesionUsuario.Plataforma || actor.OperadorId is not null || actor.ComercioId is not null ||
                 actor.AccesoId == Guid.Empty || actor.UsuarioId == Guid.Empty)
             {
-                Error = "This account does not have platform administration access.";
+                Error = "Esta cuenta no tiene acceso a la administración de plataforma.";
                 return Page();
             }
             var permissions = await users.ObtenerPermisosActualesAsync(login.AccessToken, HttpContext.RequestAborted);
             if (!permissions.Contains(AdminAccess.Permission, StringComparer.Ordinal))
             {
-                Error = "This account does not have platform administration permission.";
+                Error = "Esta cuenta no tiene permisos para administrar la plataforma.";
                 return Page();
             }
             var expiry = new DateTimeOffset(DateTime.SpecifyKind(login.ExpiresAtUtc, DateTimeKind.Utc));
-            if (expiry <= DateTimeOffset.UtcNow) { Error = "The session has expired. Sign in again."; return Page(); }
+            if (expiry <= DateTimeOffset.UtcNow) { Error = "La sesión expiró. Ingresá nuevamente."; return Page(); }
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                 SesionUsuario.CrearPrincipal(actor, login.AccessToken, CookieAuthenticationDefaults.AuthenticationScheme),
                 new AuthenticationProperties { IsPersistent = false, AllowRefresh = false, ExpiresUtc = expiry });
             return LocalRedirect(Url.IsLocalUrl(ReturnUrl) ? ReturnUrl! : "/");
         }
         catch (NexoRutaApiException error) when (error.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.BadRequest)
-        { Error = "Invalid email or password."; return Page(); }
+        { Error = "El correo o la contraseña no son correctos."; return Page(); }
         catch (NexoRutaApiException error) when (error.StatusCode == HttpStatusCode.Forbidden)
-        { Error = "This account does not have platform administration access."; return Page(); }
+        { Error = "Esta cuenta no tiene acceso a la administración de plataforma."; return Page(); }
         catch (Exception error) when (error is NexoRutaApiException or HttpRequestException or JsonException ||
                                     error is OperationCanceledException && !HttpContext.RequestAborted.IsCancellationRequested)
         {
             Response.StatusCode = 503;
-            Error = "The API is unavailable. Access was not granted. Try again later.";
+            Error = "No se pudo iniciar sesión. Intentá nuevamente más tarde.";
             return Page();
         }
         finally

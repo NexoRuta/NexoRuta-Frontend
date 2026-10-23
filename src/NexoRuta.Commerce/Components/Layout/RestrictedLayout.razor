@@ -1,11 +1,25 @@
 @inherits LayoutComponentBase
 
-<main class="container py-5" style="max-width:720px">
-    <h1>Organización suspendida</h1>
-    <p>La organización sigue suspendida mientras plataforma resuelve la solicitud. Tras aprobarla, cerrá sesión e ingresá nuevamente.</p>
-    @Body
-    <form method="post" action="/salir" data-single-submit class="mt-4">
-        <AntiforgeryToken />
-        <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
-    </form>
-</main>
+<div class="nr-app-shell nr-restricted-shell">
+    <a class="nr-skip-link" href="#main-content">Saltar al contenido principal</a>
+    <header class="nr-topbar">
+        <a class="nr-brand" href="/" aria-label="NexoRuta, inicio">
+            <span class="nr-brand-mark" aria-hidden="true">N</span>
+            <span>NexoRuta <small>Acceso restringido</small></span>
+        </a>
+    </header>
+    <main class="nr-page nr-page-state" id="main-content" tabindex="-1">
+        <header class="nr-page-heading">
+            <div>
+                <p class="nr-eyebrow">ACCESO RESTRINGIDO</p>
+                <h1>Organización suspendida</h1>
+                <p>La organización sigue suspendida mientras plataforma resuelve la solicitud. Tras aprobarla, cerrá sesión e ingresá nuevamente.</p>
+            </div>
+        </header>
+        @Body
+        <form method="post" action="/salir" data-single-submit class="nr-page-actions">
+            <AntiforgeryToken />
+            <button type="submit" class="btn btn-outline-secondary">Cerrar sesión</button>
+        </form>
+    </main>
+</div>

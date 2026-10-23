@@ -19,7 +19,8 @@ public sealed partial class BackofficeSessionAndPagesTests
         { ["EnvioId"] = EnvioPrueba.ToString(), ["Version"] = "8", ["Motivo"] = "Solicitud del comercio." }));
         Assert.Equal(HttpStatusCode.BadRequest, sinCsrf.StatusCode); Assert.Empty(api.RepartoPayloads);
         using var confirmar = await client.PostAsync("/?handler=Cancelar", Form(csrf,
-            ("EnvioId", EnvioPrueba.ToString()), ("Version", "8"), ("Motivo", "Solicitud del comercio.")));
+            ("EnvioId", EnvioPrueba.ToString()), ("Version", "8"), ("Motivo", "Solicitud del comercio."),
+            ("Buscar", ""), ("Estado", "")));
         Assert.Equal(HttpStatusCode.Redirect, confirmar.StatusCode);
         var command = Assert.Single(api.RepartoPayloads);
         Assert.Equal($"/api/envios/{EnvioPrueba}/cancelacion", command.Path);

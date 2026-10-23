@@ -1,11 +1,22 @@
 @page "/configuracion-reparto"
 @model NexoRuta.Backoffice.Features.Reparto.Pages.ConfiguracionRepartoModel
 @{ ViewData["Title"] = "Configuración de reparto"; }
-<h1>Configuración de reparto</h1>
-<p>Configurá el reparto antes de despachar la primera ruta. Los intentos, motivos y pruebas se publican en <a href="/reglas-operativas">Reglas operativas</a> y se fijan al crear cada envío. Cada hoja conserva la versión con la que fue despachada.</p>
+<header class="nr-page-header"><div><h1>Configuración de reparto</h1><p>Configurá el reparto antes de despachar la primera ruta. Los intentos, motivos y pruebas se publican en <a href="/reglas-operativas">Reglas operativas</a> y se fijan al crear cada envío. Cada hoja conserva la versión con la que fue despachada.</p></div></header>
 @if (Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
 @if (Model.Confirmacion is not null) { <div class="alert alert-success" role="status">@Model.Confirmacion</div> }
-<form method="post" asp-page-handler="Politica" class="card card-body mb-4" data-single-submit>
+@if (Model.GuardadoBloqueadoPorCarga)
+{
+    <p class="alert alert-warning" role="status">No se intentó guardar porque no pudimos cargar la configuración y los vehículos. Los valores enviados siguen en el formulario; reintentá cuando el servicio esté disponible.</p>
+}
+@if (!Model.CargaCompleta && !Model.MostrarPoliticaEnviada && !Model.MostrarVehiculoEnviado)
+{
+    <form method="get" asp-page-handler="Reintentar">
+        <button class="btn btn-outline-primary" type="submit">Reintentar</button>
+    </form>
+}
+@if (Model.CargaCompleta || Model.MostrarPoliticaEnviada)
+{
+<form method="post" asp-page-handler="Politica" class="card card-body mb-4 nr-form-stack" data-single-submit>
     <h2 class="h4">Configuración de ruta · versión @Model.Politica.Version</h2>
     <input type="hidden" asp-for="Politica.Version" />
     <label asp-for="Politica.ZonaHoraria">Zona horaria IANA</label>
@@ -13,18 +24,24 @@
     <label asp-for="Politica.MaximoParadas">Máximo de paradas por ruta</label><input asp-for="Politica.MaximoParadas" class="form-control mb-2" min="1" max="500" required />
     <label class="mb-2"><input asp-for="Politica.RequiereFotoIntento" /> Exigir foto en intentos fallidos</label>
     <label class="mb-2"><input asp-for="Politica.BloquearDiscrepanciasCarga" /> Bloquear salida con diferencias de carga</label>
-    <button class="btn btn-primary align-self-start">Guardar nueva versión</button>
+    <button class="btn btn-primary align-self-start">@(Model.CargaCompleta ? "Guardar nueva versión" : "Reintentar guardado")</button>
 </form>
-<h2>Vehículos</h2>
-<form method="post" asp-page-handler="Vehiculo" class="card card-body mb-3" data-single-submit>
-    <h3 class="h5">Agregar vehículo</h3>
+}
+@if (Model.CargaCompleta || Model.MostrarVehiculoEnviado)
+{
+<section class="nr-content-section" aria-labelledby="vehiculos-heading">
+<h2 id="vehiculos-heading">Vehículos</h2>
+<form method="post" asp-page-handler="Vehiculo" class="card card-body mb-3 nr-form-stack" data-single-submit>
+    <h3 class="h5">@(Model.Vehiculo.Id == Guid.Empty ? "Agregar vehículo" : "Editar vehículo")</h3>
     <input type="hidden" asp-for="Vehiculo.Id" /><input type="hidden" asp-for="Vehiculo.Version" />
     <label asp-for="Vehiculo.Matricula">Matrícula</label><input asp-for="Vehiculo.Matricula" class="form-control mb-2" required maxlength="20" />
     <label asp-for="Vehiculo.PesoMaximoGramos">Capacidad de peso (gramos)</label><input asp-for="Vehiculo.PesoMaximoGramos" type="number" step="0.01" min="0.01" class="form-control mb-2" required />
     <label asp-for="Vehiculo.VolumenMaximoCm3">Capacidad de volumen (cm³)</label><input asp-for="Vehiculo.VolumenMaximoCm3" type="number" step="0.01" min="0.01" class="form-control mb-2" required />
     <label class="mb-3"><input asp-for="Vehiculo.Activo" /> Activo</label>
-    <button class="btn btn-primary align-self-start">Agregar vehículo</button>
+    <button class="btn btn-primary align-self-start">@(Model.CargaCompleta ? (Model.Vehiculo.Id == Guid.Empty ? "Agregar vehículo" : "Guardar vehículo") : "Reintentar guardado")</button>
 </form>
+@if (Model.CargaCompleta)
+{
 @foreach (var item in Model.Vehiculos)
 {
     <form method="post" asp-page-handler="Vehiculo" class="card card-body mb-2" data-single-submit>
@@ -36,4 +53,7 @@
             <div class="col-md-3 align-self-end"><label><input type="checkbox" name="Vehiculo.Activo" value="true" checked="@item.Activo" /> Activo</label><input type="hidden" name="Vehiculo.Activo" value="false" /><button class="btn btn-outline-primary">Guardar</button></div>
         </div>
     </form>
+}
+}
+</section>
 }

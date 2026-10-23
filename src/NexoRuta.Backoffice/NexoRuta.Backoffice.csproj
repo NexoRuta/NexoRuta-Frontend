@@ -4,10 +4,15 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);wwwroot\css\portal-design.css;wwwroot\data\departamentos-uruguay.geojson</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NexoRuta.ApiClient\NexoRuta.ApiClient.csproj" />
+    <Content Include="wwwroot\css\portal-design.css" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="wwwroot\data\departamentos-uruguay.geojson"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

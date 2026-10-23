@@ -1,18 +1,50 @@
-@using Microsoft.AspNetCore.Authorization
+@using NexoRuta.Commerce.Components.Layout
 @using NexoRuta.Commerce.Core.Security
+@using Microsoft.AspNetCore.Authorization
 @inject IAuthorizationService Authorization
+@inject CommerceAuthorizationState AuthorizationState
+@{
+    var groups = new List<CommerceNavigationGroup>();
+    foreach (var group in CommerceNavigationCatalog.Groups)
+    {
+        var links = new List<CommerceNavigationLink>();
+        foreach (var link in group.Links)
+        {
+            if (link.PermissionPolicy is null ||
+                (await Authorization.AuthorizeAsync(User, resource: null, link.PermissionPolicy)).Succeeded)
+                links.Add(link);
 
-<nav class="d-flex flex-wrap gap-2 border-bottom pb-3 mb-4" aria-label="Navegación del comercio">
-    <a class="btn btn-outline-primary" href="/">Inicio</a>
-    <a class="btn btn-outline-primary" href="/envios">Mis envíos</a>
-    <a class="btn btn-outline-primary" href="/envios/crear">Crear envío</a>
-    <a class="btn btn-outline-primary" href="/mi-comercio">Mi comercio</a>
-    @if ((await Authorization.AuthorizeAsync(User, ApiPermissionAuthorizationHandler.UsersManagePolicy)).Succeeded)
-    {
-        <a class="btn btn-outline-primary" href="/usuarios">Usuarios</a>
+            if (AuthorizationState.Failure is CommerceAuthorizationFailure.ApiUnavailable or CommerceAuthorizationFailure.SessionExpired)
+                break;
+        }
+
+        if (links.Count > 0) groups.Add(group with { Links = links });
+        if (AuthorizationState.Failure is CommerceAuthorizationFailure.ApiUnavailable or CommerceAuthorizationFailure.SessionExpired)
+            break;
     }
-    @if ((await Authorization.AuthorizeAsync(User, ApiPermissionAuthorizationHandler.ConfigManagePolicy)).Succeeded)
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+}
+
+<nav class="nr-navigation" aria-label="Navegación principal" aria-busy="false">
+    @foreach (var group in groups)
     {
-        <a class="btn btn-outline-primary" href="/roles">Roles y permisos</a>
+        <div class="nr-nav-group">
+            <p class="nr-nav-heading">@group.Label</p>
+            <ul class="nr-nav-list">
+                @foreach (var link in group.Links)
+                {
+                    var active = string.Equals(currentPath, link.ActivePath, StringComparison.OrdinalIgnoreCase);
+                    <li><a class="nr-nav-link @(active ? "active" : null)" aria-current="@(active ? "page" : null)" href="@link.Href">@link.Label</a></li>
+                }
+            </ul>
+        </div>
+    }
+    @if (AuthorizationState.Failure == CommerceAuthorizationFailure.ApiUnavailable)
+    {
+        <p class="nr-navigation-status" role="alert">No se pudieron verificar tus permisos para actualizar la navegación. Recargá para volver a intentarlo.</p>
+    }
+    else if (AuthorizationState.Failure == CommerceAuthorizationFailure.SessionExpired)
+    {
+        <p class="nr-navigation-status" role="alert">La sesión expiró. <a href="/ingresar?expirada=true">Ingresá nuevamente</a>.</p>
     }
 </nav>

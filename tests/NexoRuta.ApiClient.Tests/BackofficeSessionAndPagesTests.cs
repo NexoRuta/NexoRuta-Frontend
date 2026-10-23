@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
+using NexoRuta.ApiClient.Features.Envios.Contracts.Responses;
 
 namespace NexoRuta.ApiClient.Tests;
 
@@ -47,7 +48,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("Consultar / editar", html);
         Assert.DoesNotContain("jwt-user", html);
         Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/zonas" && call.Token == "jwt-user");
-        using var independentPage = await client.GetAsync("/ingresar");
+        using var independentPage = await client.GetAsync("/mi-operador");
         var independentHtml = await independentPage.Content.ReadAsStringAsync();
         Assert.Contains("href=\"/zonas\"", independentHtml);
         Assert.Contains("href=\"/tarifas\"", independentHtml);
@@ -56,6 +57,52 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var denied = await client.GetAsync("/zonas/crear");
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
         Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+
+        using var deniedCatalogRetry = await client.GetAsync("/zonas/crear?handler=Catalogo");
+        Assert.Equal(HttpStatusCode.Redirect, deniedCatalogRetry.StatusCode);
+        Assert.StartsWith("/acceso-denegado", deniedCatalogRetry.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BackofficePrimaryNavigationStaysStableAcrossOperatorRoutes()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-user"] = ["envios.consultar", "envios.gestionar", "usuarios.gestionar", "configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        static string[] NavigationHrefs(string html)
+        {
+            html = WebUtility.HtmlDecode(html);
+            var navigation = Regex.Match(html,
+                "<nav[^>]*aria-label=\"Navegación principal\"[^>]*>(.*?)</nav>", RegexOptions.Singleline);
+            Assert.True(navigation.Success, "La navegación principal debe existir en la respuesta.");
+            return Regex.Matches(navigation.Groups[1].Value, "<a\\b[^>]*href=\"([^\"]+)\"")
+                .Select(match => match.Groups[1].Value)
+                .ToArray();
+        }
+
+        using var tariffs = await client.GetAsync("/tarifas");
+        Assert.Equal(HttpStatusCode.OK, tariffs.StatusCode);
+        var tariffHtml = await tariffs.Content.ReadAsStringAsync();
+        var tariffLinks = NavigationHrefs(tariffHtml);
+
+        using var operatorPage = await client.GetAsync("/mi-operador");
+        Assert.Equal(HttpStatusCode.OK, operatorPage.StatusCode);
+        var operatorHtml = await operatorPage.Content.ReadAsStringAsync();
+        var operatorLinks = NavigationHrefs(operatorHtml);
+
+        using var tariffReload = await client.GetAsync("/tarifas");
+        Assert.Equal(HttpStatusCode.OK, tariffReload.StatusCode);
+        var reloadedTariffHtml = await tariffReload.Content.ReadAsStringAsync();
+
+        Assert.Equal(tariffLinks, operatorLinks);
+        Assert.Equal(tariffLinks, NavigationHrefs(reloadedTariffHtml));
+        Assert.Contains("href=\"/tarifas\"", operatorHtml);
+        Assert.Contains("href=\"/mi-operador\"", tariffHtml);
+        Assert.Contains("aria-current=\"page\"", tariffHtml);
+        Assert.Contains("aria-current=\"page\"", operatorHtml);
     }
 
     [Fact]
@@ -99,7 +146,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/reglas-operativas" && call.Token == "jwt-user");
 
         using var standalone = await client.GetAsync("/ingresar");
-        Assert.Contains("href=\"/reglas-operativas\"", await standalone.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("href=\"/reglas-operativas\"", await standalone.Content.ReadAsStringAsync());
 
         api.PermissionOverrides["jwt-user"] = [];
         using var denied = await client.GetAsync("/reglas-operativas/borrador");
@@ -785,9 +832,11 @@ public sealed partial class BackofficeSessionAndPagesTests
     }
 
     [Fact]
-    public async Task ZoneCreateWithCatalogPostsGeoJsonObjectThenRedirectsToInactiveZone()
+    public async Task ZoneCreateDrawsWithoutDatabaseCatalogAndPostsGeoJsonObject()
     {
-        var api = new FakeApi { EmptyDepartmentCatalog = false };
+        var api = new FakeApi { EmptyDepartmentCatalog = true,
+            DepartmentCatalogStatusOverride = HttpStatusCode.ServiceUnavailable,
+            TerritoryStatusOverride = HttpStatusCode.ServiceUnavailable };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
         using var factory = new BackofficeFactory(api, mapboxConfigured: true);
         using var client = Client(factory);
@@ -796,10 +845,14 @@ public sealed partial class BackofficeSessionAndPagesTests
         var token = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
         using var page = await client.GetAsync("/zonas/crear");
         var html = await page.Content.ReadAsStringAsync();
-        Assert.Contains("Artigas (01)", html);
         Assert.Contains("Dibujo propio en el mapa", html);
+        Assert.Contains("data-department-asset-url=\"/data/departamentos-uruguay.geojson\"", html);
+        Assert.DoesNotContain("data-catalog-url=", html);
+        Assert.DoesNotContain("data-territory-url=", html);
         Assert.Contains("mapbox-gl-js/v3.33.0/mapbox-gl.js", html);
         Assert.Contains("plugins/mapbox-gl-draw/v1.5.1/mapbox-gl-draw.js", html);
+        Assert.DoesNotContain(api.Calls, call => call.Path == "/api/configuracion/zonas/departamentos"
+            || call.Path == "/api/configuracion/zonas/departamentos/territorio");
 
         const string geometry = "{\"type\":\"Polygon\",\"coordinates\":[[[-56,-34],[-55,-34],[-55,-33],[-56,-34]]]}";
         using var created = await client.PostAsync("/zonas/crear", Form(token,
@@ -817,7 +870,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     }
 
     [Fact]
-    public async Task ZoneCreateExplainsAnEmptyCatalogSeparatelyFromMapboxConfiguration()
+    public async Task ZoneCreateUsesStaticDepartmentAssetInsteadOfTerritorialApi()
     {
         var api = new FakeApi { EmptyDepartmentCatalog = true };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
@@ -827,29 +880,75 @@ public sealed partial class BackofficeSessionAndPagesTests
 
         using var page = await client.GetAsync("/zonas/crear");
         var html = await page.Content.ReadAsStringAsync();
+        using var scriptResponse = await client.GetAsync("/js/zonas-cobertura.js");
+        Assert.Equal(HttpStatusCode.OK, scriptResponse.StatusCode);
+        var script = await scriptResponse.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
-        Assert.Contains("Las referencias departamentales todavía no están cargadas", html);
         Assert.DoesNotContain("falta configurar un token público de Mapbox", html);
-        Assert.Contains("data-territory-url=", html);
+        Assert.Contains("data-department-asset-url=\"/data/departamentos-uruguay.geojson\"", html);
+        Assert.Contains("id=\"retry-department-reference\"", html);
+        Assert.DoesNotContain("data-catalog-url=", html);
+        Assert.DoesNotContain("data-territory-url=", html);
+        Assert.Contains("mode === \"create\" || (geometryValue && safelyEditable(geometryValue))", script);
+        Assert.Contains("enableDraw(true);", script);
+        Assert.DoesNotContain(api.Calls, call => call.Path.Contains("/api/configuracion/zonas/departamentos", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task ZoneCreateReportsCatalogTransportFailureInsteadOfCallingItEmpty()
+    public async Task ZoneCreateDepartmentCopyUsesOfficialCodeWithoutLoadingApiCatalog()
     {
-        var api = new FakeApi { DepartmentCatalogStatusOverride = HttpStatusCode.ServiceUnavailable };
+        var api = new FakeApi { EmptyDepartmentCatalog = true };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
         using var factory = new BackofficeFactory(api, mapboxConfigured: true);
         using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
         using var page = await client.GetAsync("/zonas/crear");
-        var html = await page.Content.ReadAsStringAsync();
-
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
-        Assert.Contains("No se pudo consultar el catálogo departamental. Revisá la disponibilidad de la API", html);
-        Assert.DoesNotContain("Las referencias departamentales todavía no están cargadas", html);
-        Assert.DoesNotContain("falta configurar un token público de Mapbox", html);
+        Assert.Contains("id=\"retry-department-reference\"", await page.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(api.Calls, call => call.Path.Contains("/api/configuracion/zonas/departamentos", StringComparison.Ordinal));
+
+        var token = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
+        using var created = await client.PostAsync("/zonas/crear", Form(token,
+            ("Nombre", "Zona copiada"), ("Fuente", "Departamento"), ("CodigoDepartamento", "UY-MO")));
+        Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+        var request = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path == "/api/configuracion/zonas");
+        Assert.Equal("UY-MO", request.Body.GetProperty("codigoDepartamento").GetString());
+        Assert.Equal(JsonValueKind.Null, request.Body.GetProperty("geometria").ValueKind);
+    }
+
+    [Fact]
+    public async Task ZoneCreateRetainsTheExistingPermissionBoundary()
+    {
+        var api = new FakeApi();
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var denied = await client.GetAsync("/zonas/crear");
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ZoneCreateSubmitsOwnGeometryWhenTerritorialApiIsUnavailable()
+    {
+        var api = new FakeApi { EmptyDepartmentCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var antiforgery = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
+        const string geometry = "{\"type\":\"Polygon\",\"coordinates\":[[[-56,-34],[-55,-34],[-55,-33],[-56,-34]]]}";
+
+        using var response = await client.PostAsync("/zonas/crear", Form(antiforgery,
+            ("Nombre", "Zona que se conserva"), ("Fuente", "Dibujo"), ("GeometriaJson", geometry)));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var request = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path == "/api/configuracion/zonas");
+        Assert.Equal("Zona que se conserva", request.Body.GetProperty("nombre").GetString());
+        Assert.Equal("Polygon", request.Body.GetProperty("geometria").GetProperty("type").GetString());
+        Assert.DoesNotContain(api.Calls, call => call.Path.Contains("/api/configuracion/zonas/departamentos", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1164,11 +1263,22 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var client = Client(factory);
         using var login = await client.GetAsync("/ingresar");
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-        Assert.Contains("href=\"/recuperar-contrasena\"", await login.Content.ReadAsStringAsync());
+        var loginHtml = await login.Content.ReadAsStringAsync();
+        Assert.Contains("href=\"/recuperar-contrasena\"", loginHtml);
+        Assert.Contains("aria-label=\"Mostrar contraseña\"", loginHtml);
+        Assert.Contains("Backoffice", loginHtml);
+        Assert.DoesNotContain("<footer", loginHtml, StringComparison.OrdinalIgnoreCase);
         using var recovery = await client.GetAsync("/recuperar-contrasena");
         Assert.Equal(HttpStatusCode.OK, recovery.StatusCode);
         var html = await recovery.Content.ReadAsStringAsync();
-        Assert.Contains("correo registrado", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cuenta asociada", WebUtility.HtmlDecode(html), StringComparison.OrdinalIgnoreCase);
+        var styleLinks = html.Split("<link", StringSplitOptions.RemoveEmptyEntries).Select(part => part.Split('>').FirstOrDefault() ?? "");
+        Assert.Contains(styleLinks, link => link.Contains("portal-design", StringComparison.OrdinalIgnoreCase));
+        using var designCss = await client.GetAsync("/css/portal-design.css");
+        Assert.Equal(HttpStatusCode.OK, designCss.StatusCode);
+        Assert.Equal("text/css", designCss.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("--nr-canvas", await designCss.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.DoesNotContain("<footer", html, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("no-referrer", recovery.Headers.GetValues("Referrer-Policy").Single());
     }
 
@@ -1246,11 +1356,15 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var denied = await client.GetAsync("/roles");
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
         Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+        using var limitedMenu = await client.GetAsync("/mi-operador");
+        Assert.DoesNotContain("href=\"/tarifas\"", WebUtility.HtmlDecode(await limitedMenu.Content.ReadAsStringAsync()));
 
         api.PermissionOverrides["jwt-user"] = ["envios.consultar", "usuarios.gestionar", "configuracion.gestionar"];
         using var granted = await client.GetAsync("/roles");
+        using var refreshedMenu = await client.GetAsync("/mi-operador");
 
         Assert.Equal(HttpStatusCode.OK, granted.StatusCode);
+        Assert.Contains("href=\"/tarifas\"", WebUtility.HtmlDecode(await refreshedMenu.Content.ReadAsStringAsync()));
         Assert.True(api.Calls.Count(call => call.Path == "/api/usuarios/actual/permisos" && call.Token == "jwt-user") >= 2);
     }
 
@@ -1294,7 +1408,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     public async Task CommerceRazorAdministrationHasNavigationOnDirectEntry(string path)
     {
         var api = new FakeApi();
-        api.PermissionOverrides["jwt-commerce"] = ["usuarios.gestionar", "configuracion.gestionar"];
+        api.PermissionOverrides["jwt-commerce"] = ["envios.crear", "envios.consultar", "usuarios.gestionar", "configuracion.gestionar"];
         using var factory = new CommerceFactory(api);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         await LoginAsync(client, "commerce@example.test");
@@ -1302,12 +1416,62 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var response = await client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        Assert.Contains("aria-label=\"Navegación del comercio\"", html);
+        Assert.Contains("aria-label=\"Navegación principal\"", html);
         foreach (var target in new[] { "/", "/envios", "/envios/crear", "/mi-comercio", "/usuarios", "/roles" })
             Assert.Contains($"href=\"{target}\"", html);
         Assert.Contains("Roles y permisos", html);
         Assert.DoesNotContain("jwt-commerce", html);
         Assert.Equal(before + 1, api.Calls.Count(x => x.Path == "/api/usuarios/actual/permisos"));
+    }
+
+    [Fact]
+    public async Task CommerceNavigationKeepsTheSameDestinationsAcrossBlazorAndRazorRoutes()
+    {
+        var api = new FakeApi();
+        api.PermissionOverrides["jwt-commerce"] = ["envios.crear", "envios.consultar", "usuarios.gestionar", "configuracion.gestionar"];
+        using var factory = new CommerceFactory(api);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        await LoginAsync(client, "commerce@example.test");
+
+        static string[] Hrefs(string html, string label)
+        {
+            var navigation = Regex.Match(html,
+                $"<nav[^>]*aria-label=\\\"{Regex.Escape(label)}\\\"[^>]*>(.*?)</nav>", RegexOptions.Singleline);
+            Assert.True(navigation.Success, $"La navegación {label} debe existir en la respuesta.");
+            return Regex.Matches(navigation.Groups[1].Value, "<a\\b[^>]*href=\\\"([^\\\"]+)\\\"")
+                .Select(match => match.Groups[1].Value)
+                .ToArray();
+        }
+
+        string[]? baseline = null;
+        foreach (var path in new[] { "/envios", "/mi-comercio", "/envios/crear", "/usuarios", "/roles" })
+        {
+            using var response = await client.GetAsync(path);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+            var hrefs = Hrefs(html, "Navegación principal");
+            Assert.Contains("data-commerce-nav-toggle", html);
+            Assert.Contains("aria-controls=\"commerceNavigation\" aria-expanded=\"false\"", html);
+            if (baseline is null) baseline = hrefs;
+            else Assert.Equal(baseline, hrefs);
+        }
+
+        api.PermissionOverrides["jwt-commerce"] = ["envios.consultar"];
+        using var limitedCommerce = await client.GetAsync("/envios");
+        var limitedHtml = WebUtility.HtmlDecode(await limitedCommerce.Content.ReadAsStringAsync());
+        var limitedHrefs = Hrefs(limitedHtml, "Navegación principal");
+        Assert.DoesNotContain("/envios/crear", limitedHrefs);
+        Assert.DoesNotContain("/usuarios", limitedHrefs);
+        Assert.DoesNotContain("/roles", limitedHrefs);
+        using var deniedCreatePage = await client.GetAsync("/envios/crear");
+        Assert.Equal(HttpStatusCode.Redirect, deniedCreatePage.StatusCode);
+        Assert.StartsWith("/acceso-denegado", deniedCreatePage.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+        using var accessDeniedPage = await client.GetAsync(deniedCreatePage.Headers.Location);
+        var deniedCreateHtml = WebUtility.HtmlDecode(await accessDeniedPage.Content.ReadAsStringAsync());
+        Assert.Contains("No tenés permiso para acceder a esta función", deniedCreateHtml);
+        Assert.DoesNotContain("Correo del destinatario", deniedCreateHtml);
+        using var deniedRolePage = await client.GetAsync("/roles");
+        Assert.Equal(HttpStatusCode.Redirect, deniedRolePage.StatusCode);
     }
 
     [Fact]
@@ -1478,8 +1642,38 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("cambió desde la última consulta", html);
         Assert.Contains("name=\"Nombre\"", html);
+        Assert.Contains("value=\"Stale operator name\"", html);
         Assert.Contains("Operator", html);
         Assert.DoesNotContain("Stale operator name</dd>", html);
+    }
+
+    [Fact]
+    public async Task OrganizationProfileApiFailureKeepsSubmittedNameAndAllowsRetry()
+    {
+        var api = new FakeApi();
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "operator@example.test");
+        var antiforgery = await GetAntiforgeryTokenAsync(client, "/mi-operador");
+        var form = Form(antiforgery, ("Nombre", "Nombre que estoy editando"), ("Version", "0"));
+        api.OrganizationApiUnavailable = true;
+
+        using var unavailable = await client.PostAsync("/mi-operador?handler=Guardar", form);
+
+        var failedHtml = WebUtility.HtmlDecode(await unavailable.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, unavailable.StatusCode);
+        Assert.Contains("No pudimos comunicarnos con la API de organizaciones.", failedHtml);
+        Assert.Contains("value=\"Nombre que estoy editando\"", failedHtml);
+        Assert.Contains("name=\"Version\" value=\"0\"", failedHtml);
+
+        api.OrganizationApiUnavailable = false;
+        using var retried = await client.PostAsync("/mi-operador?handler=Guardar", form);
+
+        var retriedHtml = WebUtility.HtmlDecode(await retried.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, retried.StatusCode);
+        Assert.Contains("Nombre del operador actualizado.", retriedHtml);
+        Assert.Contains("Nombre que estoy editando", retriedHtml);
+        Assert.Equal(2, api.Calls.Count(call => call.Path == "/api/organizacion/actual" && call.Method == HttpMethod.Put));
     }
 
     [Theory]
@@ -1714,7 +1908,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.StartsWith("/ingresar", anonymous.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
         await LoginAsync(client, "commerce@example.test");
 
-        using var home = await client.GetAsync("/envios");
+        using var home = await client.GetAsync("/mi-comercio");
         Assert.Equal(HttpStatusCode.OK, home.StatusCode);
         Assert.DoesNotContain("href=\"/usuarios\"", await home.Content.ReadAsStringAsync());
 
@@ -1737,7 +1931,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         await LoginAsync(client, "commerce@example.test");
 
-        using var home = await client.GetAsync("/envios");
+        using var home = await client.GetAsync("/mi-comercio");
         Assert.Contains("href=\"/roles\"", await home.Content.ReadAsStringAsync());
         using var response = await client.GetAsync("/roles");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -2222,10 +2416,12 @@ public sealed partial class BackofficeSessionAndPagesTests
         public bool OrganizationHasOwner { get; init; } = true;
         public bool IsOrganizationOwner { get; init; } = true;
         public HttpStatusCode? OrganizationUpdateStatusOverride { get; init; }
+        public bool OrganizationApiUnavailable { get; set; }
         public bool CancellationRequestPending { get; set; }
         public string OrganizationState { get; set; } = "Activa";
-        public bool EmptyDepartmentCatalog { get; init; } = true;
+        public bool EmptyDepartmentCatalog { get; set; } = true;
         public HttpStatusCode? DepartmentCatalogStatusOverride { get; init; }
+        public HttpStatusCode? TerritoryStatusOverride { get; init; }
         public long ZoneVersion { get; init; } = 4;
         public bool ZoneHasActiveSlot { get; init; } = true;
         public HttpStatusCode? ZoneListStatusOverride { get; init; }
@@ -2312,9 +2508,13 @@ public sealed partial class BackofficeSessionAndPagesTests
             if (path == "/api/organizacion/suspendida")
                 return Json(HttpStatusCode.OK, new { organizacionId = Guid.NewGuid(), tipoOrganizacion = token == "jwt-suspended-commerce" ? "Comercio" : "Operador", nombre = "Suspended organization", estado = "Suspendida", mensaje = "Sign in again after reactivation." });
             if (path == "/api/organizacion/actual" && request.Method == HttpMethod.Get)
+            {
+                if (OrganizationApiUnavailable) throw new HttpRequestException("API offline");
                 return OrganizationResponse(token, token == "jwt-commerce" ? "Integration commerce" : "Operator", 0);
+            }
             if (path == "/api/organizacion/actual" && request.Method == HttpMethod.Put)
             {
+                if (OrganizationApiUnavailable) throw new HttpRequestException("API offline");
                 if (OrganizationUpdateStatusOverride is { } status)
                     return Json(status, new { message = "The organization changed since it was loaded." });
                 var body = await request.Content!.ReadFromJsonAsync<JsonElement>(ct);
@@ -2569,6 +2769,17 @@ public sealed partial class BackofficeSessionAndPagesTests
                         urlFuente = "https://example.test", atribucion = "test", licencia = "test", importadaUtc = DateTimeOffset.UtcNow }
                 });
             }
+            if (path == "/api/configuracion/zonas/departamentos/territorio" && request.Method == HttpMethod.Get)
+            {
+                if (TerritoryStatusOverride is { } territoryStatus)
+                    return Json(territoryStatus, new { message = "territory unavailable" });
+                return Json(HttpStatusCode.OK, new
+                {
+                    codigoPais = "UY", versionFuente = "test-v1",
+                    geometria = new { type = "MultiPolygon", coordinates = Array.Empty<object>() },
+                    limites = new { oeste = -58d, sur = -35d, este = -53d, norte = -30d }
+                });
+            }
             if (path == "/api/configuracion/zonas" && request.Method == HttpMethod.Get)
             {
                 if (ZoneListStatusOverride is { } listStatus)
@@ -2654,7 +2865,10 @@ public sealed partial class BackofficeSessionAndPagesTests
             }
             if (path == $"/api/configuracion/zonas/{CoverageZoneId}/estado" && request.Method == HttpMethod.Put)
                 return Json(HttpStatusCode.OK, ZoneDetailResponse());
-            if (path == "/api/envios") return Json(HttpStatusCode.OK, Array.Empty<object>());
+            if (path == "/api/envios")
+                return ShipmentsStatusOverride is { } shipmentsStatus
+                    ? Json(shipmentsStatus, new { message = "Servicio de envíos no disponible." })
+                    : Json(HttpStatusCode.OK, EnviosResponse ?? Array.Empty<EnvioResponse>());
             return Json(HttpStatusCode.NotFound, new { message = "Not found" });
         }
 

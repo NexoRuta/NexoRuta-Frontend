@@ -1,0 +1,161 @@
+@page "/identidad-visual"
+@model NexoRuta.Backoffice.Features.IdentidadVisual.Pages.IdentidadVisualModel
+@{
+    ViewData["Title"] = "Identidad visual";
+}
+
+<header class="nr-page-header"><div><h1>Identidad visual</h1><p>Configurá la marca, el contacto público y los acentos de este operador.</p></div></header>
+<p>Esta marca es independiente del nombre administrativo del operador. Si no configurás un nombre comercial, se muestra el nombre actual del operador.</p>
+
+@if (Model.Error is not null)
+{
+    <p class="alert alert-danger" role="alert">@Model.Error</p>
+}
+@if (Model.Confirmacion is not null)
+{
+    <p class="alert alert-success" role="status">@Model.Confirmacion</p>
+}
+
+@if (Model.Datos is not null)
+{
+    <div class="identity-visual-layout">
+        <form method="post" asp-page-handler="Guardar" enctype="multipart/form-data" data-single-submit data-identity-editor data-fallback-name="@Model.Datos.NombreMostrado">
+            <input type="hidden" asp-for="VersionEsperada" />
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+            <fieldset class="identity-visual-group">
+                <legend>Marca</legend>
+                <div class="mb-3">
+                    <label asp-for="NombreComercial" class="form-label">Nombre comercial</label>
+                    <input asp-for="NombreComercial" class="form-control" maxlength="160" autocomplete="organization" aria-describedby="nombre-comercial-ayuda" data-preview-name-input />
+                    <span id="nombre-comercial-ayuda" class="form-text">Opcional. Si lo dejás vacío, se usa @Model.Datos.NombreMostrado.</span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Logo" class="form-label">Logo</label>
+                    <input asp-for="Logo" class="form-control" type="file" accept="image/png,image/jpeg" aria-describedby="logo-ayuda logo-error" data-logo-input />
+                    <span id="logo-ayuda" class="form-text">PNG o JPEG estático; hasta 1 MiB y 2048 × 2048 píxeles.</span>
+                    <span id="logo-error" class="form-text text-danger" role="status" data-logo-message></span>
+                </div>
+                @if (Model.Datos.LogoContenido is { Length: > 0 } && Model.Datos.LogoTipoContenido is "image/png" or "image/jpeg")
+                {
+                    <div class="form-check mb-3">
+                        <input asp-for="QuitarLogo" class="form-check-input" />
+                        <label asp-for="QuitarLogo" class="form-check-label">Quitar el logo actual</label>
+                    </div>
+                }
+                <p class="form-text">Al cargar otro archivo, se reemplaza el logo actual. El servidor vuelve a validar el contenido.</p>
+            </fieldset>
+
+            <fieldset class="identity-visual-group">
+                <legend>Colores de marca</legend>
+                <p class="form-text">Se usan como acentos. No cambian los colores semánticos de acciones, errores, éxito, advertencias ni foco.</p>
+                <div class="identity-color-row">
+                    <div class="form-check">
+                        <input asp-for="UsarColorPrimario" class="form-check-input" data-primary-enabled />
+                        <label asp-for="UsarColorPrimario" class="form-check-label">Configurar color primario</label>
+                    </div>
+                    <label asp-for="ColorPrimario" class="form-label">Color primario</label>
+                    <input asp-for="ColorPrimario" class="form-control form-control-color" type="color" data-primary-color disabled="@(!Model.UsarColorPrimario)" />
+                    <p class="identity-contrast-warning" role="status" aria-live="polite" data-primary-warning hidden>
+                        El color primario tiene poco contraste con la superficie. La vista previa usa el acento predeterminado en ese borde; tu selección se conserva.
+                    </p>
+                </div>
+                <div class="identity-color-row">
+                    <div class="form-check">
+                        <input asp-for="UsarColorSecundario" class="form-check-input" data-secondary-enabled />
+                        <label asp-for="UsarColorSecundario" class="form-check-label">Configurar color secundario</label>
+                    </div>
+                    <label asp-for="ColorSecundario" class="form-label">Color secundario</label>
+                    <input asp-for="ColorSecundario" class="form-control form-control-color" type="color" data-secondary-color disabled="@(!Model.UsarColorSecundario)" />
+                    <p class="identity-contrast-warning" role="status" aria-live="polite" data-secondary-warning hidden>
+                        El color secundario tiene poco contraste con la superficie. La vista previa usa un borde semántico; tu selección se conserva.
+                    </p>
+                </div>
+            </fieldset>
+
+            <fieldset class="identity-visual-group">
+                <legend>Contacto público</legend>
+                <div class="mb-3">
+                    <label asp-for="CorreoPublico" class="form-label">Correo de contacto</label>
+                    <input asp-for="CorreoPublico" class="form-control" type="email" maxlength="254" autocomplete="email" aria-describedby="correo-ayuda" />
+                    <span id="correo-ayuda" class="form-text">Opcional; hasta 254 caracteres. Solo se publica si lo configurás acá.</span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="TelefonoPublico" class="form-label">Teléfono de contacto</label>
+                    <input asp-for="TelefonoPublico" class="form-control" type="tel" maxlength="32" autocomplete="tel" aria-describedby="telefono-ayuda" />
+                    <span id="telefono-ayuda" class="form-text">Opcional; 7 a 15 dígitos. Se admiten +, espacios, paréntesis, puntos y guiones.</span>
+                </div>
+            </fieldset>
+
+            <button class="btn btn-primary" type="submit">Guardar cambios</button>
+        </form>
+
+        <aside class="identity-visual-preview" aria-labelledby="vista-previa-titulo"
+            style="--nr-brand-primary: @Model.AcentoPrimario; --nr-brand-secondary: @Model.AcentoSecundario;">
+            <h2 id="vista-previa-titulo" class="h4">Vista previa</h2>
+            <article class="brand-preview-card" data-preview-card>
+                <img class="identity-preview-logo" src="@(Model.LogoDataUri ?? "data:,")" alt="Logo de @Model.NombreVistaPrevia" data-preview-logo hidden="@(Model.LogoDataUri is null)" />
+                <h3 class="h5" data-preview-name>@Model.NombreVistaPrevia</h3>
+                <p data-preview-email hidden="@(Model.CorreoPublico is null)">@Model.CorreoPublico</p>
+                <p data-preview-phone hidden="@(Model.TelefonoPublico is null)">@Model.TelefonoPublico</p>
+                <div class="brand-preview-primary" aria-hidden="true"></div>
+                <div class="brand-preview-secondary" data-preview-secondary hidden="@(!Model.UsarColorSecundario)"></div>
+                <div class="brand-preview-colors" aria-label="Muestras de colores de marca">
+                    <span class="brand-preview-color" data-preview-primary-chip hidden="@(!Model.UsarColorPrimario)"><span class="operator-brand-swatch" aria-hidden="true" style="background-color:@(Model.UsarColorPrimario ? Model.ColorPrimario : "transparent")"></span><span>Color primario</span></span>
+                    <span class="brand-preview-color" data-preview-secondary-chip hidden="@(!Model.UsarColorSecundario)"><span class="operator-brand-swatch" aria-hidden="true" style="background-color:@(Model.UsarColorSecundario ? Model.ColorSecundario : "transparent")"></span><span>Color secundario</span></span>
+                </div>
+                <button class="btn btn-primary" type="button" disabled>Acción de ejemplo</button>
+            </article>
+            <p class="form-text">Ejemplo visual; no guarda ni publica los cambios.</p>
+        </aside>
+    </div>
+}
+else if (Model.Error is not null)
+{
+    <p><a asp-page="/IdentidadVisual">Volver a intentar</a></p>
+}
+
+@if (Model.Historial.Count > 0)
+{
+    <section class="mt-5" aria-labelledby="historial-identidad-titulo">
+        <h2 id="historial-identidad-titulo">Historial de cambios</h2>
+        <nav aria-label="Páginas del historial" class="mb-3">
+            @if (Model.AntesDeVersion is not null)
+            {
+                <a asp-page="/IdentidadVisual">Ver las versiones más recientes</a>
+            }
+            @if (Model.CursorAnterior is { } cursorAnterior)
+            {
+                <a asp-page="/IdentidadVisual" asp-route-antesDeVersion="@cursorAnterior">Ver versiones anteriores</a>
+            }
+        </nav>
+<div class="table-responsive" role="region" aria-label="Historial de identidad visual; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0">
+            <table class="table align-middle">
+                <caption>Versiones anteriores y vigentes de la identidad visual. No se pueden restaurar desde esta pantalla.</caption>
+                <thead><tr><th scope="col">Versión</th><th scope="col">Autor</th><th scope="col">Fecha</th><th scope="col">Configuración</th></tr></thead>
+                <tbody>
+                    @foreach (var version in Model.Historial)
+                    {
+                        <tr>
+                            <th scope="row">@version.Version</th>
+                            <td>@version.AutorUsuarioId</td>
+                            <td>@version.CreadoEnUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'")</td>
+                            <td>
+                                <div><strong>Nombre:</strong> @(version.NombreComercial ?? "Nombre administrativo del operador")</div>
+                                @if (version.CorreoPublico is not null) { <div><strong>Correo:</strong> @version.CorreoPublico</div> }
+                                @if (version.TelefonoPublico is not null) { <div><strong>Teléfono:</strong> @version.TelefonoPublico</div> }
+                                @if (version.ColorPrimario is not null) { <div><strong>Primario:</strong> @version.ColorPrimario</div> }
+                                @if (version.ColorSecundario is not null) { <div><strong>Secundario:</strong> @version.ColorSecundario</div> }
+                                <div><strong>Logo:</strong> @(version.LogoTipoContenido ?? "Sin logo")</div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@section Scripts {
+    <script src="~/js/identidad-visual.js" asp-append-version="true"></script>
+}

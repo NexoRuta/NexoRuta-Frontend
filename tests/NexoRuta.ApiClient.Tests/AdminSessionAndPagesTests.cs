@@ -56,11 +56,18 @@ public sealed class AdminSessionAndPagesTests
         using var client = Client(factory);
         using var login = await client.GetAsync("/ingresar");
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-        Assert.Contains("href=\"/recuperar-contrasena\"", await login.Content.ReadAsStringAsync());
+        var loginHtml = await login.Content.ReadAsStringAsync();
+        Assert.Contains("href=\"/recuperar-contrasena\"", loginHtml);
+        Assert.Contains("aria-label=\"Mostrar contraseña\"", loginHtml);
+        Assert.Contains("Administración de plataforma", loginHtml);
+        Assert.DoesNotContain("<footer", loginHtml, StringComparison.OrdinalIgnoreCase);
         using var recovery = await client.GetAsync("/recuperar-contrasena");
         Assert.Equal(HttpStatusCode.OK, recovery.StatusCode);
         var html = await recovery.Content.ReadAsStringAsync();
-        Assert.Contains("correo registrado", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cuenta asociada", WebUtility.HtmlDecode(html), StringComparison.OrdinalIgnoreCase);
+        var styleLinks = html.Split("<link", StringSplitOptions.RemoveEmptyEntries).Select(part => part.Split('>').FirstOrDefault() ?? "");
+        Assert.Contains(styleLinks, link => link.Contains("portal-design", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("<footer", html, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("no-referrer", recovery.Headers.GetValues("Referrer-Policy").Single());
     }
 
@@ -92,9 +99,14 @@ public sealed class AdminSessionAndPagesTests
         Assert.DoesNotContain("jwt-platform", html);
         Assert.DoesNotContain(Password, html);
         Assert.All(api.Calls.Where(x => x.Path != "/api/auth/login"), x => Assert.Equal("jwt-platform", x.Token));
-        foreach (var asset in new[] { "/lib/bootstrap.min.css", "/js/site.js", "/css/site.css" })
+        foreach (var asset in new[] { "/lib/bootstrap.min.css", "/js/site.js", "/css/site.css", "/css/portal-design.css" })
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(asset)).StatusCode);
-        Assert.Contains("form[data-single-submit]", await client.GetStringAsync("/js/site.js"));
+        using var designCss = await client.GetAsync("/css/portal-design.css");
+        Assert.Equal("text/css", designCss.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("--nr-canvas", await designCss.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        var script = await client.GetStringAsync("/js/site.js");
+        Assert.Contains("form[data-single-submit]", script);
+        Assert.Contains("data-password-toggle", script);
     }
 
     [Theory]
@@ -113,7 +125,9 @@ public sealed class AdminSessionAndPagesTests
         using var rejected = await Login(client);
         Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
         var html = await rejected.Content.ReadAsStringAsync();
-        Assert.Contains("does not have platform", html);
+        Assert.Contains(type == "Plataforma" && !permission
+            ? "no tiene permisos para administrar la plataforma"
+            : "no tiene acceso a la administración de plataforma", WebUtility.HtmlDecode(html));
         Assert.DoesNotContain(Password, html);
         Assert.Contains(rejected.Headers.GetValues("Set-Cookie"), x => x.StartsWith("NexoRuta.Admin=;", StringComparison.Ordinal));
         Assert.StartsWith("/ingresar", (await client.GetAsync("/")).Headers.Location!.AbsolutePath);
@@ -129,12 +143,12 @@ public sealed class AdminSessionAndPagesTests
         var csrf = await Csrf(client, "/ingresar");
         using var rejected = await client.PostAsync("/ingresar", Form(csrf, ("Email", "platform@example.test"), ("Password", "wrong-secret")));
         var html = await rejected.Content.ReadAsStringAsync();
-        Assert.Contains("Invalid email or password", html);
+        Assert.Contains("El correo o la contraseña no son correctos", WebUtility.HtmlDecode(html));
         Assert.Contains("platform@example.test", html);
         Assert.DoesNotContain("wrong-secret", html);
         api.Expiry = DateTime.UtcNow.AddMinutes(-1);
         using var expired = await Login(client);
-        Assert.Contains("expired", await expired.Content.ReadAsStringAsync());
+        Assert.Contains("expiró", WebUtility.HtmlDecode(await expired.Content.ReadAsStringAsync()));
         Assert.StartsWith("/ingresar", (await client.GetAsync("/")).Headers.Location!.AbsolutePath);
     }
 

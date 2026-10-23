@@ -14,6 +14,7 @@ namespace NexoRuta.Backoffice.Features.Reparto.Pages;
 [RequestFormLimits(ValueCountLimit = 4000)]
 public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios) : PageModel
 {
+    private const string ZonaHorariaPredeterminada = "America/Montevideo";
     [BindProperty(SupportsGet = true)] public DateOnly Fecha { get; set; }
     [BindProperty] public Guid RepartidorAccesoId { get; set; }
     [BindProperty] public Guid VehiculoId { get; set; }
@@ -22,9 +23,11 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios) : Pag
     public IReadOnlyList<HojaRutaResponse> Rutas { get; private set; } = [];
     public RecursosPlanificacionResponse? Recursos { get; private set; }
     public IReadOnlyList<EnvioResponse> Envios { get; private set; } = [];
+    public bool CargaCompleta { get; private set; }
     public string? Error { get; private set; }
     [TempData] public string? Confirmacion { get; set; }
     public Task<IActionResult> OnGetAsync() => Cargar();
+    public Task<IActionResult> OnGetReintentarAsync() => Cargar();
     public Task<IActionResult> OnPostPlanificarAsync() => Ejecutar(async () =>
     {
         if (!ModelState.IsValid) throw new ArgumentException("Revisá los campos de la planificación.");
@@ -70,22 +73,46 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios) : Pag
         catch (NexoRutaApiException ex) { var redir = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redir is not null) return redir; Error = ex.Message; }
         catch (ArgumentException ex) { Error = ex.Message; }
         catch (HttpRequestException) { Error = "No se pudo conectar; actualizá el estado antes de repetir la operación."; }
-        ModelState.Clear(); return await Cargar();
+        return await Cargar();
     }
     private async Task<IActionResult> Cargar()
     {
+        CargaCompleta = false;
+        var inicializarFecha = Fecha == default;
+        if (inicializarFecha) Fecha = FechaActual(ZonaHorariaPredeterminada);
         try
         {
-            Recursos = await api.RecursosAsync(Token(), HttpContext.RequestAborted);
-            if (Fecha == default) Fecha = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(Recursos.Politica.ZonaHoraria)).DateTime);
-            Rutas = await api.ListarAsync(Fecha, Token(), HttpContext.RequestAborted);
-            Envios = await envios.ListarEnviosAsync(Token(), HttpContext.RequestAborted);
+            var recursos = await api.RecursosAsync(Token(), HttpContext.RequestAborted);
+            if (inicializarFecha) Fecha = FechaActual(recursos.Politica.ZonaHoraria);
+            var rutas = await api.ListarAsync(Fecha, Token(), HttpContext.RequestAborted);
+            var enviosActuales = await envios.ListarEnviosAsync(Token(), HttpContext.RequestAborted);
             var anteriores = Plan.GroupBy(p => p.EnvioId).ToDictionary(g => g.Key, g => g.First());
-            Plan = Envios.Where(e => e.Estado is "EnDeposito" or "Reprogramado").Select(e => anteriores.GetValueOrDefault(e.Id) ?? new() { EnvioId = e.Id }).ToList();
+            var plan = enviosActuales.Where(e => e.Estado is "EnDeposito" or "Reprogramado").Select(e => anteriores.GetValueOrDefault(e.Id) ?? new() { EnvioId = e.Id }).ToList();
+            Recursos = recursos;
+            Rutas = rutas;
+            Envios = enviosActuales;
+            Plan = plan;
+            CargaCompleta = true;
         }
         catch (NexoRutaApiException ex) { var redir = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redir is not null) return redir; Error ??= ex.Message; }
         catch (HttpRequestException) { Error ??= "No se pudo consultar el servicio de reparto."; }
         return Page();
+    }
+    private static DateOnly FechaActual(string zonaHoraria)
+    {
+        try
+        {
+            return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById(zonaHoraria)).DateTime);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return DateOnly.FromDateTime(DateTime.Now);
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return DateOnly.FromDateTime(DateTime.Now);
+        }
     }
     public static DateTimeOffset ConvertirLlegada(DateOnly fecha, TimeOnly hora, string zonaHoraria)
     {

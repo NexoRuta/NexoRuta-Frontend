@@ -1,0 +1,26 @@
+<Project>
+  <!-- Keep one editable token source while giving each app a physical wwwroot asset for static-web-asset discovery. -->
+  <Target Name="GenerateSharedPortalDesignAsset"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(MSBuildProjectName)' == 'NexoRuta.Backoffice' Or '$(MSBuildProjectName)' == 'NexoRuta.Commerce' Or '$(MSBuildProjectName)' == 'NexoRuta.Tracking' Or '$(MSBuildProjectName)' == 'NexoRuta.Admin'">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\css" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)shared\portal-design.css"
+          DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\css\portal-design.css"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Keep the versioned backend GeoJSON canonical while exposing a generated Backoffice wwwroot file in every host. -->
+  <Target Name="GenerateOfficialDepartmentAsset"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(MSBuildProjectName)' == 'NexoRuta.Backoffice'">
+    <PropertyGroup>
+      <!-- Integrated checkouts use the backend; isolated release contexts receive its archived asset. -->
+      <OfficialDepartmentSource Condition="'$(OfficialDepartmentSource)' == '' And Exists('$(MSBuildThisFileDirectory)..\backend\src\ZonasCobertura\Data\departamentos-uruguay.geojson')">$(MSBuildThisFileDirectory)..\backend\src\ZonasCobertura\Data\departamentos-uruguay.geojson</OfficialDepartmentSource>
+      <OfficialDepartmentSource Condition="'$(OfficialDepartmentSource)' == ''">$(MSBuildThisFileDirectory).build\departamentos-uruguay.geojson</OfficialDepartmentSource>
+    </PropertyGroup>
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\data" />
+    <Copy SourceFiles="$(OfficialDepartmentSource)"
+          DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\data\departamentos-uruguay.geojson"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

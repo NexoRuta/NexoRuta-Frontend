@@ -67,7 +67,12 @@ public sealed class AltaPropiaPagesTests
         Assert.DoesNotContain(token, html, StringComparison.Ordinal);
         Assert.DoesNotContain(userId.ToString("D"), html, StringComparison.Ordinal);
         Assert.DoesNotContain("https://", html, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("<script", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("href=\"/css/portal-design.css", html, StringComparison.Ordinal);
+        Assert.Contains("src=\"/js/site.js", html, StringComparison.Ordinal);
+        Assert.Contains("autocomplete=\"new-password\"", html, StringComparison.Ordinal);
+        Assert.Contains("aria-controls=\"NuevaPassword\"", html, StringComparison.Ordinal);
+        Assert.Contains("Usá al menos 12 caracteres", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<footer", html, StringComparison.OrdinalIgnoreCase);
 
         var csrf = await Token(client, "/restablecer-contrasena");
         const string password = "A-new-browser-password-2026!";
@@ -80,6 +85,120 @@ public sealed class AltaPropiaPagesTests
         Assert.Equal(userId, api.ResetRequest!.Value.GetProperty("usuarioId").GetGuid());
         Assert.Equal(token, api.ResetRequest.Value.GetProperty("token").GetString());
         Assert.Equal(password, api.ResetRequest.Value.GetProperty("nuevaPassword").GetString());
+    }
+
+    [Fact]
+    public async Task LoginFailureKeepsEmailAndDoesNotRenderPassword()
+    {
+        using var factory = new Factory(new Api { LoginFailureStatus = HttpStatusCode.Unauthorized });
+        using var client = Client(factory);
+        const string email = "commerce-user@example.test";
+        const string password = "not-a-real-password";
+
+        using var rejected = await client.PostAsync("/ingresar", Form(await Token(client, "/ingresar"),
+            ("Email", email), ("Password", password)));
+        var html = await rejected.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
+        Assert.Contains("El correo o la contraseña no son correctos.", WebUtility.HtmlDecode(html), StringComparison.Ordinal);
+        Assert.Contains($"value=\"{email}\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(password, html, StringComparison.Ordinal);
+        using var css = await client.GetAsync("/css/portal-design.css");
+        Assert.Equal(HttpStatusCode.OK, css.StatusCode);
+        Assert.Equal("text/css", css.Content.Headers.ContentType?.MediaType);
+        Assert.Contains(".nr-auth-panel", await css.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Contains("data-password-toggle", await client.GetStringAsync("/js/site.js"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RecoveryConfirmationIsGenericAndReturnsToLogin()
+    {
+        using var factory = new Factory(new Api());
+        using var client = Client(factory);
+        const string email = "not-enumerated@example.test";
+
+        using var sent = await client.PostAsync("/recuperar-contrasena", Form(await Token(client, "/recuperar-contrasena"),
+            ("Email", email)));
+        var html = await sent.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
+        Assert.Contains("Si hay una cuenta asociada, recibirás un enlace para cambiar la contraseña.", WebUtility.HtmlDecode(html), StringComparison.Ordinal);
+        Assert.Contains("href=\"/ingresar\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(email, html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RecoveryApiFailureKeepsEmailAndShowsAnAccessibleRetryMessage()
+    {
+        using var factory = new Factory(new Api { RecoveryFailureStatus = HttpStatusCode.ServiceUnavailable });
+        using var client = Client(factory);
+        const string email = "retry-recovery@example.test";
+
+        using var failed = await client.PostAsync("/recuperar-contrasena", Form(await Token(client, "/recuperar-contrasena"),
+            ("Email", email)));
+        var html = WebUtility.HtmlDecode(await failed.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, failed.StatusCode);
+        Assert.Contains("role=\"alert\"", html, StringComparison.Ordinal);
+        Assert.Contains("No se pudo procesar la solicitud", html, StringComparison.Ordinal);
+        Assert.Contains($"value=\"{email}\"", html, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("El enlace no es válido.")]
+    [InlineData("El enlace venció.")]
+    [InlineData("El enlace ya fue utilizado.")]
+    public async Task InvalidExpiredAndUsedResetLinksShareOneSafeRecoveryState(string apiMessage)
+    {
+        var api = new Api { ResetFailureStatus = HttpStatusCode.BadRequest, ResetFailureMessage = apiMessage };
+        using var factory = new Factory(api);
+        using var client = Client(factory);
+        const string token = "opaque-test-value";
+        using var link = await client.GetAsync($"/restablecer-contrasena?userId={Guid.NewGuid():D}&token={token}");
+        using var post = await client.PostAsync("/restablecer-contrasena", Form(await Token(client, "/restablecer-contrasena"),
+            ("NuevaPassword", "A-long-enough-password-2026!")));
+        var html = WebUtility.HtmlDecode(await post.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, post.StatusCode);
+        Assert.NotNull(api.ResetRequest);
+        Assert.Contains("El enlace no es válido o venció. Solicitá uno nuevo.", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("name=\"NuevaPassword\"", html, StringComparison.Ordinal);
+        Assert.Contains("href=\"/recuperar-contrasena\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(token, html, StringComparison.Ordinal);
+        Assert.Contains(post.Headers.GetValues("Set-Cookie"), value => value.StartsWith("NexoRuta.PasswordRecovery=;", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task PasswordPolicyErrorKeepsResetFormAndRetryAfterApiFailureCanSucceed()
+    {
+        var api = new Api
+        {
+            ResetFailureStatus = HttpStatusCode.BadRequest,
+            ResetFailureMessage = "La contraseña nueva no cumple la política de seguridad. Usá al menos 12 caracteres."
+        };
+        using var factory = new Factory(api);
+        using var client = Client(factory);
+        using var link = await client.GetAsync($"/restablecer-contrasena?userId={Guid.NewGuid():D}&token=opaque-test-value");
+        var csrf = await Token(client, "/restablecer-contrasena");
+        using var rejected = await client.PostAsync("/restablecer-contrasena", Form(csrf, ("NuevaPassword", "too-short")));
+        var rejectedHtml = WebUtility.HtmlDecode(await rejected.Content.ReadAsStringAsync());
+        Assert.Contains("La contraseña nueva no cumple la política de seguridad", rejectedHtml, StringComparison.Ordinal);
+        Assert.Contains("autocomplete=\"new-password\"", rejectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("too-short", rejectedHtml, StringComparison.Ordinal);
+
+        api.ResetFailureStatus = HttpStatusCode.ServiceUnavailable;
+        api.ResetFailureMessage = "Temporary service failure";
+        using var unavailable = await client.PostAsync("/restablecer-contrasena", Form(await Token(client, "/restablecer-contrasena"),
+            ("NuevaPassword", "A-long-enough-password-2026!")));
+        var unavailableHtml = WebUtility.HtmlDecode(await unavailable.Content.ReadAsStringAsync());
+        Assert.Contains("No se pudo guardar la contraseña. Intentá nuevamente.", unavailableHtml, StringComparison.Ordinal);
+        Assert.Contains("name=\"NuevaPassword\"", unavailableHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("A-long-enough-password-2026!", unavailableHtml, StringComparison.Ordinal);
+
+        api.ResetFailureStatus = null;
+        using var saved = await client.PostAsync("/restablecer-contrasena", Form(await Token(client, "/restablecer-contrasena"),
+            ("NuevaPassword", "A-long-enough-password-2026!")));
+        Assert.Contains("La contraseña se guardó", WebUtility.HtmlDecode(await saved.Content.ReadAsStringAsync()), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -282,6 +401,10 @@ public sealed class AltaPropiaPagesTests
         public string? CreatedPath { get; private set; }
         public JsonElement? Creation { get; private set; }
         public JsonElement? ResetRequest { get; private set; }
+        public HttpStatusCode? LoginFailureStatus { get; init; }
+        public HttpStatusCode? RecoveryFailureStatus { get; init; }
+        public HttpStatusCode? ResetFailureStatus { get; set; }
+        public string? ResetFailureMessage { get; set; } = "Controlled reset failure";
         public string? CreationToken { get; private set; }
         public HttpStatusCode? RegistrationFailure { get; init; }
         public string? TypeOverride { get; init; }
@@ -296,12 +419,26 @@ public sealed class AltaPropiaPagesTests
                 if (RegistrationFailure is not null) return Json(RegistrationFailure.Value, new { message = "Controlled registration error" });
                 return Json(HttpStatusCode.Created, new { UsuarioId = Guid.NewGuid(), Email = "person@example.test" });
             }
-            if (path == "/api/auth/login") return Json(HttpStatusCode.OK, new { AccessToken = "identity-jwt", TokenType = "Bearer", ExpiresAtUtc = DateTime.UtcNow.AddMinutes(15) });
+            if (path == "/api/auth/login")
+            {
+                if (LoginFailureStatus is { } loginFailure) return Json(loginFailure, new { message = "Controlled login failure" });
+                return Json(HttpStatusCode.OK, new { AccessToken = "identity-jwt", TokenType = "Bearer", ExpiresAtUtc = DateTime.UtcNow.AddMinutes(15) });
+            }
+            if (path == "/api/auth/password-recovery/request")
+            {
+                if (RecoveryFailureStatus is { } recoveryFailure) return Json(recoveryFailure, new { message = "Controlled recovery failure" });
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
             if (path == "/api/auth/password-recovery/reset")
             {
                 ResetRequest = await request.Content!.ReadFromJsonAsync<JsonElement>(ct);
+                if (ResetFailureStatus is { } resetFailure) return Json(resetFailure, new { message = ResetFailureMessage });
                 return new HttpResponseMessage(HttpStatusCode.NoContent);
             }
+            if (path == "/api/usuarios/actual/permisos")
+                return Json(HttpStatusCode.OK, Member ? new[] { "envios.crear", "envios.consultar" } : Array.Empty<string>());
+            if (path == "/api/operadores" || path == "/api/envios")
+                return Json(HttpStatusCode.OK, Array.Empty<object>());
             if (path == "/api/usuarios/actual") return Json(HttpStatusCode.OK, new {
                 UsuarioId = Guid.NewGuid(), AccesoId = Member ? Guid.NewGuid() : (Guid?)null,
                 UsuarioEmail = "person@example.test", Tipo = TypeOverride ?? (Member ? "Comercio" : "SinOrganizacion")
