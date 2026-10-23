@@ -57,6 +57,10 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var denied = await client.GetAsync("/zonas/crear");
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
         Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+
+        using var deniedCatalogRetry = await client.GetAsync("/zonas/crear?handler=Catalogo");
+        Assert.Equal(HttpStatusCode.Redirect, deniedCatalogRetry.StatusCode);
+        Assert.StartsWith("/acceso-denegado", deniedCatalogRetry.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -828,9 +832,11 @@ public sealed partial class BackofficeSessionAndPagesTests
     }
 
     [Fact]
-    public async Task ZoneCreateWithCatalogPostsGeoJsonObjectThenRedirectsToInactiveZone()
+    public async Task ZoneCreateDrawsWithoutDatabaseCatalogAndPostsGeoJsonObject()
     {
-        var api = new FakeApi { EmptyDepartmentCatalog = false };
+        var api = new FakeApi { EmptyDepartmentCatalog = true,
+            DepartmentCatalogStatusOverride = HttpStatusCode.ServiceUnavailable,
+            TerritoryStatusOverride = HttpStatusCode.ServiceUnavailable };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
         using var factory = new BackofficeFactory(api, mapboxConfigured: true);
         using var client = Client(factory);
@@ -839,10 +845,14 @@ public sealed partial class BackofficeSessionAndPagesTests
         var token = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
         using var page = await client.GetAsync("/zonas/crear");
         var html = await page.Content.ReadAsStringAsync();
-        Assert.Contains("Artigas (01)", html);
         Assert.Contains("Dibujo propio en el mapa", html);
+        Assert.Contains("data-department-asset-url=\"/data/departamentos-uruguay.geojson\"", html);
+        Assert.DoesNotContain("data-catalog-url=", html);
+        Assert.DoesNotContain("data-territory-url=", html);
         Assert.Contains("mapbox-gl-js/v3.33.0/mapbox-gl.js", html);
         Assert.Contains("plugins/mapbox-gl-draw/v1.5.1/mapbox-gl-draw.js", html);
+        Assert.DoesNotContain(api.Calls, call => call.Path == "/api/configuracion/zonas/departamentos"
+            || call.Path == "/api/configuracion/zonas/departamentos/territorio");
 
         const string geometry = "{\"type\":\"Polygon\",\"coordinates\":[[[-56,-34],[-55,-34],[-55,-33],[-56,-34]]]}";
         using var created = await client.PostAsync("/zonas/crear", Form(token,
@@ -860,7 +870,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     }
 
     [Fact]
-    public async Task ZoneCreateExplainsAnEmptyCatalogSeparatelyFromMapboxConfiguration()
+    public async Task ZoneCreateUsesStaticDepartmentAssetInsteadOfTerritorialApi()
     {
         var api = new FakeApi { EmptyDepartmentCatalog = true };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
@@ -870,29 +880,75 @@ public sealed partial class BackofficeSessionAndPagesTests
 
         using var page = await client.GetAsync("/zonas/crear");
         var html = await page.Content.ReadAsStringAsync();
+        using var scriptResponse = await client.GetAsync("/js/zonas-cobertura.js");
+        Assert.Equal(HttpStatusCode.OK, scriptResponse.StatusCode);
+        var script = await scriptResponse.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
-        Assert.Contains("Las referencias departamentales todavía no están cargadas", html);
         Assert.DoesNotContain("falta configurar un token público de Mapbox", html);
-        Assert.Contains("data-territory-url=", html);
+        Assert.Contains("data-department-asset-url=\"/data/departamentos-uruguay.geojson\"", html);
+        Assert.Contains("id=\"retry-department-reference\"", html);
+        Assert.DoesNotContain("data-catalog-url=", html);
+        Assert.DoesNotContain("data-territory-url=", html);
+        Assert.Contains("mode === \"create\" || (geometryValue && safelyEditable(geometryValue))", script);
+        Assert.Contains("enableDraw(true);", script);
+        Assert.DoesNotContain(api.Calls, call => call.Path.Contains("/api/configuracion/zonas/departamentos", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task ZoneCreateReportsCatalogTransportFailureInsteadOfCallingItEmpty()
+    public async Task ZoneCreateDepartmentCopyUsesOfficialCodeWithoutLoadingApiCatalog()
     {
-        var api = new FakeApi { DepartmentCatalogStatusOverride = HttpStatusCode.ServiceUnavailable };
+        var api = new FakeApi { EmptyDepartmentCatalog = true };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
         using var factory = new BackofficeFactory(api, mapboxConfigured: true);
         using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
         using var page = await client.GetAsync("/zonas/crear");
-        var html = await page.Content.ReadAsStringAsync();
-
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
-        Assert.Contains("No se pudo consultar el catálogo departamental. Revisá la disponibilidad de la API", html);
-        Assert.DoesNotContain("Las referencias departamentales todavía no están cargadas", html);
-        Assert.DoesNotContain("falta configurar un token público de Mapbox", html);
+        Assert.Contains("id=\"retry-department-reference\"", await page.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(api.Calls, call => call.Path.Contains("/api/configuracion/zonas/departamentos", StringComparison.Ordinal));
+
+        var token = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
+        using var created = await client.PostAsync("/zonas/crear", Form(token,
+            ("Nombre", "Zona copiada"), ("Fuente", "Departamento"), ("CodigoDepartamento", "UY-MO")));
+        Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+        var request = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path == "/api/configuracion/zonas");
+        Assert.Equal("UY-MO", request.Body.GetProperty("codigoDepartamento").GetString());
+        Assert.Equal(JsonValueKind.Null, request.Body.GetProperty("geometria").ValueKind);
+    }
+
+    [Fact]
+    public async Task ZoneCreateRetainsTheExistingPermissionBoundary()
+    {
+        var api = new FakeApi();
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var denied = await client.GetAsync("/zonas/crear");
+        Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
+        Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ZoneCreateSubmitsOwnGeometryWhenTerritorialApiIsUnavailable()
+    {
+        var api = new FakeApi { EmptyDepartmentCatalog = true };
+        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+        using var factory = new BackofficeFactory(api, mapboxConfigured: true);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var antiforgery = await GetAntiforgeryTokenAsync(client, "/zonas/crear");
+        const string geometry = "{\"type\":\"Polygon\",\"coordinates\":[[[-56,-34],[-55,-34],[-55,-33],[-56,-34]]]}";
+
+        using var response = await client.PostAsync("/zonas/crear", Form(antiforgery,
+            ("Nombre", "Zona que se conserva"), ("Fuente", "Dibujo"), ("GeometriaJson", geometry)));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var request = Assert.Single(api.ZonePayloads, x => x.Method == HttpMethod.Post && x.Path == "/api/configuracion/zonas");
+        Assert.Equal("Zona que se conserva", request.Body.GetProperty("nombre").GetString());
+        Assert.Equal("Polygon", request.Body.GetProperty("geometria").GetProperty("type").GetString());
+        Assert.DoesNotContain(api.Calls, call => call.Path.Contains("/api/configuracion/zonas/departamentos", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -2363,8 +2419,9 @@ public sealed partial class BackofficeSessionAndPagesTests
         public bool OrganizationApiUnavailable { get; set; }
         public bool CancellationRequestPending { get; set; }
         public string OrganizationState { get; set; } = "Activa";
-        public bool EmptyDepartmentCatalog { get; init; } = true;
+        public bool EmptyDepartmentCatalog { get; set; } = true;
         public HttpStatusCode? DepartmentCatalogStatusOverride { get; init; }
+        public HttpStatusCode? TerritoryStatusOverride { get; init; }
         public long ZoneVersion { get; init; } = 4;
         public bool ZoneHasActiveSlot { get; init; } = true;
         public HttpStatusCode? ZoneListStatusOverride { get; init; }
@@ -2710,6 +2767,17 @@ public sealed partial class BackofficeSessionAndPagesTests
                 {
                     new { codigo = "01", versionFuente = "test-v1", nombre = "Artigas",
                         urlFuente = "https://example.test", atribucion = "test", licencia = "test", importadaUtc = DateTimeOffset.UtcNow }
+                });
+            }
+            if (path == "/api/configuracion/zonas/departamentos/territorio" && request.Method == HttpMethod.Get)
+            {
+                if (TerritoryStatusOverride is { } territoryStatus)
+                    return Json(territoryStatus, new { message = "territory unavailable" });
+                return Json(HttpStatusCode.OK, new
+                {
+                    codigoPais = "UY", versionFuente = "test-v1",
+                    geometria = new { type = "MultiPolygon", coordinates = Array.Empty<object>() },
+                    limites = new { oeste = -58d, sur = -35d, este = -53d, norte = -30d }
                 });
             }
             if (path == "/api/configuracion/zonas" && request.Method == HttpMethod.Get)
