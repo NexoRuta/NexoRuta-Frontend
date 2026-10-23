@@ -13,42 +13,68 @@ public sealed class ConfiguracionRepartoModel(ConfiguracionRepartoApiClient api)
     [BindProperty] public ConfiguracionRepartoResponse Politica { get; set; } = new();
     [BindProperty] public VehiculoResponse Vehiculo { get; set; } = new();
     public IReadOnlyList<VehiculoResponse> Vehiculos { get; private set; } = [];
+    public bool CargaCompleta { get; private set; }
+    public bool MostrarPoliticaEnviada { get; private set; }
+    public bool MostrarVehiculoEnviado { get; private set; }
+    public bool GuardadoBloqueadoPorCarga { get; private set; }
     public string? Error { get; private set; }
     public string? Confirmacion { get; private set; }
     public Task<IActionResult> OnGetAsync() => CargarAsync(true);
+    public Task<IActionResult> OnGetReintentarAsync() => CargarAsync(true);
     public async Task<IActionResult> OnPostPoliticaAsync()
     {
+        MostrarPoliticaEnviada = true;
+        GuardadoBloqueadoPorCarga = false;
         foreach (var key in ModelState.Keys.Where(x => x.StartsWith("Vehiculo.", StringComparison.Ordinal)).ToArray()) ModelState.Remove(key);
         if (!ModelState.IsValid) Error = "Revisá los valores de la configuración.";
         else try
         {
+            var carga = await CargarAsync(false);
+            if (carga is not PageResult || !CargaCompleta)
+            {
+                GuardadoBloqueadoPorCarga = true;
+                return carga;
+            }
             Politica = await api.GuardarAsync(Politica, Token(), HttpContext.RequestAborted);
             Confirmacion = "Configuración guardada. Las rutas ya despachadas conservan su versión anterior.";
+            MostrarPoliticaEnviada = false;
             ModelState.Clear();
         }
         catch (NexoRutaApiException ex) { var redirect = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redirect is not null) return redirect; Error = ex.Message; }
         catch (HttpRequestException) { Error = "No se pudo conectar al servicio."; }
-        return await CargarAsync(false);
+        return Confirmacion is not null ? await CargarAsync(false) : Page();
     }
     public async Task<IActionResult> OnPostVehiculoAsync()
     {
+        MostrarVehiculoEnviado = true;
+        GuardadoBloqueadoPorCarga = false;
         foreach (var key in ModelState.Keys.Where(x => x.StartsWith("Politica.", StringComparison.Ordinal)).ToArray()) ModelState.Remove(key);
         if (!ModelState.IsValid) Error = "Revisá la matrícula y las capacidades del vehículo.";
         else try
         {
+            var carga = await CargarAsync(false);
+            if (carga is not PageResult || !CargaCompleta)
+            {
+                GuardadoBloqueadoPorCarga = true;
+                return carga;
+            }
             await api.GuardarVehiculoAsync(Vehiculo, Token(), HttpContext.RequestAborted);
-            Confirmacion = "Vehículo guardado."; Vehiculo = new(); ModelState.Clear();
+            Confirmacion = "Vehículo guardado."; Vehiculo = new(); MostrarVehiculoEnviado = false; ModelState.Clear();
         }
         catch (NexoRutaApiException ex) { var redirect = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redirect is not null) return redirect; Error = ex.Message; }
         catch (HttpRequestException) { Error = "No se pudo conectar al servicio."; }
-        return await CargarAsync(true);
+        return Confirmacion is not null ? await CargarAsync(true) : Page();
     }
     private async Task<IActionResult> CargarAsync(bool politica)
     {
+        CargaCompleta = false;
         try
         {
-            if (politica) { Politica = await api.ObtenerAsync(Token(), HttpContext.RequestAborted) ?? new(); }
-            Vehiculos = await api.VehiculosAsync(Token(), HttpContext.RequestAborted);
+            var actual = await api.ObtenerAsync(Token(), HttpContext.RequestAborted);
+            var vehiculos = await api.VehiculosAsync(Token(), HttpContext.RequestAborted);
+            if (politica) { Politica = actual ?? new(); Vehiculo = new(); }
+            Vehiculos = vehiculos;
+            CargaCompleta = true;
         }
         catch (NexoRutaApiException ex) { var redirect = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redirect is not null) return redirect; Error = ex.Message; }
         catch (HttpRequestException) { Error = "No se pudo conectar al servicio."; }

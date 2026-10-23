@@ -19,6 +19,7 @@ public sealed class MiOperadorModel(OrganizacionPropiaApiClient apiClient) : Pag
     public string? Error { get; private set; }
     public string? Confirmacion { get; private set; }
     public IReadOnlyList<SolicitudBajaResponse> Solicitudes { get; private set; } = [];
+    public bool MostrarFormularioNombre { get; private set; }
 
     [BindProperty, Required, StringLength(160)]
     public string Nombre { get; set; } = "";
@@ -39,9 +40,7 @@ public sealed class MiOperadorModel(OrganizacionPropiaApiClient apiClient) : Pag
         if (string.IsNullOrWhiteSpace(Nombre) || Nombre.Trim().Length > 160 || Version < 0)
         {
             Error = "El nombre es obligatorio y no puede superar los 160 caracteres.";
-            ModelState.Remove(nameof(Nombre));
-            ModelState.Remove(nameof(Version));
-            await CargarAsync();
+            await CargarAsync(conservarEdicion: true);
             return Page();
         }
 
@@ -51,23 +50,27 @@ public sealed class MiOperadorModel(OrganizacionPropiaApiClient apiClient) : Pag
                 new ActualizarNombreOrganizacionRequest(Nombre.Trim(), Version), Token(), HttpContext.RequestAborted);
             Nombre = Organizacion.Nombre;
             Version = Organizacion.Version;
+            MostrarFormularioNombre = true;
             Confirmacion = "Nombre del operador actualizado.";
         }
         catch (NexoRutaApiException exception)
         {
             var redirect = await ManejarApiExceptionAsync(exception);
             if (redirect is not null) return redirect;
+            MostrarFormularioNombre = exception.StatusCode != HttpStatusCode.Forbidden;
         }
         catch (InvalidOperationException) { return await CerrarSesionExpiradaAsync(); }
-        catch (HttpRequestException) { Error = "No pudimos comunicarnos con la API de organizaciones."; }
+        catch (HttpRequestException)
+        {
+            Error = "No pudimos comunicarnos con la API de organizaciones.";
+            MostrarFormularioNombre = true;
+        }
         catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
         { Error = "La API tardó demasiado en responder. Intentá nuevamente."; }
 
         if (Organizacion is null)
         {
-            ModelState.Remove(nameof(Nombre));
-            ModelState.Remove(nameof(Version));
-            var loaded = await CargarAsync();
+            var loaded = await CargarAsync(conservarEdicion: true);
             if (loaded is not null) return loaded;
         }
 
@@ -107,11 +110,15 @@ public sealed class MiOperadorModel(OrganizacionPropiaApiClient apiClient) : Pag
         return Page();
     }
 
-    private async Task<IActionResult?> CargarAsync()
+    private async Task<IActionResult?> CargarAsync(bool conservarEdicion = false)
     {
+        var nombreEditado = Nombre;
+        var versionEditada = Version;
+        var errorAnterior = Error;
         try
         {
             Organizacion = await apiClient.ObtenerAsync(Token(), HttpContext.RequestAborted);
+            MostrarFormularioNombre = Organizacion.EsPropietario;
             Nombre = Organizacion.Nombre;
             Version = Organizacion.Version;
             Solicitudes = await apiClient.ListarSolicitudesBajaAsync(Token(), HttpContext.RequestAborted);
@@ -124,6 +131,15 @@ public sealed class MiOperadorModel(OrganizacionPropiaApiClient apiClient) : Pag
         catch (HttpRequestException) { Error = "No pudimos consultar el operador porque la API no está disponible."; }
         catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
         { Error = "La API tardó demasiado en responder. Intentá nuevamente."; }
+
+        if (conservarEdicion && errorAnterior is not null)
+            Error = errorAnterior;
+
+        if (conservarEdicion)
+        {
+            Nombre = nombreEditado;
+            Version = versionEditada;
+        }
 
         return null;
     }

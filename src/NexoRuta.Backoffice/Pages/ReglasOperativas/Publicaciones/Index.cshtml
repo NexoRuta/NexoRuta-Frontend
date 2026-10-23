@@ -4,15 +4,14 @@
 @{
     ViewData["Title"] = "Historial de reglas operativas | Backoffice NexoRuta";
 }
-<h1>Historial de reglas operativas</h1>
-<p><a asp-page="/ReglasOperativas/Index">Volver a reglas operativas</a></p>
+<header class="nr-page-header"><div><h1>Historial de reglas operativas</h1></div><a class="btn btn-outline-secondary" asp-page="/ReglasOperativas/Index">Volver a reglas operativas</a></header>
 @if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
 @if (Model.Resultado is { } result)
 {
     @if (result.Items.Count == 0) { <p>Todavía no hay publicaciones históricas.</p> }
     else
     {
-        <div class="table-responsive">
+ <div class="table-responsive" role="region" aria-label="Publicaciones de reglas operativas; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0">
             <table class="table align-middle">
                 <caption>Publicaciones ordenadas de la más reciente a la más antigua.</caption>
                 <thead><tr><th scope="col">Publicación</th><th scope="col">Fecha</th><th scope="col">Estado</th><th scope="col">Acción</th></tr></thead>

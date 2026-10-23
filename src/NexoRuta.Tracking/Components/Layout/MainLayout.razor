@@ -1,23 +1,20 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
+<div class="nr-app-shell nr-tracking-shell">
+    <a class="nr-skip-link" href="#main-content">Saltar al contenido principal</a>
+    <header class="nr-topbar">
+        <a class="nr-brand" href="/" aria-label="NexoRuta, inicio">
+            <span class="nr-brand-mark" aria-hidden="true">N</span>
+            <span>NexoRuta <small>Seguimiento de envíos</small></span>
+        </a>
+    </header>
+    <main class="nr-tracking-content" id="main-content" tabindex="-1">
+        @Body
     </main>
 </div>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+<div id="blazor-error-ui" data-nosnippet role="alert">
+    <span>Ocurrió un error al procesar el seguimiento.</span>
+    <a href="." class="reload">Recargar</a>
+    <button type="button" class="dismiss" aria-label="Cerrar aviso">×</button>
 </div>

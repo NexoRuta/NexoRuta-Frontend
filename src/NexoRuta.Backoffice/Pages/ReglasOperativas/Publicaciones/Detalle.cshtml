@@ -5,8 +5,7 @@
 @{
     ViewData["Title"] = "Detalle de publicación | Backoffice NexoRuta";
 }
-<h1>Reglas publicadas</h1>
-<p><a asp-page="/ReglasOperativas/Publicaciones/Index">Volver al historial</a></p>
+<header class="nr-page-header"><div><h1>Reglas publicadas</h1></div><a class="btn btn-outline-secondary" asp-page="/ReglasOperativas/Publicaciones/Index">Volver al historial</a></header>
 @if (Model.Notice is not null) { <p class="alert alert-success" role="status">@Model.Notice</p> }
 @if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
 @if (Model.Publicacion is { } publication)

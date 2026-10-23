@@ -8,8 +8,7 @@
 }
 
 <link rel="stylesheet" href="~/css/tarifas.css" asp-append-version="true" />
-<h1>Publicación de tarifas</h1>
-<p><a asp-page="/Tarifas/Publicaciones/Index">Volver al historial</a></p>
+<header class="nr-page-header"><div><h1>Publicación de tarifas</h1></div><a class="btn btn-outline-secondary" asp-page="/Tarifas/Publicaciones/Index">Volver al historial</a></header>
 @if (Model.Notice is not null) { <p class="alert alert-success" role="status">@Model.Notice</p> }
 @if (Model.Error is not null) { <p class="alert alert-warning" role="alert">@Model.Error</p> }
 

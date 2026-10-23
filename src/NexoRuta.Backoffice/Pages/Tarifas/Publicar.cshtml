@@ -7,8 +7,7 @@
 }
 
 <link rel="stylesheet" href="~/css/tarifas.css" asp-append-version="true" />
-<h1>Revisar y publicar tarifas</h1>
-<p><a asp-page="/Tarifas/Borrador">Volver al borrador</a></p>
+<header class="nr-page-header"><div><h1>Revisar y publicar tarifas</h1></div><a class="btn btn-outline-secondary" asp-page="/Tarifas/Borrador">Volver al borrador</a></header>
 @if (Model.Error is not null)
 {
     <div class="alert @(Model.Conflict ? "alert-warning" : "alert-danger")" role="alert">

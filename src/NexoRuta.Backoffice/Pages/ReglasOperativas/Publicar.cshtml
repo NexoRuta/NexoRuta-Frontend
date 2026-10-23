@@ -5,8 +5,7 @@
 @{
     ViewData["Title"] = "Publicar reglas operativas | Backoffice NexoRuta";
 }
-<h1>Revisar y publicar reglas</h1>
-<p><a asp-page="/ReglasOperativas/Borrador">Volver al borrador</a></p>
+<header class="nr-page-header"><div><h1>Revisar y publicar reglas</h1></div><a class="btn btn-outline-secondary" asp-page="/ReglasOperativas/Borrador">Volver al borrador</a></header>
 @if (Model.Error is not null)
 {
     <div class="alert @(Model.Conflict ? "alert-warning" : "alert-danger")" role="alert">

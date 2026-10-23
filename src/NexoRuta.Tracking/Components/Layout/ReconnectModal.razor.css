@@ -22,9 +22,12 @@
 
 #components-reconnect-modal {
     background-color: white;
-    width: 20rem;
+    box-sizing: border-box;
+    width: min(20rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
     margin: 20vh auto;
     padding: 2rem;
+    overflow-y: auto;
     border: 0;
     border-radius: 0.5rem;
     box-shadow: 0 3px 6px 2px rgba(0, 0, 0, 0.3);
@@ -81,11 +84,15 @@
     flex-direction: column;
     align-items: center;
     gap: 1rem;
+    min-width: 0;
 }
 
 #components-reconnect-modal p {
     margin: 0;
+    max-width: 100%;
+    min-width: 0;
     text-align: center;
+    overflow-wrap: anywhere;
 }
 
 #components-reconnect-modal button {

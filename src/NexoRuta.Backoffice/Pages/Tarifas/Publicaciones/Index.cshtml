@@ -5,9 +5,7 @@
     ViewData["Title"] = "Historial de tarifas | Backoffice NexoRuta";
 }
 
-<h1>Historial de publicaciones</h1>
-<p>Las publicaciones son de solo lectura. El número publicado identifica el cuadro histórico; no es una versión de concurrencia.</p>
-<p><a asp-page="/Tarifas/Index">Volver al tarifario</a></p>
+<header class="nr-page-header"><div><h1>Historial de publicaciones</h1><p>Las publicaciones son de solo lectura. El número publicado identifica el cuadro histórico; no es una versión de concurrencia.</p></div><a class="btn btn-outline-secondary" asp-page="/Tarifas/Index">Volver al tarifario</a></header>
 
 @if (Model.Error is not null)
 {
@@ -23,7 +21,7 @@ else if (Model.Resultado.Items.Count == 0)
 }
 else
 {
-    <div class="table-responsive">
+ <div class="table-responsive" role="region" aria-label="Historial de tarifas publicadas; desplazamiento horizontal disponible en pantallas pequeñas" tabindex="0">
         <table class="table align-middle">
             <caption>Publicaciones de tarifas del operador</caption>
             <thead><tr><th scope="col">Número</th><th scope="col">Fecha</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead>

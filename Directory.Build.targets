@@ -1,0 +1,11 @@
+<Project>
+  <!-- Keep one editable token source while giving each app a physical wwwroot asset for static-web-asset discovery. -->
+  <Target Name="GenerateSharedPortalDesignAsset"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(MSBuildProjectName)' == 'NexoRuta.Backoffice' Or '$(MSBuildProjectName)' == 'NexoRuta.Commerce' Or '$(MSBuildProjectName)' == 'NexoRuta.Tracking' Or '$(MSBuildProjectName)' == 'NexoRuta.Admin'">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\css" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)shared\portal-design.css"
+          DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\css\portal-design.css"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>
