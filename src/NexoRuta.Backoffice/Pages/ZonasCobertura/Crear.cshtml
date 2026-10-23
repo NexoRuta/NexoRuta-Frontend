@@ -17,7 +17,8 @@
 <p>La zona se crea inactiva. Podés agregar franjas y activarla después.</p>
 @if (Model.Error is not null) { <p class="alert alert-danger" role="alert">@Model.Error</p> }
 
-<form method="post" data-single-submit>
+<form id="zone-form" method="post" data-single-submit data-selected-department="@Model.CodigoDepartamento"
+      data-department-asset-url="@Url.Content("~/data/departamentos-uruguay.geojson")">
     <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
     <div class="mb-3">
         <label asp-for="Nombre" class="form-label">Nombre de la zona</label>
@@ -28,7 +29,7 @@
     <fieldset class="mb-3">
         <legend class="fs-5">Fuente de geometría (elegí una)</legend>
         <div class="form-check">
-            <input asp-for="Fuente" class="form-check-input" type="radio" value="@ZonaCoberturaUi.FuenteDibujo" id="source-drawing" checked="@(Model.Fuente == ZonaCoberturaUi.FuenteDibujo ? "checked" : null)" disabled="@(!Model.MapboxConfigured || !Model.CatalogoConsultado || Model.CatalogoVacio)" />
+            <input asp-for="Fuente" class="form-check-input" type="radio" value="@ZonaCoberturaUi.FuenteDibujo" id="source-drawing" checked="@(Model.Fuente == ZonaCoberturaUi.FuenteDibujo ? "checked" : null)" disabled="@(!Model.MapboxConfigured)" />
             <label class="form-check-label" for="source-drawing">Dibujo propio en el mapa</label>
         </div>
         @if (!Model.MapboxConfigured)
@@ -36,30 +37,21 @@
             <p class="form-text">El dibujo no está disponible porque falta configurar un token público de Mapbox.</p>
         }
         <div class="form-check">
-            <input asp-for="Fuente" class="form-check-input" type="radio" value="@ZonaCoberturaUi.FuenteDepartamento" id="source-department" disabled="@(!Model.CatalogoConsultado || Model.CatalogoVacio)" />
-            <label class="form-check-label" for="source-department">Copiar un departamento del catálogo local</label>
+            <input asp-for="Fuente" class="form-check-input" type="radio" value="@ZonaCoberturaUi.FuenteDepartamento" id="source-department" disabled="disabled" />
+            <label class="form-check-label" for="source-department">Copiar un departamento oficial</label>
         </div>
-        @if (!Model.CatalogoConsultado)
-        {
-            <p class="form-text" role="status">No se pudo consultar el catálogo departamental. Revisá la disponibilidad de la API; no se asumió que el catálogo estuviera vacío.</p>
-        }
-        else if (Model.CatalogoVacio)
-        {
-            <p class="form-text" role="status">Las referencias departamentales todavía no están cargadas. No se puede crear una zona hasta disponer del catálogo territorial local.</p>
-        }
-        else if (!Model.MapboxConfigured) { <p class="form-text" role="status">El catálogo está disponible, pero Mapbox no está configurado para mostrar o dibujar geometrías.</p> }
+        <p id="department-reference-status" class="form-text" role="status" aria-live="polite">Cargando límites departamentales oficiales…</p>
+        <button type="button" id="retry-department-reference" class="btn btn-outline-secondary btn-sm mb-3" hidden>
+            Reintentar límites departamentales
+        </button>
     </fieldset>
 
     <div id="department-source" class="mb-3" hidden>
         <label asp-for="CodigoDepartamento" class="form-label">Departamento</label>
-        <select asp-for="CodigoDepartamento" class="form-select" disabled="@(!Model.CatalogoConsultado || Model.CatalogoVacio)">
+        <select asp-for="CodigoDepartamento" class="form-select" disabled="disabled">
             <option value="">Seleccioná un departamento</option>
-            @foreach (var departamento in Model.Departamentos)
-            {
-                <option value="@departamento.Codigo">@departamento.Nombre (@departamento.Codigo)</option>
-            }
         </select>
-        <p class="form-text">Se copiará la geometría de la referencia local; la zona resultante será propia e independiente.</p>
+        <p class="form-text">Se guardará una copia independiente de la geometría con su código y versión oficial.</p>
     </div>
 
     <div id="drawing-source" class="mb-3">
@@ -69,18 +61,22 @@
     {
         <div id="coverage-map" class="coverage-map" role="application" aria-label="Mapa de Uruguay para seleccionar o dibujar una zona"
              data-mode="create" data-token="@Model.MapboxPublicToken" data-style="@Model.MapboxStyleUrl"
-             data-editable="true" data-geometry="@Model.GeometriaJson" data-geometry-input="GeometriaJson"
-             data-territory-url="@Url.Page("/ZonasCobertura/Crear", "Territorio")"
-             data-department-url="@Url.Page("/ZonasCobertura/Crear", "Departamento")"></div>
-        <p id="map-status" class="form-text" role="status" aria-live="polite">Cargando referencia territorial…</p>
+             data-department-asset-url="@Url.Content("~/data/departamentos-uruguay.geojson")"
+             data-mapbox-script-url="https://api.mapbox.com/mapbox-gl-js/v@(ZonaCoberturaUi.MapboxGlJsVersion)/mapbox-gl.js"
+             data-draw-script-url="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v@(ZonaCoberturaUi.MapboxDrawVersion)/mapbox-gl-draw.js"
+             data-mapbox-style-url="https://api.mapbox.com/mapbox-gl-js/v@(ZonaCoberturaUi.MapboxGlJsVersion)/mapbox-gl.css"
+             data-draw-style-url="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v@(ZonaCoberturaUi.MapboxDrawVersion)/mapbox-gl-draw.css"
+             data-editable="true" data-geometry="@Model.GeometriaJson" data-geometry-input="GeometriaJson"></div>
+        <p id="map-status" class="form-text" role="status" aria-live="polite">Cargando Mapbox…</p>
+        <button type="button" id="retry-map" class="btn btn-outline-secondary btn-sm mb-3" hidden>Reintentar mapa</button>
     }
     else
     {
-        <p class="alert alert-warning" role="status">Mapbox no está configurado. No se puede ver ni dibujar una geometría; el catálogo aún puede ofrecer la creación por departamento.</p>
+        <p class="alert alert-warning" role="status">Mapbox no está configurado. Podés copiar un departamento oficial o dibujar cuando se configure un token público.</p>
     }
     <input asp-for="GeometriaJson" type="hidden" />
 
-    <button type="submit" class="btn btn-primary" disabled="@(!Model.CatalogoConsultado || Model.CatalogoVacio)">Crear zona inactiva</button>
+    <button type="submit" id="create-zone-submit" class="btn btn-primary" disabled>Crear zona inactiva</button>
     <a class="btn btn-outline-secondary" asp-page="/ZonasCobertura/Index">Cancelar</a>
 </form>
 

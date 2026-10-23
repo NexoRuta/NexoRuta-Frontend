@@ -40,6 +40,7 @@ bld/
 # Uncomment if you have tasks that create the project's static files in wwwroot
 #wwwroot/
 /src/NexoRuta.Backoffice/wwwroot/css/portal-design.css
+/src/NexoRuta.Backoffice/wwwroot/data/departamentos-uruguay.geojson
 /src/NexoRuta.Commerce/wwwroot/css/portal-design.css
 /src/NexoRuta.Tracking/wwwroot/css/portal-design.css
 
