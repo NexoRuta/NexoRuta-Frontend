@@ -1,3 +1,4 @@
+using NexoRuta.Hosting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -17,7 +18,10 @@ using NexoRuta.Backoffice.Features.Tarifas;
 using NexoRuta.Backoffice.Features.ZonasCobertura;
 using NexoRuta.Backoffice.Features.ReglasOperativas;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args.FirstOrDefault() == "keys-import" ? [] : args);
+builder.Services.AddSharedDataProtection(builder.Configuration, builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "backoffice");
+builder.Services.AddTrustedProxyHeaders(builder.Configuration);
+builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Backoffice");
 builder.Services.AddHealthChecks();
 
 // Add services to the container.
@@ -98,6 +102,12 @@ builder.Services.AddHttpClient("NexoRuta", client =>
       .AddTypedClient<IdentidadVisualApiClient>();
 
 var app = builder.Build();
+if (args.Length == 2 && args[0] == "keys-import")
+{
+    await SharedDataProtection.ImportAsync(app.Services, args[1]);
+    return;
+}
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
