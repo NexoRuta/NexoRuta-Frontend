@@ -15,4 +15,7 @@
              CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../NexoRuta.Hosting/NexoRuta.Hosting.csproj" />
+  </ItemGroup>
 </Project>

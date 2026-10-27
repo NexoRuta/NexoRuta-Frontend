@@ -1,6 +1,11 @@
+using NexoRuta.Hosting;
 using NexoRuta.Tracking.Components;
 using NexoRuta.ApiClient.Features.Seguimiento.Clients;
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args.FirstOrDefault() == "keys-import" ? [] : args);
+builder.Services.AddHealthChecks();
+builder.Services.AddSharedDataProtection(builder.Configuration, builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "tracking");
+builder.Services.AddTrustedProxyHeaders(builder.Configuration);
+builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Tracking");
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -22,6 +27,12 @@ builder.Logging.AddFilter(
 );
 
 var app = builder.Build();
+if (args.Length == 2 && args[0] == "keys-import")
+{
+    await SharedDataProtection.ImportAsync(app.Services, args[1]);
+    return;
+}
+app.UseForwardedHeaders();
 
 app.Use(async (context, next) =>
 {
@@ -41,6 +52,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
 
+app.MapHealthChecks("/health/ready").AllowAnonymous();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

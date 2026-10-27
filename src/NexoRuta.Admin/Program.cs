@@ -1,3 +1,4 @@
+using NexoRuta.Hosting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +9,10 @@ using NexoRuta.ApiClient.Features.Auth.Clients;
 using NexoRuta.ApiClient.Features.Plataforma.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args.FirstOrDefault() == "keys-import" ? [] : args);
+builder.Services.AddSharedDataProtection(builder.Configuration, "NexoRuta.Admin", "admin");
+builder.Services.AddTrustedProxyHeaders(builder.Configuration);
+builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Admin");
 builder.Services.AddHealthChecks();
 builder.Services.AddDataProtection().SetApplicationName("NexoRuta.Admin");
 builder.Services.AddRazorPages(options =>
@@ -51,6 +55,12 @@ builder.Services.AddHttpClient("NexoRuta", client =>
 }).AddTypedClient<AuthApiClient>().AddTypedClient<UsuariosApiClient>().AddTypedClient<OrganizacionesAdminApiClient>();
 
 var app = builder.Build();
+if (args.Length == 2 && args[0] == "keys-import")
+{
+    await SharedDataProtection.ImportAsync(app.Services, args[1]);
+    return;
+}
+app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");
 app.Use(async (context, next) =>
 {
