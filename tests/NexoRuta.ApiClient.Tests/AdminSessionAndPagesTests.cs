@@ -398,7 +398,7 @@ public sealed class AdminSessionAndPagesTests
     [Fact]
     public async Task NonDevelopmentCookieRequiresHttpsAndRemainsNonpersistent()
     {
-        using var factory = new PortalFactory<ApiPermissionAuthorizationHandler>(new FakeApi(), "Production");
+        using var factory = new PortalFactory<ApiPermissionAuthorizationHandler>(new FakeApi(), "Testing");
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost/") });
         using var response = await Login(client);
         var cookie = response.Headers.GetValues("Set-Cookie").Last(x => x.StartsWith("NexoRuta.Admin=", StringComparison.Ordinal));
