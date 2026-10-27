@@ -13,6 +13,14 @@ public sealed class OperadoresApiClient(HttpClient httpClient)
         return await ApiHttp.SendAsync<OperadorDisponibleResponse[]>(httpClient, request, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<OperadorImportacionResponse>> ListarParaImportacionAsync(
+        string token, CancellationToken cancellationToken = default)
+    {
+        using var request = ApiHttp.WithBearerToken(
+            new HttpRequestMessage(HttpMethod.Get, "api/operadores/importacion-envios"), token);
+        return await ApiHttp.SendAsync<OperadorImportacionResponse[]>(httpClient, request, cancellationToken);
+    }
+
     public Task<IdentidadVisualPublicaResponse> ObtenerIdentidadVisualAsync(
         Guid operatorId, string token, CancellationToken cancellationToken = default)
     {

@@ -14,5 +14,5 @@ public sealed record EnvioResponse(
     long Version,
     IReadOnlyList<BultoResponse> Bultos)
 {
-    public bool AdmiteCancelacion() => Estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado";
+    public bool AdmiteCancelacion() => Estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado" or "EnDevolucion";
 }

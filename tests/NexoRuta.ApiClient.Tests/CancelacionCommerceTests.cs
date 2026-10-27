@@ -24,7 +24,7 @@ public sealed partial class SeguimientoPagesTests
     public async Task ComercioConfirmaCancelacionConMotivoYVersionSinExponerCredenciales(int estadoRespuesta)
     {
         var page = new MisEnvios(); var navigation = new TestNavigation();
-        var estado = "EnTransito"; var llamadas = 0;
+        var estado = "EnDevolucion"; var llamadas = 0;
         using var http = new HttpClient(new Handler(request =>
         {
             Assert.Equal(ApiToken, request.Headers.Authorization!.Parameter);

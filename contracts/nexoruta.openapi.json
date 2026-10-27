@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:5417/"
+      "url": "http://localhost/"
     }
   ],
   "paths": {
@@ -5073,6 +5073,426 @@
         }
       }
     },
+    "/api/envios/{id}/reprogramacion": {
+      "post": {
+        "tags": [
+          "Rutas"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReprogramarEnvioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReprogramarEnvioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReprogramarEnvioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionEnvioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionEnvioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionEnvioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/envios/{id}/iniciar-devolucion": {
+      "post": {
+        "tags": [
+          "Rutas"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IniciarDevolucionEnvioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IniciarDevolucionEnvioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/IniciarDevolucionEnvioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDevolucionEnvioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDevolucionEnvioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionDevolucionEnvioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/envios/{id}/confirmar-extravio": {
+      "post": {
+        "tags": [
+          "Rutas"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarExtravioEnvioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarExtravioEnvioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarExtravioEnvioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmacionExtravioEnvioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmacionExtravioEnvioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmacionExtravioEnvioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rutas/{id}/despacho": {
       "post": {
         "tags": [
@@ -9261,6 +9681,177 @@
         }
       }
     },
+    "/api/envios/importaciones": {
+      "post": {
+        "tags": [
+          "Envios"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Archivo": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  },
+                  "OperadorId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportacionEnviosResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorImportacionEnviosResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorImportacionEnviosResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorImportacionEnviosResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorImportacionEnviosResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorImportacionEnviosResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorImportacionEnviosResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/operadores": {
       "get": {
         "tags": [
@@ -9291,6 +9882,84 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/OperadorDisponible"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/operadores/importacion-envios": {
+      "get": {
+        "tags": [
+          "OperadoresDisponibles"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperadorDisponibleParaImportacion"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperadorDisponibleParaImportacion"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OperadorDisponibleParaImportacion"
                   }
                 }
               }
@@ -11081,6 +11750,76 @@
           }
         }
       },
+      "ConfirmacionExtravioEnvioResponse": {
+        "required": [
+          "envioId",
+          "confirmacionId",
+          "comandoId",
+          "estadoConfirmado",
+          "versionAnterior",
+          "versionNueva",
+          "motivo",
+          "confirmadaEnUtc",
+          "estadoActual",
+          "versionActual",
+          "repetida"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "confirmacionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comandoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estadoConfirmado": {
+            "type": "string"
+          },
+          "versionAnterior": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "versionNueva": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "confirmadaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estadoActual": {
+            "type": "string"
+          },
+          "versionActual": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "repetida": {
+            "type": "boolean"
+          }
+        }
+      },
       "ConfirmarDestinoRequest": {
         "required": [
           "version",
@@ -11118,6 +11857,35 @@
           }
         },
         "additionalProperties": false
+      },
+      "ConfirmarExtravioEnvioRequest": {
+        "required": [
+          "versionEnvio",
+          "comandoId",
+          "motivo"
+        ],
+        "type": "object",
+        "properties": {
+          "versionEnvio": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "comandoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
       },
       "ConsultaCoberturaResponse": {
         "required": [
@@ -11401,6 +12169,67 @@
           }
         },
         "additionalProperties": false
+      },
+      "DecisionDevolucionEnvioResponse": {
+        "required": [
+          "envioId",
+          "decisionId",
+          "comandoId",
+          "estadoDecision",
+          "versionDecision",
+          "motivo",
+          "decididaEnUtc",
+          "estadoActual",
+          "versionActual",
+          "repetida"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comandoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estadoDecision": {
+            "type": "string"
+          },
+          "versionDecision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "decididaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estadoActual": {
+            "type": "string"
+          },
+          "versionActual": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "repetida": {
+            "type": "boolean"
+          }
+        }
       },
       "DepartamentoReferenciaGeometriaResponse": {
         "required": [
@@ -11709,6 +12538,47 @@
           }
         }
       },
+      "ErrorFilaImportacionResponse": {
+        "required": [
+          "codigo",
+          "campo",
+          "mensaje"
+        ],
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string"
+          },
+          "campo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mensaje": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorImportacionEnviosResponse": {
+        "required": [
+          "tipo",
+          "codigo",
+          "mensaje"
+        ],
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string"
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "mensaje": {
+            "type": "string"
+          }
+        }
+      },
       "EstadoOrganizacionResponse": {
         "required": [
           "id",
@@ -11778,6 +12648,58 @@
           }
         },
         "additionalProperties": false
+      },
+      "FilaImportacionEnviosResponse": {
+        "required": [
+          "registro",
+          "referenciaExterna",
+          "estado",
+          "envioId",
+          "mismoQueRegistro",
+          "errores"
+        ],
+        "type": "object",
+        "properties": {
+          "registro": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "referenciaExterna": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "estado": {
+            "type": "string"
+          },
+          "envioId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "mismoQueRegistro": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "errores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErrorFilaImportacionResponse"
+            }
+          }
+        }
       },
       "FranjaEntregaCambioResponse": {
         "required": [
@@ -12252,6 +13174,28 @@
         "type": "string",
         "format": "binary"
       },
+      "ImportacionEnviosResponse": {
+        "required": [
+          "estado",
+          "resumen",
+          "filas"
+        ],
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string"
+          },
+          "resumen": {
+            "$ref": "#/components/schemas/ResumenImportacionEnvios"
+          },
+          "filas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilaImportacionEnviosResponse"
+            }
+          }
+        }
+      },
       "IncidenciaCierreDatos": {
         "required": [
           "operacionId",
@@ -12294,6 +13238,35 @@
           "recibidaEnUtc": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "IniciarDevolucionEnvioRequest": {
+        "required": [
+          "versionEnvio",
+          "comandoId",
+          "motivo"
+        ],
+        "type": "object",
+        "properties": {
+          "versionEnvio": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "comandoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
           }
         }
       },
@@ -12461,6 +13434,26 @@
           },
           "nombre": {
             "type": "string"
+          }
+        }
+      },
+      "OperadorDisponibleParaImportacion": {
+        "required": [
+          "operadorId",
+          "nombre",
+          "activo"
+        ],
+        "type": "object",
+        "properties": {
+          "operadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "activo": {
+            "type": "boolean"
           }
         }
       },
@@ -12839,7 +13832,9 @@
           "latitud",
           "longitud",
           "bultos",
-          "reglas"
+          "reglas",
+          "intentosFallidos",
+          "proximoIntentoElegibleUtc"
         ],
         "type": "object",
         "properties": {
@@ -12909,6 +13904,21 @@
           },
           "reglas": {
             "$ref": "#/components/schemas/ReglasEnvioResponse"
+          },
+          "intentosFallidos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "proximoIntentoElegibleUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -13199,6 +14209,7 @@
           "politicaDevolucionAlAgotarIntentos",
           "plazoEstandarMinutos",
           "plazoUrgenteMinutos",
+          "plazoValidacionPruebaMinutos",
           "requisitosPrueba",
           "motivos"
         ],
@@ -13258,6 +14269,17 @@
             "format": "int32"
           },
           "plazoUrgenteMinutos": {
+            "maximum": 525600,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "plazoValidacionPruebaMinutos": {
             "maximum": 525600,
             "minimum": 1,
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -13570,6 +14592,68 @@
           }
         }
       },
+      "ReprogramacionEnvioResponse": {
+        "required": [
+          "envioId",
+          "versionEnvio",
+          "intentosFallidos",
+          "maximoIntentos",
+          "proximoIntentoElegibleUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionEnvio": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "intentosFallidos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maximoIntentos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "proximoIntentoElegibleUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "ReprogramarEnvioRequest": {
+        "type": "object",
+        "properties": {
+          "versionEnvio": {
+            "maximum": 9223372036854776000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "ResolverSolicitudBajaRequest": {
         "required": [
           "decision",
@@ -13709,6 +14793,67 @@
             "additionalProperties": {
               "type": "string"
             }
+          }
+        }
+      },
+      "ResumenImportacionEnvios": {
+        "required": [
+          "creados",
+          "existentes",
+          "duplicadosEnArchivo",
+          "conflictos",
+          "invalidos",
+          "noProcesados"
+        ],
+        "type": "object",
+        "properties": {
+          "creados": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "existentes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "duplicadosEnArchivo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "conflictos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "invalidos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "noProcesados": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -14426,6 +15571,10 @@
               "string"
             ],
             "format": "int32"
+          },
+          "puedeGestionarDecisionesOperativasEnvio": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -14554,6 +15703,7 @@
           "politicaDevolucionAlAgotarIntentos",
           "plazoEstandarMinutos",
           "plazoUrgenteMinutos",
+          "plazoValidacionPruebaMinutos",
           "requisitosPrueba",
           "motivos",
           "creadaUtc",
@@ -14623,6 +15773,15 @@
             "format": "int32"
           },
           "plazoUrgenteMinutos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "plazoValidacionPruebaMinutos": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",

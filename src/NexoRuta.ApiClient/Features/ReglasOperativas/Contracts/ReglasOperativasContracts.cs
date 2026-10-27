@@ -35,6 +35,7 @@ public sealed record ReemplazarBorradorReglasOperativasRequest(
     PoliticaDevolucion? PoliticaDevolucionAlAgotarIntentos,
     int? PlazoEstandarMinutos,
     int? PlazoUrgenteMinutos,
+    int? PlazoValidacionPruebaMinutos,
     IReadOnlyList<TipoPruebaEntrega> RequisitosPrueba,
     IReadOnlyList<MotivoNoEntregaRequest> Motivos);
 
@@ -71,6 +72,7 @@ public sealed record VersionReglasOperativasResponse(
     PoliticaDevolucion? PoliticaDevolucionAlAgotarIntentos,
     int? PlazoEstandarMinutos,
     int? PlazoUrgenteMinutos,
+    int? PlazoValidacionPruebaMinutos,
     IReadOnlyList<TipoPruebaEntrega> RequisitosPrueba,
     IReadOnlyList<MotivoNoEntregaResponse> Motivos,
     DateTimeOffset CreadaUtc,

@@ -43,6 +43,50 @@
                     <tr><td>@p.Orden</td><td>@Model.Hora(p.LlegadaEstimadaUtc, ruta.Politica.ZonaHoraria)</td><td>@p.Destinatario<br />@p.Direccion</td>
                         <td>@foreach (var b in p.Bultos) { <div>@b.Codigo · @b.Custodia</div> }</td>
                         <td>@p.Estado @if (!p.Activa) { <div>Fuera de esta ruta: @p.MotivoSuspension</div> }</td></tr>
+                    @if (p.Estado == "NoEntregado")
+                    {
+                        <tr class="table-warning"><td colspan="5">
+                            <strong>Requiere reprogramación a una ruta nueva.</strong>
+                            <span>Intentos fallidos: @p.IntentosFallidos de @p.Reglas.MaximoIntentos.</span>
+                            @if (p.ProximoIntentoElegibleUtc is { } elegible)
+                            {
+                                <span> Próxima tentativa elegible desde @Model.FechaHora(elegible, ruta.Politica.ZonaHoraria) (@ruta.Politica.ZonaHoraria).</span>
+                            }
+                            @if (p.IntentosFallidos >= p.Reglas.MaximoIntentos)
+                            {
+                                <p class="mb-0">No quedan intentos disponibles. No se puede reprogramar ni realizar otra tentativa.</p>
+                                @if (Model.PuedeGestionarDecisionesOperativasEnvio && p.Reglas.PoliticaDevolucionAlAgotarIntentos == "DecisionOperativa")
+                                {
+                                    var motivoId = $"motivo-devolucion-{p.EnvioId}";
+                                    var confirmarId = $"confirmar-devolucion-{p.EnvioId}";
+                                    var comando = Model.DevolucionEnvioId == p.EnvioId && Model.ComandoId != Guid.Empty
+                                        ? Model.ComandoId : Guid.NewGuid();
+                                    <form method="post" asp-page-handler="IniciarDevolucion" data-single-submit class="mt-3">
+                                        <input type="hidden" asp-for="Fecha" />
+                                        <input type="hidden" name="DevolucionEnvioId" value="@p.EnvioId" />
+                                        <input type="hidden" name="VersionEnvio" value="@p.EnvioVersion" />
+                                        <input type="hidden" name="ComandoId" value="@comando" />
+                                        <label for="@motivoId">Motivo para iniciar la devolución</label>
+                                        <textarea id="@motivoId" name="MotivoDevolucion" class="form-control mb-2" maxlength="500" required>@(Model.DevolucionEnvioId == p.EnvioId ? Model.MotivoDevolucion : "")</textarea>
+                                        <div class="form-check mb-3">
+                                            <input id="@confirmarId" name="ConfirmarDevolucion" value="true" type="checkbox" class="form-check-input" required checked="@(Model.DevolucionEnvioId == p.EnvioId && Model.ConfirmarDevolucion ? "checked" : null)" />
+                                            <label class="form-check-label" for="@confirmarId">Confirmo iniciar la devolución; esto no confirma que el bulto haya llegado al depósito.</label>
+                                        </div>
+                                        <button class="btn btn-primary" type="submit">Iniciar devolución</button>
+                                    </form>
+                                }
+                            }
+                            else
+                            {
+                                <form method="post" asp-page-handler="Reprogramar" data-single-submit class="mt-2">
+                                    <input type="hidden" asp-for="Fecha" />
+                                    <input type="hidden" name="envioId" value="@p.EnvioId" />
+                                    <input type="hidden" name="versionEnvio" value="@p.EnvioVersion" />
+                                    <button class="btn btn-outline-primary" type="submit">Reprogramar para una ruta nueva</button>
+                                </form>
+                            }
+                        </td></tr>
+                    }
                 }</tbody>
             </table></div>
             @if (ruta.Estado == "Planificada" && ruta.Paradas.Count > 0)
@@ -78,6 +122,53 @@
             <button class="btn btn-primary">Guardar planificación</button>
         </form>
     </details>
+    @if (Model.PuedeGestionarDecisionesOperativasEnvio)
+    {
+        <h2>Confirmar extravío</h2>
+        <p>La confirmación cambia el estado comercial a Extraviado. No registra entrega, rendición, recepción ni transferencia física; la custodia conserva solo el último registro conocido.</p>
+        @foreach (var envio in Model.Envios.Where(e => e.Id == Model.ExtravioEnvioId
+            && e.Estado is not ("EnDeposito" or "AsignadoRuta" or "EnTransito" or "EnDevolucion")
+            && !(e.Estado == "Extraviado" && Model.ComandoId != Guid.Empty)))
+        {
+            <div class="alert alert-warning" role="status">
+                <h3 class="h6">Estado actualizado: @envio.Estado</h3>
+                <p class="mb-1">No se puede confirmar el extravío desde este estado. No se enviará otra confirmación.</p>
+                @if (!string.IsNullOrWhiteSpace(Model.MotivoExtravio))
+                {
+                    <p class="mb-0">Motivo conservado: @Model.MotivoExtravio</p>
+                }
+            </div>
+        }
+        @foreach (var envio in Model.Envios.Where(e => e.Estado is "EnDeposito" or "AsignadoRuta" or "EnTransito" or "EnDevolucion"
+            || (e.Id == Model.ExtravioEnvioId && e.Estado == "Extraviado" && Model.ComandoId != Guid.Empty)))
+        {
+            var motivoId = $"motivo-extravio-{envio.Id}";
+            var confirmarId = $"confirmar-extravio-{envio.Id}";
+            var comando = Model.ExtravioEnvioId == envio.Id && Model.ComandoId != Guid.Empty
+                ? Model.ComandoId : Guid.NewGuid();
+            var version = Model.ExtravioEnvioId == envio.Id && Model.ComandoId != Guid.Empty
+                ? Model.VersionEnvio : envio.Version;
+            <form method="post" asp-page-handler="ConfirmarExtravio" data-single-submit class="card card-body mb-2">
+                <input type="hidden" asp-for="Fecha" />
+                <input type="hidden" name="ExtravioEnvioId" value="@envio.Id" />
+                <input type="hidden" name="VersionEnvio" value="@version" />
+                <input type="hidden" name="ComandoId" value="@comando" />
+                <h3 class="h6">@envio.DestinatarioNombre · @envio.Estado</h3>
+                <p class="mb-2">@envio.Direccion · @string.Join(", ", envio.Bultos.Select(b => b.Codigo))</p>
+                @if (envio.Estado == "Extraviado")
+                {
+                    <p class="text-warning-emphasis">La solicitud pudo haberse confirmado antes de perderse la respuesta. Reintentá con el mismo comando para recuperar el resultado; no se creará otra confirmación.</p>
+                }
+                <label for="@motivoId">Motivo de extravío</label>
+                <textarea id="@motivoId" name="MotivoExtravio" class="form-control mb-2" maxlength="500" required>@(Model.ExtravioEnvioId == envio.Id ? Model.MotivoExtravio : "")</textarea>
+                <div class="form-check mb-3">
+                    <input id="@confirmarId" name="ConfirmarExtravio" value="true" type="checkbox" class="form-check-input" required checked="@(Model.ExtravioEnvioId == envio.Id && Model.ConfirmarExtravio ? "checked" : null)" />
+                    <label class="form-check-label" for="@confirmarId">Confirmo que el envío pasará a Extraviado; esto no acredita dónde está físicamente el bulto.</label>
+                </div>
+                <button class="btn btn-outline-danger align-self-start" type="submit">@(envio.Estado == "Extraviado" ? "Reintentar la misma confirmación" : "Confirmar extravío")</button>
+            </form>
+        }
+    }
     <h2>Recepción en depósito</h2>
     <p>Confirmá únicamente cuando hayas recibido todos los bultos del envío. Requiere rendición declarada o una incidencia registrada al cerrar la jornada; recibir nunca elimina esa incidencia.</p>
     @foreach (var envio in Model.Envios.Where(e => e.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion"
@@ -94,7 +185,7 @@
     @if (!Model.Rutas.Any(r => r.Estado == "Planificada")) { <p>No hay rutas planificadas en esta fecha para recibir una reasignación.</p> }
     else
     {
-        @foreach (var envio in Model.Envios.Where(e => e.Estado is "AsignadoRuta" or "EnTransito" or "NoEntregado"))
+        @foreach (var envio in Model.Envios.Where(e => e.Estado is "AsignadoRuta" or "EnTransito"))
         {
             <details class="card card-body mb-2"><summary>@envio.DestinatarioNombre · @envio.Direccion · @envio.Estado</summary>
             <form method="post" asp-page-handler="Reasignar" class="mt-3" data-single-submit>

@@ -124,6 +124,221 @@ public sealed partial class BackofficeSessionAndPagesTests
     }
 
     [Fact]
+    public async Task RutasSoloOfreceReprogramacionExplicitaConIntentosDisponibles()
+    {
+        var api = new FakeApi { IncludeReparto = true, IncludeNoEntregado = true };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+
+        using var consulta = await client.GetAsync("/rutas?fecha=2026-10-20");
+        var html = WebUtility.HtmlDecode(await consulta.Content.ReadAsStringAsync());
+        Assert.Contains("Requiere reprogramación a una ruta nueva", html);
+        Assert.Contains("Intentos fallidos: 1 de 3", html);
+        Assert.Contains("Próxima tentativa elegible desde 2026-10-20 15:30", html);
+        Assert.Contains("data-single-submit", html);
+        Assert.DoesNotContain("Postergar a esa ruta", html);
+
+        using var response = await client.PostAsync("/rutas?handler=Reprogramar", Form(token,
+            ("Fecha", "2026-10-20"), ("envioId", EnvioPrueba.ToString()), ("versionEnvio", "8")));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var request = Assert.Single(api.RepartoPayloads, x => x.Path == $"/api/envios/{EnvioPrueba}/reprogramacion");
+        Assert.Equal("jwt-user", request.Token);
+        Assert.Equal(8, request.Body.GetProperty("versionEnvio").GetInt64());
+    }
+
+    [Fact]
+    public async Task RutasNoOfreceReprogramacionCuandoLosIntentosEstanAgotados()
+    {
+        var api = new FakeApi { IncludeReparto = true, IncludeNoEntregado = true, IntentosAgotados = true };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var consulta = await client.GetAsync("/rutas?fecha=2026-10-20");
+        var html = WebUtility.HtmlDecode(await consulta.Content.ReadAsStringAsync());
+        Assert.Contains("No quedan intentos disponibles", html);
+        Assert.DoesNotContain("Reprogramar para una ruta nueva", html);
+        Assert.DoesNotContain(api.RepartoPayloads, x => x.Path.EndsWith("/reprogramacion", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task RutasIniciaDecisionOperativaConMotivoConfirmadoYPermiteReintentoSeguro()
+    {
+        var api = new FakeApi { IncludeReparto = true, IncludeNoEntregado = true, IntentosAgotados = true,
+            CanManageOperationalDecisions = true,
+            DevolucionTransportFailureOnce = true };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+        using var initial = await client.GetAsync("/rutas?fecha=2026-10-20");
+        var initialHtml = WebUtility.HtmlDecode(await initial.Content.ReadAsStringAsync());
+        Assert.Contains("No se puede reprogramar ni realizar otra tentativa", initialHtml);
+        Assert.Contains("Iniciar devolución", initialHtml);
+        Assert.Contains("Confirmo iniciar la devolución", initialHtml);
+        Assert.Contains("no confirma que el bulto haya llegado al depósito", initialHtml);
+        Assert.Contains("data-single-submit", initialHtml);
+
+        var commandId = Guid.Parse("00000000-0000-0000-0000-000000000710");
+        var values = Form(token, ("Fecha", "2026-10-20"), ("DevolucionEnvioId", EnvioPrueba.ToString()),
+            ("VersionEnvio", "8"), ("ComandoId", commandId.ToString()), ("MotivoDevolucion", " Motivo confirmado "),
+            ("ConfirmarDevolucion", "true"));
+        using var missingConfirmation = await client.PostAsync("/rutas?handler=IniciarDevolucion", Form(token,
+            ("Fecha", "2026-10-20"), ("DevolucionEnvioId", EnvioPrueba.ToString()), ("VersionEnvio", "8"),
+            ("ComandoId", commandId.ToString()), ("MotivoDevolucion", " Motivo confirmado ")));
+        Assert.Equal(HttpStatusCode.OK, missingConfirmation.StatusCode);
+        Assert.DoesNotContain(api.RepartoPayloads, x => x.Path.EndsWith("/iniciar-devolucion", StringComparison.Ordinal));
+
+        using var uncertain = await client.PostAsync("/rutas?handler=IniciarDevolucion", values);
+        Assert.Equal(HttpStatusCode.OK, uncertain.StatusCode);
+        var uncertainHtml = WebUtility.HtmlDecode(await uncertain.Content.ReadAsStringAsync());
+        Assert.Contains("La decisión podría haberse guardado", uncertainHtml);
+        Assert.Contains("value=\"00000000-0000-0000-0000-000000000710\"", uncertainHtml);
+        Assert.Contains("Motivo confirmado", uncertainHtml);
+
+        using var retry = await client.PostAsync("/rutas?handler=IniciarDevolucion", Form(token,
+            ("Fecha", "2026-10-20"), ("DevolucionEnvioId", EnvioPrueba.ToString()), ("VersionEnvio", "8"),
+            ("ComandoId", commandId.ToString()), ("MotivoDevolucion", " Motivo confirmado "), ("ConfirmarDevolucion", "true")));
+        Assert.Equal(HttpStatusCode.Redirect, retry.StatusCode);
+        var requests = api.RepartoPayloads.Where(x => x.Path == $"/api/envios/{EnvioPrueba}/iniciar-devolucion").ToArray();
+        Assert.Equal(2, requests.Length);
+        Assert.All(requests, request =>
+        {
+            Assert.Equal("jwt-user", request.Token);
+            Assert.Equal(commandId, request.Body.GetProperty("comandoId").GetGuid());
+            Assert.Equal(8, request.Body.GetProperty("versionEnvio").GetInt64());
+            Assert.Equal("Motivo confirmado", request.Body.GetProperty("motivo").GetString());
+        });
+    }
+
+    [Fact]
+    public async Task RutasConfirmaExtravioConMotivoYPermiteReintentarMismoComando()
+    {
+        var api = new FakeApi { IncludeReparto = true, CanManageOperationalDecisions = true,
+            ExtravioTransportFailureOnce = true };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+
+        using var initial = await client.GetAsync("/rutas?fecha=2026-10-20");
+        var html = WebUtility.HtmlDecode(await initial.Content.ReadAsStringAsync());
+        Assert.Contains("Confirmar extravío", html);
+        Assert.Contains("esto no acredita dónde está físicamente el bulto", html);
+        Assert.Contains("data-single-submit", html);
+
+        var commandId = Guid.Parse("00000000-0000-0000-0000-000000000720");
+        var values = Form(token, ("Fecha", "2026-10-20"), ("ExtravioEnvioId", EnvioPrueba.ToString()),
+            ("VersionEnvio", "8"), ("ComandoId", commandId.ToString()),
+            ("MotivoExtravio", " Motivo conservado "), ("ConfirmarExtravio", "true"));
+        using var uncertain = await client.PostAsync("/rutas?handler=ConfirmarExtravio", values);
+        Assert.Equal(HttpStatusCode.OK, uncertain.StatusCode);
+        var uncertainHtml = WebUtility.HtmlDecode(await uncertain.Content.ReadAsStringAsync());
+        var uncertainAlert = System.Text.RegularExpressions.Regex.Match(uncertainHtml,
+            "<div[^>]*class=\"[^\"]*alert-danger[^\"]*\"[^>]*>(.*?)</div>",
+            System.Text.RegularExpressions.RegexOptions.Singleline).Groups[1].Value;
+        Assert.True(uncertainAlert.Contains("podría haberse guardado", StringComparison.Ordinal),
+            $"Alert: {uncertainAlert}; API calls: {string.Join(" | ", api.Calls.Select(call => call.Path))}");
+        Assert.Contains(commandId.ToString(), uncertainHtml);
+        Assert.Contains("Motivo conservado", uncertainHtml);
+
+        using var retry = await client.PostAsync("/rutas?handler=ConfirmarExtravio", Form(token,
+            ("Fecha", "2026-10-20"), ("ExtravioEnvioId", EnvioPrueba.ToString()),
+            ("VersionEnvio", "8"), ("ComandoId", commandId.ToString()),
+            ("MotivoExtravio", " Motivo conservado "), ("ConfirmarExtravio", "true")));
+        Assert.Equal(HttpStatusCode.Redirect, retry.StatusCode);
+        var requests = api.RepartoPayloads.Where(x => x.Path == $"/api/envios/{EnvioPrueba}/confirmar-extravio").ToArray();
+        Assert.Equal(2, requests.Length);
+        Assert.All(requests, request =>
+        {
+            Assert.Equal(commandId, request.Body.GetProperty("comandoId").GetGuid());
+            Assert.Equal(8, request.Body.GetProperty("versionEnvio").GetInt64());
+            Assert.Equal("Motivo conservado", request.Body.GetProperty("motivo").GetString());
+        });
+    }
+
+    [Fact]
+    public async Task RutasOcultaConfirmacionDeExtravioSinCapacidadOperativa()
+    {
+        var api = new FakeApi { IncludeReparto = true };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.DoesNotContain("<h2>Confirmar extravío</h2>", html);
+        Assert.DoesNotContain("confirmar-extravio", html);
+    }
+
+    [Fact]
+    public async Task RutasRefrescaVersionTrasConflictoSinReutilizarComandoRechazado()
+    {
+        var api = new FakeApi { IncludeReparto = true, CanManageOperationalDecisions = true,
+            ExtravioConflictOnce = true };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+        var commandId = Guid.Parse("00000000-0000-0000-0000-000000000722");
+
+        using var conflict = await client.PostAsync("/rutas?handler=ConfirmarExtravio", Form(token,
+            ("Fecha", "2026-10-20"), ("ExtravioEnvioId", EnvioPrueba.ToString()),
+            ("VersionEnvio", "7"), ("ComandoId", commandId.ToString()),
+            ("MotivoExtravio", " Motivo preservado "), ("ConfirmarExtravio", "true")));
+
+        Assert.Equal(HttpStatusCode.OK, conflict.StatusCode);
+        var html = WebUtility.HtmlDecode(await conflict.Content.ReadAsStringAsync());
+        Assert.Contains("El envío cambió", html);
+        Assert.Contains("Motivo preservado", html);
+        var refreshedVersion = System.Text.RegularExpressions.Regex.Match(html,
+            @"name=""VersionEnvio"" value=""(\d+)""").Groups[1].Value;
+        var refreshedCommand = System.Text.RegularExpressions.Regex.Match(html,
+            @"name=""ComandoId"" value=""([^""]+)""").Groups[1].Value;
+        Assert.Equal("9", refreshedVersion);
+        Assert.True(Guid.TryParse(refreshedCommand, out var newCommandId));
+        Assert.NotEqual(commandId, newCommandId);
+
+        using var retry = await client.PostAsync("/rutas?handler=ConfirmarExtravio", Form(token,
+            ("Fecha", "2026-10-20"), ("ExtravioEnvioId", EnvioPrueba.ToString()),
+            ("VersionEnvio", refreshedVersion), ("ComandoId", refreshedCommand),
+            ("MotivoExtravio", " Motivo preservado "), ("ConfirmarExtravio", "true")));
+        Assert.Equal(HttpStatusCode.Redirect, retry.StatusCode);
+        var requests = api.RepartoPayloads.Where(x => x.Path == $"/api/envios/{EnvioPrueba}/confirmar-extravio").ToArray();
+        Assert.Equal(2, requests.Length);
+        Assert.Equal(commandId, requests[0].Body.GetProperty("comandoId").GetGuid());
+        Assert.Equal(7, requests[0].Body.GetProperty("versionEnvio").GetInt64());
+        Assert.Equal(newCommandId, requests[1].Body.GetProperty("comandoId").GetGuid());
+        Assert.Equal(9, requests[1].Body.GetProperty("versionEnvio").GetInt64());
+        Assert.All(requests, request => Assert.Equal("Motivo preservado", request.Body.GetProperty("motivo").GetString()));
+    }
+
+    [Fact]
+    public async Task RutasRetiraAccionTrasConflictoCuandoElEstadoActualYaNoLaPermite()
+    {
+        var api = new FakeApi { IncludeReparto = true, CanManageOperationalDecisions = true,
+            ExtravioConflictOnce = true, ExtravioConflictState = "Cancelado" };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+
+        using var conflict = await client.PostAsync("/rutas?handler=ConfirmarExtravio", Form(token,
+            ("Fecha", "2026-10-20"), ("ExtravioEnvioId", EnvioPrueba.ToString()),
+            ("VersionEnvio", "7"), ("ComandoId", Guid.NewGuid().ToString()),
+            ("MotivoExtravio", "Motivo preservado"), ("ConfirmarExtravio", "true")));
+
+        Assert.Equal(HttpStatusCode.OK, conflict.StatusCode);
+        var html = WebUtility.HtmlDecode(await conflict.Content.ReadAsStringAsync());
+        Assert.Contains("Estado actualizado: Cancelado", html);
+        Assert.Contains("Motivo preservado", html);
+        Assert.DoesNotContain("name=\"ExtravioEnvioId\"", html);
+    }
+
+    [Fact]
     public async Task CierreConIncidenciaMuestraHistorialCustodiaYRecepcionSinDecisionSobreLaEntrega()
     {
         var api = new FakeApi { IncludeReparto = true, IncludeIncidenciaCierre = true };
@@ -166,6 +381,14 @@ public sealed partial class BackofficeSessionAndPagesTests
     {
         public bool IncludeReparto { get; init; }
         public bool IncludeIncidenciaCierre { get; init; }
+        public bool IncludeNoEntregado { get; init; }
+        public bool IntentosAgotados { get; init; }
+        public bool DevolucionTransportFailureOnce { get; set; }
+        public bool ExtravioTransportFailureOnce { get; set; }
+        public bool ExtravioConflictOnce { get; set; }
+        public string ExtravioConflictState { get; set; } = "EnDeposito";
+        public string? ShipmentStateOverride { get; set; }
+        public long? ShipmentVersionOverride { get; set; }
         public bool IsCancellationAdmin { get; init; }
         public bool CancellationApplied { get; private set; }
         public System.Collections.Concurrent.ConcurrentQueue<ZonePayloadCall> RepartoPayloads { get; } = new();
@@ -173,10 +396,20 @@ public sealed partial class BackofficeSessionAndPagesTests
         {
             var politica = new { version = 1, zonaHoraria = "America/Montevideo", maximoParadas = 100, maximoIntentos = 3, motivos = new[] { "Ausente" } };
             var bultoId = Guid.Parse("00000000-0000-0000-0000-000000000704");
-            object[] paradas = IncludeIncidenciaCierre ? [new { envioId = EnvioPrueba, orden = 1, activa = false,
-                llegadaEstimadaUtc = DateTimeOffset.Parse("2026-10-20T18:00:00Z"), estado = "EnTransito", envioVersion = 8,
+            var reglasEnvio = new { versionId = Guid.NewGuid(), numeroVersion = 1, maximoIntentos = 3,
+                intervaloEntreIntentosMinutos = 30, politicaDevolucionAlAgotarIntentos = "DecisionOperativa",
+                requiereFirma = false, requiereFoto = false, requiereNombre = true, requiereDocumento = false,
+                motivos = new[] { new { codigo = "AUSENTE", descripcion = "Ausente" } } };
+            object[] paradas = IncludeNoEntregado ? [new { envioId = EnvioPrueba, orden = 1, activa = false,
+                llegadaEstimadaUtc = DateTimeOffset.Parse("2026-10-20T18:00:00Z"), estado = "NoEntregado", envioVersion = 8,
                 destinatario = "Destino de prueba", direccion = "Dirección de prueba", latitud = -34.9, longitud = -56.2,
-                bultos = new[] { new { id = bultoId, codigo = "TEST-FALTANTE", custodia = "Repartidor", version = 2 } } }] : [];
+                bultos = new[] { new { id = bultoId, codigo = "TEST-FALLIDO", pesoGramos = 100m, volumenCm3 = 1m, custodia = "Deposito", version = 2 } },
+                reglas = reglasEnvio, intentosFallidos = IntentosAgotados ? 3 : 1,
+                proximoIntentoElegibleUtc = (DateTimeOffset?)DateTimeOffset.Parse("2026-10-20T18:30:00Z") }]
+                : IncludeIncidenciaCierre ? [new { envioId = EnvioPrueba, orden = 1, activa = false,
+                    llegadaEstimadaUtc = DateTimeOffset.Parse("2026-10-20T18:00:00Z"), estado = "EnTransito", envioVersion = 8,
+                    destinatario = "Destino de prueba", direccion = "Dirección de prueba", latitud = -34.9, longitud = -56.2,
+                    bultos = new[] { new { id = bultoId, codigo = "TEST-FALTANTE", custodia = "Repartidor", version = 2 } } }] : [];
             object[] incidenciasCierre = IncludeIncidenciaCierre ? [new { operacionId = Guid.NewGuid(), envioId = EnvioPrueba,
                 bultoId, codigo = "TEST-FALTANTE", versionBulto = 2, ocurridaEnUtc = DateTimeOffset.UtcNow, recibidaEnUtc = DateTimeOffset.UtcNow }] : [];
             var ruta = new { id = RutaPrueba, jornadaId = Guid.NewGuid(), repartidorAccesoId = TargetAccessId, vehiculoId = VehiculoPrueba,
@@ -187,7 +420,7 @@ public sealed partial class BackofficeSessionAndPagesTests
             if (path == "/api/rutas" && request.Method == HttpMethod.Get) return Json(HttpStatusCode.OK, new[] { ruta });
             if (path == "/api/envios") return Json(HttpStatusCode.OK, new[] { new { id = EnvioPrueba, operadorId = Guid.NewGuid(), comercioId = Guid.NewGuid(),
                 creadoPorUsuarioId = Guid.NewGuid(), usuarioEmail = "comercio@example.test", operadorNombre = "Operador", comercioNombre = "Comercio",
-                destinatarioNombre = "Destino de prueba", direccion = "Dirección de prueba", estado = CancellationApplied ? "Cancelado" : "EnTransito", version = CancellationApplied ? 9 : 8,
+                destinatarioNombre = "Destino de prueba", direccion = "Dirección de prueba", estado = CancellationApplied ? "Cancelado" : ShipmentStateOverride ?? (IncludeNoEntregado ? "NoEntregado" : "EnTransito"), version = ShipmentVersionOverride ?? (CancellationApplied ? 9 : 8),
                 bultos = new[] { new { codigo = "TEST", pesoGramos = 100m, largoCentimetros = 1m, anchoCentimetros = 1m, altoCentimetros = 1m } } } });
             if (request.Method == HttpMethod.Post && path.EndsWith("/cancelacion", StringComparison.Ordinal))
             {
@@ -199,6 +432,47 @@ public sealed partial class BackofficeSessionAndPagesTests
             {
                 RepartoPayloads.Enqueue(new(path, request.Method, token, (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone()));
                 return path.EndsWith("/recepcion", StringComparison.Ordinal) ? new(HttpStatusCode.NoContent) : Json(HttpStatusCode.OK, ruta);
+            }
+            if (request.Method == HttpMethod.Post && path.EndsWith("/reprogramacion", StringComparison.Ordinal))
+            {
+                RepartoPayloads.Enqueue(new(path, request.Method, token, (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone()));
+                return Json(HttpStatusCode.OK, new { envioId = EnvioPrueba, versionEnvio = 9, intentosFallidos = 1,
+                    maximoIntentos = 3, proximoIntentoElegibleUtc = DateTimeOffset.Parse("2026-10-20T18:30:00Z") });
+            }
+            if (request.Method == HttpMethod.Post && path.EndsWith("/iniciar-devolucion", StringComparison.Ordinal))
+            {
+                RepartoPayloads.Enqueue(new(path, request.Method, token, (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone()));
+                if (DevolucionTransportFailureOnce)
+                {
+                    DevolucionTransportFailureOnce = false;
+                    throw new HttpRequestException("Simulated lost response after the server may have committed.");
+                }
+                return Json(HttpStatusCode.OK, new { envioId = EnvioPrueba, decisionId = Guid.NewGuid(), comandoId = Guid.NewGuid(),
+                    estadoDecision = "EnDevolucion", versionDecision = 9, motivo = "Motivo confirmado",
+                    decididaEnUtc = DateTimeOffset.Parse("2026-10-20T18:30:00Z"), estadoActual = "EnDevolucion",
+                    versionActual = 9, repetida = false });
+            }
+            if (request.Method == HttpMethod.Post && path.EndsWith("/confirmar-extravio", StringComparison.Ordinal))
+            {
+                RepartoPayloads.Enqueue(new(path, request.Method, token, (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone()));
+                if (ExtravioConflictOnce)
+                {
+                    ExtravioConflictOnce = false;
+                    ShipmentStateOverride = ExtravioConflictState;
+                    ShipmentVersionOverride = 9;
+                    return Json(HttpStatusCode.Conflict, new { detail = "El envío cambió de versión." });
+                }
+                if (ExtravioTransportFailureOnce)
+                {
+                    ExtravioTransportFailureOnce = false;
+                    throw new HttpRequestException("Simulated lost response after the server may have committed.");
+                }
+                return Json(HttpStatusCode.OK, new { envioId = EnvioPrueba,
+                    confirmacionId = Guid.Parse("00000000-0000-0000-0000-000000000721"),
+                    comandoId = Guid.Parse("00000000-0000-0000-0000-000000000720"), estadoConfirmado = "Extraviado",
+                    versionAnterior = 8, versionNueva = 9, motivo = "Motivo conservado",
+                    confirmadaEnUtc = DateTimeOffset.Parse("2026-10-20T18:30:00Z"), estadoActual = "Extraviado",
+                    versionActual = 9, repetida = true });
             }
             return null;
         }

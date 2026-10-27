@@ -38,6 +38,7 @@ public sealed class ReglasOperativasApiClientTests
                 Assert.Equal(0, root.GetProperty("versionConcurrencia").GetInt64());
                 Assert.Equal(JsonValueKind.Null, root.GetProperty("maxIntentosEntrega").ValueKind);
                 Assert.Equal(JsonValueKind.Null, root.GetProperty("politicaDevolucionAlAgotarIntentos").ValueKind);
+                Assert.Equal(60, root.GetProperty("plazoValidacionPruebaMinutos").GetInt32());
                 Assert.Equal("Fotografia", root.GetProperty("requisitosPrueba")[0].GetString());
                 Assert.Equal("RECEPTOR_AUSENTE", root.GetProperty("motivos")[0].GetProperty("codigo").GetString());
                 Assert.False(root.TryGetProperty("operadorId", out _));
@@ -55,7 +56,7 @@ public sealed class ReglasOperativasApiClientTests
         Assert.Equal(EstadoVersionReglasOperativas.Borrador, (await client.CrearBorradorAsync("jwt")).Estado);
         var draft = await client.ObtenerBorradorAsync("jwt");
         Assert.Null(draft.MaxIntentosEntrega);
-        var updated = await client.ReemplazarBorradorAsync(new(0, null, null, null, null, null,
+        var updated = await client.ReemplazarBorradorAsync(new(0, null, null, null, null, null, 60,
             [TipoPruebaEntrega.Fotografia], [new("RECEPTOR_AUSENTE", "No se encontró receptor", true)]), "jwt");
         Assert.Equal(1, updated.VersionConcurrencia);
         Assert.Null(updated.NumeroVersionPublicada);

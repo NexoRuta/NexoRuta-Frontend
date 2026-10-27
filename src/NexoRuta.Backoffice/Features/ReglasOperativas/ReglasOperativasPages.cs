@@ -63,6 +63,7 @@ public sealed class BorradorModel(ReglasOperativasApiClient api) : ReglasOperati
     [BindProperty] public string? PoliticaDevolucionAlAgotarIntentos { get; set; }
     [BindProperty] public DurationForm PlazoEstandar { get; set; } = new();
     [BindProperty] public DurationForm PlazoUrgente { get; set; } = new();
+    [BindProperty] public DurationForm PlazoValidacionPrueba { get; set; } = new();
     [BindProperty] public List<string>? RequisitosPrueba { get; set; }
     [BindProperty] public List<MotivoForm>? Motivos { get; set; }
     [BindProperty] public string? ColeccionesEnviadas { get; set; }
@@ -127,14 +128,15 @@ public sealed class BorradorModel(ReglasOperativasApiClient api) : ReglasOperati
             nameof(PoliticaDevolucionAlAgotarIntentos), ModelState, out var policy);
         var standardValid = ReglasOperativasUi.TryDuration(PlazoEstandar, nameof(PlazoEstandar), ModelState, out var standard);
         var urgentValid = ReglasOperativasUi.TryDuration(PlazoUrgente, nameof(PlazoUrgente), ModelState, out var urgent);
+        var proofValid = ReglasOperativasUi.TryDuration(PlazoValidacionPrueba, nameof(PlazoValidacionPrueba), ModelState, out var proof);
         var proofsValid = TryProofs(out var proofs);
         var motivesValid = TryMotives(out var motives);
-        if (!maxAttemptsValid || !intervalValid || !policyValid || !standardValid || !urgentValid || !proofsValid || !motivesValid)
+        if (!maxAttemptsValid || !intervalValid || !policyValid || !standardValid || !urgentValid || !proofValid || !proofsValid || !motivesValid)
             Error ??= "Revisá los campos señalados. El borrador conserva tus entradas y todavía no se guardó.";
         if (!ModelState.IsValid) return Page();
 
         var request = new ReemplazarBorradorReglasOperativasRequest(expectedVersion,
-            maxAttempts, interval, policy, standard, urgent, proofs, motives);
+            maxAttempts, interval, policy, standard, urgent, proof, proofs, motives);
         try
         {
             await api.ReemplazarBorradorAsync(request, SesionUsuario.ObtenerToken(User), HttpContext.RequestAborted);
@@ -201,6 +203,7 @@ public sealed class BorradorModel(ReglasOperativasApiClient api) : ReglasOperati
         PoliticaDevolucionAlAgotarIntentos = draft.PoliticaDevolucionAlAgotarIntentos?.ToString();
         PlazoEstandar = ReglasOperativasUi.Duration(draft.PlazoEstandarMinutos);
         PlazoUrgente = ReglasOperativasUi.Duration(draft.PlazoUrgenteMinutos);
+        PlazoValidacionPrueba = ReglasOperativasUi.Duration(draft.PlazoValidacionPruebaMinutos);
         RequisitosPrueba = draft.RequisitosPrueba.Select(value => value.ToString()).ToList();
         Motivos = draft.Motivos.Select(value => new MotivoForm
         {
@@ -291,6 +294,7 @@ public sealed class PublicarModel(ReglasOperativasApiClient api) : ReglasOperati
         if (draft.MaxIntentosEntrega is null || draft.IntervaloEntreIntentosMinutos is null) missing.Add("Intentos de entrega");
         if (draft.PoliticaDevolucionAlAgotarIntentos is null) missing.Add("Política cuando se agotan los intentos");
         if (draft.PlazoEstandarMinutos is null || draft.PlazoUrgenteMinutos is null) missing.Add("Plazos de entrega");
+        if (draft.PlazoValidacionPruebaMinutos is null) missing.Add("Plazo de validación de prueba");
         if (draft.RequisitosPrueba.Count == 0) missing.Add("Prueba requerida para entregar");
         if (!draft.Motivos.Any(motive => motive.Disponible)) missing.Add("Motivos de no entrega disponibles");
         return missing;
