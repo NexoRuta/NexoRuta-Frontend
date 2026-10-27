@@ -40,7 +40,7 @@ for app,port in [('Backoffice',55141),('Commerce',55140),('Tracking',55142)]:
    elif self.path=='/api/usuarios/actual':
     if access not in [ACCESS,WRONG]:failures.append('Current user missing access')
     data=user(expected_type if access==ACCESS else ('Comercio' if expected_type=='Operador' else 'Operador'),access)
-   elif self.path=='/api/comercio/operadores':
+   elif self.path=='/api/operadores':
     if access!=ACCESS:failures.append('Operators access differs')
     data=[{'operadorId':OP,'nombre':'Operador de prueba'}]
    elif self.path=='/api/envios':

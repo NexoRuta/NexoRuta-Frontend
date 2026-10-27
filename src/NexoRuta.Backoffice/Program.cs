@@ -18,8 +18,11 @@ using NexoRuta.Backoffice.Features.Tarifas;
 using NexoRuta.Backoffice.Features.ZonasCobertura;
 using NexoRuta.Backoffice.Features.ReglasOperativas;
 
-var builder = WebApplication.CreateBuilder(args.FirstOrDefault() == "keys-import" ? [] : args);
-builder.Services.AddSharedDataProtection(builder.Configuration, builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "backoffice");
+var builder = WebApplication.CreateBuilder(args);
+if (!builder.Services.AddSharedDataProtection(builder.Configuration,
+        builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "backoffice")
+    && builder.Environment.IsProduction())
+    throw new InvalidOperationException("Production Backoffice requires shared Data Protection storage.");
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Backoffice");
 builder.Services.AddHealthChecks();
@@ -102,11 +105,6 @@ builder.Services.AddHttpClient("NexoRuta", client =>
       .AddTypedClient<IdentidadVisualApiClient>();
 
 var app = builder.Build();
-if (args.Length == 2 && args[0] == "keys-import")
-{
-    await SharedDataProtection.ImportAsync(app.Services, args[1]);
-    return;
-}
 app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.

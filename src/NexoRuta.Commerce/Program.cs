@@ -12,8 +12,11 @@ using NexoRuta.ApiClient.Features.Organizaciones.Clients;
 using NexoRuta.Commerce.Components;
 using NexoRuta.Commerce.Core.Security;
 
-var builder = WebApplication.CreateBuilder(args.FirstOrDefault() == "keys-import" ? [] : args);
-builder.Services.AddSharedDataProtection(builder.Configuration, builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "commerce");
+var builder = WebApplication.CreateBuilder(args);
+if (!builder.Services.AddSharedDataProtection(builder.Configuration,
+        builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "commerce")
+    && builder.Environment.IsProduction())
+    throw new InvalidOperationException("Production Commerce requires shared Data Protection storage.");
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Commerce");
 builder.Services.AddHealthChecks();
@@ -83,11 +86,6 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<OperadoresApiClient>();
 
 var app = builder.Build();
-if (args.Length == 2 && args[0] == "keys-import")
-{
-    await SharedDataProtection.ImportAsync(app.Services, args[1]);
-    return;
-}
 app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.

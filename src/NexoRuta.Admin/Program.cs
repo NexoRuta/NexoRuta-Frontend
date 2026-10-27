@@ -9,8 +9,10 @@ using NexoRuta.ApiClient.Features.Auth.Clients;
 using NexoRuta.ApiClient.Features.Plataforma.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 
-var builder = WebApplication.CreateBuilder(args.FirstOrDefault() == "keys-import" ? [] : args);
-builder.Services.AddSharedDataProtection(builder.Configuration, "NexoRuta.Admin", "admin");
+var builder = WebApplication.CreateBuilder(args);
+if (!builder.Services.AddSharedDataProtection(builder.Configuration, "NexoRuta.Admin", "admin")
+    && builder.Environment.IsProduction())
+    throw new InvalidOperationException("Production Admin requires shared Data Protection storage.");
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Admin");
 builder.Services.AddHealthChecks();
@@ -55,11 +57,6 @@ builder.Services.AddHttpClient("NexoRuta", client =>
 }).AddTypedClient<AuthApiClient>().AddTypedClient<UsuariosApiClient>().AddTypedClient<OrganizacionesAdminApiClient>();
 
 var app = builder.Build();
-if (args.Length == 2 && args[0] == "keys-import")
-{
-    await SharedDataProtection.ImportAsync(app.Services, args[1]);
-    return;
-}
 app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");
 app.Use(async (context, next) =>

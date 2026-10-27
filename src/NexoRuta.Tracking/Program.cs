@@ -1,9 +1,12 @@
 using NexoRuta.Hosting;
 using NexoRuta.Tracking.Components;
 using NexoRuta.ApiClient.Features.Seguimiento.Clients;
-var builder = WebApplication.CreateBuilder(args.FirstOrDefault() == "keys-import" ? [] : args);
+var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHealthChecks();
-builder.Services.AddSharedDataProtection(builder.Configuration, builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "tracking");
+if (!builder.Services.AddSharedDataProtection(builder.Configuration,
+        builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "tracking")
+    && builder.Environment.IsProduction())
+    throw new InvalidOperationException("Production Tracking requires shared Data Protection storage.");
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Tracking");
 
@@ -27,11 +30,6 @@ builder.Logging.AddFilter(
 );
 
 var app = builder.Build();
-if (args.Length == 2 && args[0] == "keys-import")
-{
-    await SharedDataProtection.ImportAsync(app.Services, args[1]);
-    return;
-}
 app.UseForwardedHeaders();
 
 app.Use(async (context, next) =>
