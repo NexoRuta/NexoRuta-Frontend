@@ -3,7 +3,7 @@ run-name: Frontend CI / ${{ github.event.pull_request.number || github.ref_name 
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, edited, reopened, synchronize]
     branches: [develop, main]
 
 permissions:
@@ -26,13 +26,15 @@ jobs:
           BASE_REPOSITORY: ${{ github.repository }}
           BASE_BRANCH: ${{ github.base_ref }}
         run: |
-          if [[ "$PR_HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]]; then
-            echo "Pull requests must come from a branch in this repository." >&2
-            exit 1
-          fi
-          if [[ "$BASE_BRANCH" == main && "$PR_HEAD_REF" != develop ]]; then
-            echo "Pull requests into main must come from develop." >&2
-            exit 1
+          if [[ "$BASE_BRANCH" == main ]]; then
+            if [[ "$PR_HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]]; then
+              echo "Pull requests into main must come from this repository's develop branch." >&2
+              exit 1
+            fi
+            if [[ "$PR_HEAD_REF" != develop ]]; then
+              echo "Pull requests into main must come from develop." >&2
+              exit 1
+            fi
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # Pin the canonical map data so a later backend push cannot change this build.
