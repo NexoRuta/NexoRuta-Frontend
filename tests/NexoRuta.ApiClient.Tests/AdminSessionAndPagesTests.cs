@@ -8,8 +8,10 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NexoRuta.Admin.Core.Security;
 using NexoRuta.ApiClient.Core.Session;
@@ -533,6 +535,13 @@ public sealed class AdminSessionAndPagesTests
 
     private sealed class PortalFactory<T>(FakeApi api, string environment = "Development") : WebApplicationFactory<T> where T : class
     {
+        protected override IHost CreateHost(IHostBuilder builder)
+        {
+            builder.ConfigureHostConfiguration(configuration => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?> { [HostDefaults.EnvironmentKey] = environment }));
+            return base.CreateHost(builder);
+        }
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment(environment);
