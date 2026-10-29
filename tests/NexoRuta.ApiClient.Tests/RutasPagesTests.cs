@@ -86,20 +86,24 @@ public sealed partial class BackofficeSessionAndPagesTests
     }
 
     [Fact]
-    public async Task RutasPermitePlanificarRecibirYPostergarConVersionesYHoraDelOperador()
+    public async Task RutasPermitePlanificarYRecibirEnvioEnDepositoConVersionesYHoraDelOperador()
     {
-        var api = new FakeApi { IncludeReparto = true };
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "EnDeposito" };
         api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
-        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+        var token = await GetAntiforgeryTokenAsync(client, "/rutas/planificar?fecha=2026-10-20");
         using var consulta = await client.GetAsync("/rutas?fecha=2026-10-20");
         var html = await consulta.Content.ReadAsStringAsync();
         Assert.Contains("Rutas y dep", html);
-        Assert.Contains("CrearBorrador", html);
-        Assert.Contains("name=\"versionEnvio\" value=\"8\"", html);
+        Assert.DoesNotContain("name=\"CrearBorrador\"", html);
+        Assert.Contains("Rutas <span class=\"nr-tab-count\">", html);
+        Assert.Contains("Recepción en depósito", html);
+        Assert.Contains("Planificar ruta", html);
+        Assert.DoesNotContain("<summary class=\"h4\">Planificar una ruta</summary>", html);
         Assert.DoesNotContain("jwt-user", html);
-        using var plan = await client.PostAsync("/rutas?handler=Planificar", Form(token,
+        Assert.DoesNotContain("Reasignar a esa ruta", html);
+        using var plan = await client.PostAsync("/rutas/planificar?handler=Planificar", Form(token,
             ("Fecha", "2026-10-20"), ("RepartidorAccesoId", TargetAccessId.ToString()), ("VehiculoId", VehiculoPrueba.ToString()),
             ("Plan[0].EnvioId", EnvioPrueba.ToString()), ("Plan[0].Incluir", "true"), ("Plan[0].Orden", "1"), ("Plan[0].Hora", "10:30")));
         Assert.Equal(HttpStatusCode.Redirect, plan.StatusCode);
@@ -111,16 +115,143 @@ public sealed partial class BackofficeSessionAndPagesTests
             ("Fecha", "2026-10-20"), ("envioId", EnvioPrueba.ToString()), ("version", "8")));
         Assert.Equal(HttpStatusCode.Redirect, recibir.StatusCode);
         Assert.Equal(8, api.RepartoPayloads.Last().Body.GetProperty("version").GetInt64());
-        using var reasignar = await client.PostAsync("/rutas?handler=Reasignar", Form(token,
-            ("Fecha", "2026-10-20"), ("envioId", EnvioPrueba.ToString()), ("versionEnvio", "8"),
-            ("destino", $"{RutaPrueba}:3"), ("hora", "14:00"), ("motivo", "Postergar para mañana")));
-        Assert.Equal(HttpStatusCode.Redirect, reasignar.StatusCode);
-        var mover = api.RepartoPayloads.Last();
-        Assert.Equal($"/api/envios/{EnvioPrueba}/reasignacion", mover.Path);
-        Assert.Equal(8, mover.Body.GetProperty("versionEnvio").GetInt64());
-        Assert.Equal(3, mover.Body.GetProperty("versionRutaDestino").GetInt64());
-        Assert.Equal(DateTimeOffset.Parse("2026-10-20T17:00:00Z"), mover.Body.GetProperty("llegadaEstimadaUtc").GetDateTimeOffset());
         Assert.All(api.RepartoPayloads, p => Assert.Equal("jwt-user", p.Token));
+    }
+
+    [Fact]
+    public async Task PlanificarRutaMuestraElegibilidadYResumenDinamicoConDatosDeLaApi()
+    {
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "EnDeposito" };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync("/rutas/planificar?fecha=2026-10-20");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Contains("Planificar ruta", html);
+        Assert.Contains("Repartidor y vehículo", html);
+        Assert.Contains("Envíos y paradas", html);
+        Assert.Contains("Resumen de la ruta", html);
+        Assert.Contains("Destino confirmado", html);
+        Assert.Contains("Bulto recibido en depósito", html);
+        Assert.Contains("data-plan-summary", html);
+        Assert.Contains("name=\"CrearBorrador\"", html);
+        Assert.Contains("aria-live=\"polite\"", html);
+        Assert.Contains($"Plan[{0}].EnvioId", html);
+        Assert.Contains("En depósito", html);
+        Assert.DoesNotContain("Notificación enviada", html);
+        Assert.DoesNotContain("En tránsito", html);
+    }
+
+    [Fact]
+    public async Task PlanificarRutaConservaElContextoYVuelveAlPanelDiarioAlGuardar()
+    {
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "EnDeposito" };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+        var token = await GetAntiforgeryTokenAsync(client, "/rutas/planificar?fecha=2026-10-20");
+
+        using var response = await client.PostAsync("/rutas/planificar?handler=Planificar", Form(token,
+            ("Fecha", "2026-10-20"), ("RepartidorAccesoId", TargetAccessId.ToString()), ("VehiculoId", VehiculoPrueba.ToString()),
+            ("Plan[0].EnvioId", EnvioPrueba.ToString()), ("Plan[0].Incluir", "true"), ("Plan[0].Orden", "1"), ("Plan[0].Hora", "10:30")));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/rutas?fecha=2026-10-20&pestana=rutas", response.Headers.Location!.OriginalString, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(api.RepartoPayloads, item => item.Path == "/api/rutas");
+    }
+
+    [Fact]
+    public async Task RutasSoloPermiteReasignarUnEnvioAsignadoConCustodiaEnDeposito()
+    {
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "AsignadoRuta", AssignedStopActiveOverride = false, AssignedStopOmittedOverride = true };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Contains("Reasignar a esa ruta", html);
+        Assert.Contains("no registra movimiento físico", html);
+        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+        using var reassigned = await client.PostAsync("/rutas?handler=Reasignar", Form(token,
+            ("Fecha", "2026-10-20"), ("envioId", EnvioPrueba.ToString()), ("versionEnvio", "8"),
+            ("destino", "00000000-0000-0000-0000-000000000734:3"), ("hora", "14:00"), ("motivo", "Cambio operativo")));
+        Assert.Equal(HttpStatusCode.Redirect, reassigned.StatusCode);
+        var command = Assert.Single(api.RepartoPayloads);
+        Assert.Equal($"/api/envios/{EnvioPrueba}/reasignacion", command.Path);
+        Assert.Equal(8, command.Body.GetProperty("versionEnvio").GetInt64());
+        Assert.Equal(3, command.Body.GetProperty("versionRutaDestino").GetInt64());
+        Assert.Equal(DateTimeOffset.Parse("2026-10-20T17:00:00Z"), command.Body.GetProperty("llegadaEstimadaUtc").GetDateTimeOffset());
+    }
+
+    [Fact]
+    public async Task RutasRenderizaLaVersionDelEnvioComoEtiquetaLegible()
+    {
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "AsignadoRuta" };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api);
+        using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync($"/rutas?fecha=2026-10-20&pestana=rutas&rutaSeleccionadaId={RutaPrueba:D}");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("class=\"nr-route-version\">Versión del envío <span>8</span>", html);
+        Assert.DoesNotContain("v@parada.EnvioVersion", html);
+    }
+
+    [Fact]
+    public async Task RutasNoPermiteReasignarUnEnvioEnTransito()
+    {
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "EnTransito" };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Contains("Los envíos en tránsito no se reasignan", html);
+        Assert.DoesNotContain("Reasignar a esa ruta", html);
+    }
+
+    [Fact]
+    public async Task RutasNoPermiteReasignarHastaRecibirLaCustodiaEnDeposito()
+    {
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "AsignadoRuta", BultoCustodyOverride = "Repartidor" };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Contains("No se puede reasignar hasta recibir todos sus bultos físicamente en depósito", html);
+        Assert.DoesNotContain("Reasignar a esa ruta", html);
+    }
+
+    [Fact]
+    public async Task RutasFiltraDespachadasConBusquedaYSelecciónConservadas()
+    {
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "AsignadoRuta" };
+        api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
+        using var factory = new BackofficeFactory(api); using var client = Client(factory);
+        await LoginAsync(client, "user@example.test");
+
+        using var response = await client.GetAsync($"/rutas?fecha=2026-10-20&pestana=rutas&buscarRuta=AAA&filtroRuta=Despachada&rutaSeleccionadaId={RutaPrueba:D}");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Contains("Despachadas", html);
+        Assert.Contains("aria-current=\"page\"", html);
+        Assert.Contains("1 de 2", html);
+        Assert.Contains("value=\"AAA\"", html);
+        Assert.Contains("rutaSeleccionadaId", html);
+        Assert.Contains("AAA 1234", html);
     }
 
     [Fact]
@@ -388,6 +519,9 @@ public sealed partial class BackofficeSessionAndPagesTests
         public bool ExtravioConflictOnce { get; set; }
         public string ExtravioConflictState { get; set; } = "EnDeposito";
         public string? ShipmentStateOverride { get; set; }
+        public string BultoCustodyOverride { get; set; } = "Deposito";
+        public bool? AssignedStopActiveOverride { get; init; }
+        public bool AssignedStopOmittedOverride { get; init; }
         public long? ShipmentVersionOverride { get; set; }
         public bool IsCancellationAdmin { get; init; }
         public bool CancellationApplied { get; private set; }
@@ -409,19 +543,35 @@ public sealed partial class BackofficeSessionAndPagesTests
                 : IncludeIncidenciaCierre ? [new { envioId = EnvioPrueba, orden = 1, activa = false,
                     llegadaEstimadaUtc = DateTimeOffset.Parse("2026-10-20T18:00:00Z"), estado = "EnTransito", envioVersion = 8,
                     destinatario = "Destino de prueba", direccion = "Dirección de prueba", latitud = -34.9, longitud = -56.2,
-                    bultos = new[] { new { id = bultoId, codigo = "TEST-FALTANTE", custodia = "Repartidor", version = 2 } } }] : [];
+                    bultos = new[] { new { id = bultoId, codigo = "TEST-FALTANTE", custodia = "Repartidor", version = 2 } } }]
+                : ShipmentStateOverride == "AsignadoRuta" && !AssignedStopOmittedOverride ? [new { envioId = EnvioPrueba, orden = 1, activa = AssignedStopActiveOverride ?? true,
+                    llegadaEstimadaUtc = DateTimeOffset.Parse("2026-10-20T18:00:00Z"), estado = "AsignadoRuta", envioVersion = 8,
+                    destinatario = "Destino de prueba", direccion = "Dirección de prueba", latitud = -34.9, longitud = -56.2,
+                    bultos = new[] { new { id = bultoId, codigo = "TEST-ASIGNADO", pesoGramos = 100m, volumenCm3 = 1m, custodia = BultoCustodyOverride, version = 2 } },
+                    reglas = reglasEnvio, intentosFallidos = 0, proximoIntentoElegibleUtc = (DateTimeOffset?)null }]
+                : [];
             object[] incidenciasCierre = IncludeIncidenciaCierre ? [new { operacionId = Guid.NewGuid(), envioId = EnvioPrueba,
                 bultoId, codigo = "TEST-FALTANTE", versionBulto = 2, ocurridaEnUtc = DateTimeOffset.UtcNow, recibidaEnUtc = DateTimeOffset.UtcNow }] : [];
             var ruta = new { id = RutaPrueba, jornadaId = Guid.NewGuid(), repartidorAccesoId = TargetAccessId, vehiculoId = VehiculoPrueba,
-                matricula = "AAA 1234", fecha = "2026-10-20", estado = IncludeIncidenciaCierre ? "Finalizada" : "Planificada", version = 3, ultimaSecuencia = 0, politica, paradas, incidenciasCierre };
+                matricula = "AAA 1234", fecha = "2026-10-20", estado = IncludeIncidenciaCierre || ShipmentStateOverride == "AsignadoRuta" && AssignedStopActiveOverride == false ? "Finalizada"
+                    : ShipmentStateOverride == "AsignadoRuta" ? "EnCurso" : "Planificada", version = 3, ultimaSecuencia = 0, politica, paradas, incidenciasCierre };
             if (path == "/api/rutas/recursos") return Json(HttpStatusCode.OK, new { politica,
                 repartidores = new[] { new { accesoId = TargetAccessId, nombre = "Repartidor de prueba" } },
                 vehiculos = new[] { new { id = VehiculoPrueba, matricula = "AAA 1234", pesoMaximoGramos = 10000m, volumenMaximoCm3 = 10000m, activo = true, version = 1 } } });
-            if (path == "/api/rutas" && request.Method == HttpMethod.Get) return Json(HttpStatusCode.OK, new[] { ruta });
+            if (path == "/api/rutas" && request.Method == HttpMethod.Get)
+            {
+                if (ShipmentStateOverride != "AsignadoRuta") return Json(HttpStatusCode.OK, new[] { ruta });
+                var rutaDestino = new { id = Guid.Parse("00000000-0000-0000-0000-000000000734"), jornadaId = ruta.jornadaId,
+                    repartidorAccesoId = TargetAccessId, vehiculoId = VehiculoPrueba, matricula = "BBB 4567",
+                    fecha = "2026-10-20", estado = "Planificada", version = 3, ultimaSecuencia = 0, politica,
+                    paradas = Array.Empty<object>(), incidenciasCierre };
+                return Json(HttpStatusCode.OK, new[] { ruta, rutaDestino });
+            }
             if (path == "/api/envios") return Json(HttpStatusCode.OK, new[] { new { id = EnvioPrueba, operadorId = Guid.NewGuid(), comercioId = Guid.NewGuid(),
                 creadoPorUsuarioId = Guid.NewGuid(), usuarioEmail = "comercio@example.test", operadorNombre = "Operador", comercioNombre = "Comercio",
                 destinatarioNombre = "Destino de prueba", direccion = "Dirección de prueba", estado = CancellationApplied ? "Cancelado" : ShipmentStateOverride ?? (IncludeNoEntregado ? "NoEntregado" : "EnTransito"), version = ShipmentVersionOverride ?? (CancellationApplied ? 9 : 8),
-                bultos = new[] { new { codigo = "TEST", pesoGramos = 100m, largoCentimetros = 1m, anchoCentimetros = 1m, altoCentimetros = 1m } } } });
+                destinoConfirmado = true,
+                bultos = new[] { new { codigo = "TEST", pesoGramos = 100m, largoCentimetros = 1m, anchoCentimetros = 1m, altoCentimetros = 1m, custodia = BultoCustodyOverride } } } });
             if (request.Method == HttpMethod.Post && path.EndsWith("/cancelacion", StringComparison.Ordinal))
             {
                 RepartoPayloads.Enqueue(new(path, request.Method, token, (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone()));

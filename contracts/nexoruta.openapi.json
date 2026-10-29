@@ -11447,6 +11447,9 @@
               "string"
             ],
             "format": "decimal"
+          },
+          "custodia": {
+            "type": "string"
           }
         }
       },
@@ -12473,7 +12476,8 @@
           "direccion",
           "estado",
           "version",
-          "bultos"
+          "bultos",
+          "destinoConfirmado"
         ],
         "type": "object",
         "properties": {
@@ -12524,6 +12528,9 @@
             "items": {
               "$ref": "#/components/schemas/BultoDetalle"
             }
+          },
+          "destinoConfirmado": {
+            "type": "boolean"
           }
         }
       },

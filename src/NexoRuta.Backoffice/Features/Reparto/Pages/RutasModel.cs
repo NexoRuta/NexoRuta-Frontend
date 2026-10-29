@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using NexoRuta.ApiClient.Core.Exceptions;
@@ -13,10 +14,16 @@ using NexoRuta.Backoffice.Core.Security;
 namespace NexoRuta.Backoffice.Features.Reparto.Pages;
 
 [RequestFormLimits(ValueCountLimit = 4000)]
-public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, UsuariosApiClient usuarios) : PageModel
+public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, UsuariosApiClient usuarios,
+    IAuthorizationService authorization) : PageModel
 {
     private const string ZonaHorariaPredeterminada = "America/Montevideo";
     [BindProperty(SupportsGet = true)] public DateOnly Fecha { get; set; }
+    [BindProperty(SupportsGet = true)] public Guid? RutaSeleccionadaId { get; set; }
+    [BindProperty(SupportsGet = true)] public string? Pestana { get; set; }
+    [BindProperty(SupportsGet = true)] public string? BuscarRuta { get; set; }
+    [BindProperty(SupportsGet = true)] public string? FiltroRuta { get; set; }
+    [BindProperty(SupportsGet = true)] public string? BuscarRecepcion { get; set; }
     [BindProperty] public Guid RepartidorAccesoId { get; set; }
     [BindProperty] public Guid VehiculoId { get; set; }
     [BindProperty] public Guid DevolucionEnvioId { get; set; }
@@ -33,9 +40,30 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
     public RecursosPlanificacionResponse? Recursos { get; private set; }
     public IReadOnlyList<EnvioResponse> Envios { get; private set; } = [];
     public bool CargaCompleta { get; private set; }
+    public bool PuedeConsultarEnvios { get; private set; }
     public bool PuedeGestionarDecisionesOperativasEnvio { get; private set; }
     public string? Error { get; private set; }
     [TempData] public string? Confirmacion { get; set; }
+    public string ZonaHoraria => Recursos?.Politica.ZonaHoraria ?? ZonaHorariaPredeterminada;
+    public DateOnly HoyOperativo { get; private set; }
+    public IReadOnlyList<HojaRutaResponse> RutasVisibles => Rutas
+        .Where(r => string.IsNullOrWhiteSpace(BuscarRuta) ||
+            Repartidor(r.RepartidorAccesoId).Contains(BuscarRuta, StringComparison.CurrentCultureIgnoreCase) ||
+            r.Matricula.Contains(BuscarRuta, StringComparison.CurrentCultureIgnoreCase) ||
+            r.Estado.Contains(BuscarRuta, StringComparison.CurrentCultureIgnoreCase))
+        .Where(r => string.IsNullOrWhiteSpace(FiltroRuta) || FiltroRuta == "Todas" ||
+            (FiltroRuta == "Activas" && r.Estado is "Planificada" or "EnCurso") ||
+            (FiltroRuta == "Despachada" && r.Estado is "Despachada" or "EnCurso") || r.Estado == FiltroRuta)
+        .OrderBy(r => r.Estado == "EnCurso" ? 0 : 1).ThenBy(r => r.Matricula, StringComparer.CurrentCultureIgnoreCase).ToArray();
+    public HojaRutaResponse? RutaSeleccionada => RutasVisibles.FirstOrDefault(r => r.Id == RutaSeleccionadaId)
+        ?? RutasVisibles.FirstOrDefault();
+    public IReadOnlyList<EnvioResponse> RecepcionesPendientes => Envios
+        .Where(AdmiteRecepcion)
+        .Where(e => string.IsNullOrWhiteSpace(BuscarRecepcion) ||
+            e.DestinatarioNombre.Contains(BuscarRecepcion, StringComparison.CurrentCultureIgnoreCase) ||
+            e.Direccion.Contains(BuscarRecepcion, StringComparison.CurrentCultureIgnoreCase) ||
+            e.Bultos.Any(b => b.Codigo.Contains(BuscarRecepcion, StringComparison.CurrentCultureIgnoreCase)))
+        .OrderBy(e => e.DestinatarioNombre, StringComparer.CurrentCultureIgnoreCase).ToArray();
     public Task<IActionResult> OnGetAsync() => Cargar();
     public Task<IActionResult> OnGetReintentarAsync() => Cargar();
     public Task<IActionResult> OnPostPlanificarAsync() => Ejecutar(async () =>
@@ -71,7 +99,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         if (ruta is null || ruta.Estado != "Planificada") throw new ArgumentException("La ruta destino ya no está disponible. Actualizá la fecha y volvé a elegirla.");
         await api.ReasignarAsync(envioId, new(rutaId, versionEnvio, version,
             ConvertirLlegada(ruta.Fecha, hora.Value, ruta.Politica.ZonaHoraria), motivo), Token(), HttpContext.RequestAborted);
-        Confirmacion = "Envío postergado. Si hay un repartidor en reparto, tiene un aviso; el bulto debe regresar al depósito antes del nuevo despacho.";
+        Confirmacion = "Ruta reasignada. La custodia física no cambió; el despacho requiere recepción efectiva en depósito.";
     });
     public Task<IActionResult> OnPostReprogramarAsync(Guid envioId, long versionEnvio) => Ejecutar(async () =>
     {
@@ -95,7 +123,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
             Confirmacion = resultado.EstadoActual == "EnDevolucion"
                 ? "Devolución iniciada. La recepción del bulto en depósito se confirmará por separado."
                 : $"La decisión ya estaba aplicada; el estado actual del envío es {resultado.EstadoActual}. No se modificó nuevamente.";
-            return RedirectToPage(new { fecha = Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) });
+            return RedirectarDiario();
         }
         catch (NexoRutaApiException ex)
         {
@@ -130,7 +158,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
             Confirmacion = resultado.Repetida
                 ? $"La confirmación ya estaba aplicada. El estado actual es {resultado.EstadoActual}; no se duplicaron sus efectos. La custodia conserva únicamente el último registro conocido."
                 : "Extravío confirmado. No se registró una entrega ni un movimiento físico; la custodia conserva únicamente el último registro conocido.";
-            return RedirectToPage(new { fecha = Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) });
+            return RedirectarDiario();
         }
         catch (NexoRutaApiException ex)
         {
@@ -163,7 +191,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         try
         {
             if (!ModelState.IsValid) throw new ArgumentException("Revisá los valores del formulario.");
-            await accion(); return RedirectToPage(new { fecha = Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) });
+            await accion(); return RedirectarDiario();
         }
         catch (NexoRutaApiException ex) { var redir = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redir is not null) return redir; Error = ex.Message; }
         catch (ArgumentException ex) { Error = ex.Message; }
@@ -180,13 +208,17 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
             var recursos = await api.RecursosAsync(Token(), HttpContext.RequestAborted);
             if (inicializarFecha) Fecha = FechaActual(recursos.Politica.ZonaHoraria);
             var rutas = await api.ListarAsync(Fecha, Token(), HttpContext.RequestAborted);
-            var enviosActuales = await envios.ListarEnviosAsync(Token(), HttpContext.RequestAborted);
+            PuedeConsultarEnvios = (await authorization.AuthorizeAsync(User, resource: null, "envios.consultar")).Succeeded;
+            var enviosActuales = PuedeConsultarEnvios
+                ? await envios.ListarEnviosAsync(Token(), HttpContext.RequestAborted)
+                : Array.Empty<EnvioResponse>();
             var usuarioActual = await usuarios.ObtenerUsuarioActualAsync(Token(), HttpContext.RequestAborted);
             var anteriores = Plan.GroupBy(p => p.EnvioId).ToDictionary(g => g.Key, g => g.First());
             var plan = enviosActuales.Where(e => e.Estado is "EnDeposito" or "Reprogramado").Select(e => anteriores.GetValueOrDefault(e.Id) ?? new() { EnvioId = e.Id }).ToList();
             Recursos = recursos;
             Rutas = rutas;
             Envios = enviosActuales;
+            HoyOperativo = FechaActual(recursos.Politica.ZonaHoraria);
             PuedeGestionarDecisionesOperativasEnvio = usuarioActual.PuedeGestionarDecisionesOperativasEnvio;
             Plan = plan;
             CargaCompleta = true;
@@ -219,10 +251,74 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zona));
     }
     public string Repartidor(Guid acceso) => Recursos?.Repartidores.SingleOrDefault(r => r.AccesoId == acceso)?.Nombre ?? "Repartidor deshabilitado";
+    public string InicialesRepartidor(Guid acceso)
+    {
+        var partes = Repartidor(acceso).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(partes.Take(2).Select(parte => char.ToUpperInvariant(parte[0])));
+    }
+    public bool CustodiaEnDeposito(Guid envioId)
+    {
+        var bultosEnvio = Envios.SingleOrDefault(e => e.Id == envioId)?.Bultos;
+        if (bultosEnvio is null || bultosEnvio.Count == 0) return false;
+        return bultosEnvio.All(b => b.Custodia == "Deposito");
+    }
+    public bool DestinoConfirmado(Guid envioId) => Envios.SingleOrDefault(e => e.Id == envioId)?.DestinoConfirmado == true;
+    public bool AdmiteRecepcion(EnvioResponse envio) =>
+        envio.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion" ||
+        Rutas.Any(r => r.IncidenciasCierre.Any(i => i.EnvioId == envio.Id)) && envio.Estado is "EnTransito" or "NoEntregado";
+    public bool EsRecepcionInicial(EnvioResponse envio) => envio.Estado == "Admitido";
+    public bool EsRecepcionDevolucion(EnvioResponse envio) => envio.Estado == "EnDevolucion";
+    public string ResumenRecepcion(EnvioResponse envio) => envio.Estado switch
+    {
+        "Admitido" => "Primera recepción del envío en depósito",
+        "EnDevolucion" => "Recepción física de una devolución iniciada",
+        "Cancelado" => "Registrar custodia física sin reactivar el estado Cancelado",
+        "AsignadoRuta" => "Confirmar custodia en depósito antes de despachar o reasignar",
+        "EnTransito" or "NoEntregado" => "Recepción vinculada a una incidencia de cierre de jornada",
+        _ => "Confirmar la custodia física en depósito"
+    };
+    public string FechaLegible(DateOnly fecha) => fecha.ToDateTime(TimeOnly.MinValue)
+        .ToString("dddd, d 'de' MMMM 'de' yyyy", CultureInfo.GetCultureInfo("es-UY"));
+    public string RutaQuery(Guid? id) => id is null ? string.Empty : id.Value.ToString();
+    public string EstadoRuta(string estado) => estado switch
+    {
+        "Planificada" => "Planificada",
+        "EnCurso" => "En curso",
+        "Despachada" => "Despachada",
+        "Finalizada" => "Finalizada",
+        _ => estado
+    };
+    public string EtiquetaEstadoEnvio(string estado) => estado switch
+    {
+        "EnDeposito" => "En depósito",
+        "AsignadoRuta" => "Asignado a ruta",
+        "EnTransito" => "En tránsito",
+        "EntregaPendienteValidacion" => "Entrega pendiente de validación",
+        "EntregaSinValidacion" => "Entrega sin validación",
+        "EnDevolucion" => "En devolución",
+        _ => estado
+    };
+    public string EtiquetaCustodia(string custodia) => custodia switch
+    {
+        "SinRecepcion" => "Sin recepción",
+        "PendienteDeposito" => "Pendiente de depósito",
+        "Deposito" => "En depósito",
+        "Repartidor" => "En custodia del repartidor",
+        _ => custodia
+    };
     public string Hora(DateTimeOffset utc, string zona) => TimeZoneInfo.ConvertTime(utc, TimeZoneInfo.FindSystemTimeZoneById(zona)).ToString("HH:mm", CultureInfo.InvariantCulture);
     public string FechaHora(DateTimeOffset utc, string zona) => TimeZoneInfo.ConvertTime(utc,
         TimeZoneInfo.FindSystemTimeZoneById(zona)).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
     private string Token() => SesionUsuario.ObtenerToken(User);
+    private IActionResult RedirectarDiario() => RedirectToPage("/Rutas", new
+    {
+        fecha = Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+        pestana = string.IsNullOrWhiteSpace(Pestana) ? "rutas" : Pestana,
+        rutaSeleccionadaId = RutaSeleccionadaId,
+        buscarRuta = BuscarRuta,
+        filtroRuta = FiltroRuta,
+        buscarRecepcion = BuscarRecepcion
+    });
     public sealed class ParadaFormulario
     {
         public Guid EnvioId { get; set; }

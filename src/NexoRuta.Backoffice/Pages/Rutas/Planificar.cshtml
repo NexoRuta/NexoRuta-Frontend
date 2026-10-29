@@ -1,0 +1,118 @@
+@page "/rutas/planificar"
+@model NexoRuta.Backoffice.Features.Reparto.Pages.RutasModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Planificar ruta";
+    var recursos = Model.Recursos;
+    var seleccionadas = Model.Plan.Where(p => p.Incluir).ToArray();
+    var pesoSeleccionado = seleccionadas.Sum(p => Model.Envios.SingleOrDefault(e => e.Id == p.EnvioId)?.Bultos.Sum(b => b.PesoGramos) ?? 0m);
+    var bultosSeleccionados = seleccionadas.Sum(p => Model.Envios.SingleOrDefault(e => e.Id == p.EnvioId)?.Bultos.Count ?? 0);
+    var primeraParada = seleccionadas.OrderBy(p => p.Orden ?? int.MaxValue).FirstOrDefault();
+    var enviosSeleccionados = seleccionadas.Select(p => Model.Envios.SingleOrDefault(e => e.Id == p.EnvioId)).Where(e => e is not null).ToArray();
+    var destinoConfirmado = enviosSeleccionados.Length > 0 && enviosSeleccionados.All(e => e!.DestinoConfirmado);
+    var custodiaConfirmada = enviosSeleccionados.Length > 0 && enviosSeleccionados.All(e => e!.Bultos.Count > 0 && e.Bultos.All(b => b.Custodia == "Deposito"));
+    var vehiculoSeleccionado = recursos?.Vehiculos.SingleOrDefault(v => v.Id == Model.VehiculoId);
+    var culturaUruguay = CultureInfo.GetCultureInfo("es-UY");
+    var fechaResumen = Model.Fecha.ToDateTime(TimeOnly.MinValue).ToString("dddd d 'de' MMMM", culturaUruguay);
+    fechaResumen = char.ToUpper(fechaResumen[0], culturaUruguay) + fechaResumen[1..];
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/rutas-deposito.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/rutas-planificacion.js" asp-append-version="true" defer></script>
+}
+
+<div class="nr-routes-page nr-planning-page">
+    <nav class="nr-content-breadcrumb" aria-label="Migas de pan">
+        <a asp-page="/Index">Operación</a><span aria-hidden="true">/</span><a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")">Rutas y depósito</a><span aria-hidden="true">/</span><span aria-current="page">Nueva ruta</span>
+    </nav>
+    <header class="nr-routes-heading nr-planning-heading">
+        <div><h1>Planificar ruta</h1><p>Elegí quién reparte y organizá las paradas.</p></div>
+        <a class="nr-action-secondary" asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")">
+            <svg aria-hidden="true" viewBox="0 0 20 20"><path d="m12 4-6 6 6 6" /></svg>Volver a rutas
+        </a>
+    </header>
+
+    @if (Model.Error is not null) { <div class="nr-routes-alert is-error" role="alert">@Model.Error</div> }
+    @if (Model.Confirmacion is not null) { <div class="nr-routes-alert is-success" role="status">@Model.Confirmacion</div> }
+
+    @if (!Model.CargaCompleta || recursos is null)
+    {
+        <section class="nr-routes-empty"><h2>No se pudo cargar la planificación</h2><p>Se conservaron los datos enviados. Volvé a consultar recursos y envíos para continuar.</p><a class="nr-action-secondary" asp-page="/Rutas/Planificar" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")">Reintentar</a></section>
+    }
+    else
+    {
+        @if (!Model.PuedeConsultarEnvios) { <div class="nr-routes-alert is-warning" role="status">Tu acceso no incluye consulta de envíos. Podés preparar una ruta vacía, pero no se muestran candidatos ni se puede seleccionar una parada.</div> }
+        <div class="nr-planning-grid">
+            <form method="post" asp-page-handler="Planificar" class="nr-planning-form" data-single-submit id="route-planning-form">
+                <input type="hidden" asp-for="Fecha" />
+                <section class="nr-planning-section">
+                    <header class="nr-section-heading"><div><h2>1. Repartidor y vehículo</h2></div></header>
+                    <div class="nr-resource-grid">
+                        <div class="nr-field"><label for="RepartidorAccesoId">Repartidor</label><select asp-for="RepartidorAccesoId" id="RepartidorAccesoId" required><option value="">Seleccionar repartidor</option>@foreach (var r in recursos.Repartidores) { <option value="@r.AccesoId">@r.Nombre</option> }</select></div>
+                        <div class="nr-field"><label for="VehiculoId">Vehículo</label><select asp-for="VehiculoId" id="VehiculoId" data-vehicle-select required><option value="">Seleccionar vehículo</option>@foreach (var v in recursos.Vehiculos) { <option value="@v.Id" data-weight-capacity="@v.PesoMaximoGramos.ToString(CultureInfo.InvariantCulture)" data-volume-capacity="@v.VolumenMaximoCm3.ToString(CultureInfo.InvariantCulture)">@v.Matricula</option> }</select><small data-capacity-label>@(vehiculoSeleccionado is null ? "Capacidad máxima según el vehículo." : $"{vehiculoSeleccionado.PesoMaximoGramos / 1000m:0.##} kg de capacidad · {vehiculoSeleccionado.VolumenMaximoCm3:0.###} m³")</small></div>
+                        <div class="nr-field"><label for="Fecha">Fecha de salida</label><input asp-for="Fecha" id="Fecha" type="date" required /><small>Zona horaria: @recursos.Politica.ZonaHoraria</small></div>
+                    </div>
+                </section>
+
+                <section class="nr-planning-section nr-shipment-selection">
+                    <header class="nr-section-heading"><div><h2>2. Envíos y paradas</h2></div></header>
+                    <div class="nr-shipment-toolbar">
+                        <div class="nr-field nr-shipment-search"><label for="shipment-search">Buscar envío</label><input id="shipment-search" type="search" placeholder="Destinatario, dirección o bulto" autocomplete="off" /></div>
+                        <div class="nr-eligibility-filter"><label for="eligibility-filter">Mostrar</label><select id="eligibility-filter"><option value="eligible">Elegibles</option><option value="all">Todos</option></select><span><strong>@Model.Plan.Count</strong> candidatos</span></div>
+                    </div>
+                    @if (Model.Plan.Count == 0)
+                    {
+                        <div class="nr-routes-empty is-compact"><h3>No hay envíos candidatos</h3><p>Para planificar paradas, los envíos deben estar en depósito o reprogramados.</p></div>
+                    }
+                    else
+                    {
+                        <div class="nr-planning-list" id="planning-shipment-list">
+                            <div class="nr-planning-list-header" aria-hidden="true"><span></span><span>Destinatario y bulto</span><span>Orden</span><span>Hora estimada</span></div>
+                            @for (var i = 0; i < Model.Plan.Count; i++)
+                            {
+                                var item = Model.Plan[i];
+                                var envio = Model.Envios.Single(e => e.Id == item.EnvioId);
+                                var custodiaOk = envio.Bultos.Count > 0 && envio.Bultos.All(b => b.Custodia == "Deposito");
+                                var elegible = envio.DestinoConfirmado && custodiaOk;
+                                var peso = envio.Bultos.Sum(b => b.PesoGramos);
+                                var buscador = $"{envio.DestinatarioNombre} {envio.Direccion} {string.Join(" ", envio.Bultos.Select(b => b.Codigo))}";
+                                <article class="nr-planning-row @(item.Incluir ? "is-selected" : null) @(elegible ? null : "is-ineligible")" data-plan-row data-search="@buscador" data-recipient="@envio.DestinatarioNombre" data-address="@envio.Direccion" data-weight="@peso.ToString(CultureInfo.InvariantCulture)" data-package-count="@envio.Bultos.Count" data-destination="@envio.DestinoConfirmado.ToString().ToLowerInvariant()" data-custody="@custodiaOk.ToString().ToLowerInvariant()" data-eligible="@elegible.ToString().ToLowerInvariant()">
+                                    <div class="nr-planning-row-main">
+                                        <div class="nr-select-shipment"><input asp-for="Plan[i].EnvioId" type="hidden" /><label for="Plan_@(i)__Incluir"><input asp-for="Plan[i].Incluir" id="Plan_@(i)__Incluir" disabled="@(!elegible)" data-plan-check /><span class="nr-select-box" aria-hidden="true"></span><span class="visually-hidden">Incluir envío de @envio.DestinatarioNombre</span></label></div>
+                                        <div class="nr-shipment-identity"><div class="nr-shipment-title"><h3>@envio.DestinatarioNombre</h3><span class="nr-state-pill">@Model.EtiquetaEstadoEnvio(envio.Estado)</span></div><p>@envio.Direccion</p><div class="nr-shipment-package-line"><strong>@string.Join(", ", envio.Bultos.Select(b => b.Codigo))</strong><span>@peso g · @envio.Bultos.Count bulto(s)</span></div><div class="nr-eligibility-list"><span class="@(envio.DestinoConfirmado ? "is-confirmed" : "is-pending")"><i aria-hidden="true">@(envio.DestinoConfirmado ? "✓" : "!")</i>Destino @(envio.DestinoConfirmado ? "confirmado" : "pendiente")</span><span class="@(custodiaOk ? "is-confirmed" : "is-pending")"><i aria-hidden="true">@(custodiaOk ? "✓" : "!")</i>Bulto @(custodiaOk ? "recibido en depósito" : "sin recepción en depósito")</span></div></div>
+                                        <div class="nr-stop-fields"><div><label for="Plan_@(i)__Orden">Orden</label><input asp-for="Plan[i].Orden" id="Plan_@(i)__Orden" type="number" min="1" max="500" disabled="@(!item.Incluir || !elegible)" data-stop-order /></div><div><label for="Plan_@(i)__Hora">Hora estimada</label><input asp-for="Plan[i].Hora" id="Plan_@(i)__Hora" type="time" disabled="@(!item.Incluir || !elegible)" data-stop-time /></div></div>
+                                    </div>
+                                    @if (!elegible) { <p class="nr-ineligible-reason">No se puede seleccionar: @(envio.DestinoConfirmado ? "confirmá la recepción física de todos los bultos." : custodiaOk ? "confirmá el destino antes de planificar." : "confirmá el destino y la recepción física de todos los bultos.")</p> }
+                                </article>
+                            }
+                            <p class="nr-no-search-results" data-no-search-results hidden>No hay envíos que coincidan con la búsqueda y los filtros.</p>
+                        </div>
+                    }
+                </section>
+
+                <section class="nr-empty-route-option">
+                    <label><input asp-for="CrearBorrador" type="checkbox" /><span><strong>Crear ruta vacía</strong><small>Opción secundaria para preparar una ruta que luego recibirá una reasignación. No se podrá despachar sin paradas.</small></span></label>
+                </section>
+
+            </form>
+
+            <aside class="nr-planning-summary" aria-labelledby="route-summary-title">
+                <div class="nr-summary-heading"><div><h2 id="route-summary-title">Resumen de la ruta</h2><p class="nr-summary-date"><svg aria-hidden="true" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="1.5"/><path d="M6 2v4m8-4v4M3 8h14"/></svg><span data-summary-date>@fechaResumen</span></p></div></div>
+                <div class="nr-summary-assignments">
+                    <div class="nr-summary-assignment"><span class="nr-summary-assignment-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="10" cy="6" r="3"/><path d="M4 18a6 6 0 0 1 12 0"/></svg></span><span><small class="nr-visually-hidden">Repartidor</small><strong data-summary-courier>@(recursos.Repartidores.SingleOrDefault(r => r.AccesoId == Model.RepartidorAccesoId)?.Nombre ?? "Sin seleccionar")</strong></span></div>
+                    <div class="nr-summary-assignment"><span class="nr-summary-assignment-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M2 5h10v9H2zM12 8h3l3 3v3h-6zM5 16a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg></span><span><small class="nr-visually-hidden">Vehículo</small><strong data-summary-vehicle>@(vehiculoSeleccionado?.Matricula ?? "Sin seleccionar")</strong></span></div>
+                </div>
+                <dl class="nr-summary-kpis"><div><dt>Envíos seleccionados</dt><dd data-summary-count>@seleccionadas.Length</dd></div><div><dt>Bultos</dt><dd data-summary-packages>@bultosSeleccionados</dd></div><div><dt>Peso total</dt><dd data-summary-weight>@(pesoSeleccionado / 1000m) kg</dd></div><div><dt>Primera parada</dt><dd data-summary-time>@(primeraParada?.Hora?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "—")</dd></div></dl>
+                <div class="nr-summary-conditions" aria-label="Condiciones verificadas"><p class="@(destinoConfirmado ? "is-confirmed" : "is-pending")" data-summary-destination data-confirmed="@destinoConfirmado.ToString().ToLowerInvariant()"><span aria-hidden="true">@(destinoConfirmado ? "✓" : "—")</span><span>@(destinoConfirmado ? "Destino confirmado" : "Seleccioná un envío para verificar el destino")</span></p><p class="@(custodiaConfirmada ? "is-confirmed" : "is-pending")" data-summary-custody data-confirmed="@custodiaConfirmada.ToString().ToLowerInvariant()"><span aria-hidden="true">@(custodiaConfirmada ? "✓" : "—")</span><span>@(custodiaConfirmada ? "Bulto recibido en depósito" : "Seleccioná un envío para verificar la recepción")</span></p><small>Se vuelve a validar al guardar y al despachar.</small></div>
+                <div class="nr-summary-effect"><strong>Al guardar</strong><p>Se crea una hoja planificada con las paradas seleccionadas; no se despacha, no inicia la jornada y no transfiere custodia.</p></div>
+                <p class="nr-summary-live visually-hidden" role="status" aria-live="polite" data-plan-summary>El resumen se actualiza con tu selección.</p>
+                <div class="nr-planning-submit">
+                    <button form="route-planning-form" type="submit" class="nr-action-primary" data-submit-label="Guardar planificación">Guardar planificación</button>
+                    <a class="nr-planning-cancel" asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")">Cancelar</a>
+                </div>
+            </aside>
+        </div>
+    }
+</div>
