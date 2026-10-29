@@ -550,6 +550,8 @@ public sealed class AdminSessionAndPagesTests
                 services.AddDataProtection().UseEphemeralDataProtectionProvider();
                 services.Configure<HttpClientFactoryOptions>("NexoRuta", options => options.HttpMessageHandlerBuilderActions
                     .Add(handler => handler.PrimaryHandler = new ApiHandler(api)));
+                services.Configure<HttpClientFactoryOptions>("NexoRuta.DemoData", options => options.HttpMessageHandlerBuilderActions
+                    .Add(handler => handler.PrimaryHandler = new ApiHandler(api)));
             });
         }
     }
