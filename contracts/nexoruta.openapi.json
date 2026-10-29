@@ -10740,8 +10740,7 @@
           "pesoGramos",
           "largoCentimetros",
           "anchoCentimetros",
-          "altoCentimetros",
-          "creadoEnUtc"
+          "altoCentimetros"
         ],
         "type": "object",
         "properties": {
@@ -10779,10 +10778,6 @@
               "string"
             ],
             "format": "decimal"
-          },
-          "creadoEnUtc": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },
@@ -11570,7 +11565,8 @@
           "pesoGramos",
           "largoCentimetros",
           "anchoCentimetros",
-          "altoCentimetros"
+          "altoCentimetros",
+          "creadoEnUtc"
         ],
         "type": "object",
         "properties": {
@@ -11633,6 +11629,10 @@
               "string"
             ],
             "format": "decimal"
+          },
+          "creadoEnUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
