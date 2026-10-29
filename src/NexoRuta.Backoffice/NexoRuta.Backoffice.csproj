@@ -12,4 +12,8 @@
     <Content Include="wwwroot\css\portal-design.css" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="wwwroot\data\departamentos-uruguay.geojson" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../NexoRuta.Hosting/NexoRuta.Hosting.csproj" />
+  </ItemGroup>
 </Project>
