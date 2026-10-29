@@ -10740,7 +10740,8 @@
           "pesoGramos",
           "largoCentimetros",
           "anchoCentimetros",
-          "altoCentimetros"
+          "altoCentimetros",
+          "creadoEnUtc"
         ],
         "type": "object",
         "properties": {
@@ -10778,6 +10779,10 @@
               "string"
             ],
             "format": "decimal"
+          },
+          "creadoEnUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -11644,7 +11649,8 @@
           "direccion",
           "estado",
           "version",
-          "bultos"
+          "bultos",
+          "creadoEnUtc"
         ],
         "type": "object",
         "properties": {
@@ -11695,6 +11701,10 @@
             "items": {
               "$ref": "#/components/schemas/BultoDetalle"
             }
+          },
+          "creadoEnUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
