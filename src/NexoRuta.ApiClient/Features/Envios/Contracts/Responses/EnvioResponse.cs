@@ -12,7 +12,8 @@ public sealed record EnvioResponse(
     string Direccion,
     string Estado,
     long Version,
-    IReadOnlyList<BultoResponse> Bultos)
+    IReadOnlyList<BultoResponse> Bultos,
+    DateTimeOffset CreadoEnUtc)
 {
     public bool AdmiteCancelacion() => Estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado";
 }

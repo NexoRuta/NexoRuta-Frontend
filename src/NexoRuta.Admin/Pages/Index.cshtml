@@ -1,4 +1,5 @@
 @page "/"
+@model NexoRuta.Admin.Features.DatosDemo.Pages.IndexModel
 @{ ViewData["Title"] = "Platform administration"; }
 <p class="text-uppercase text-muted small">Platform administration</p>
 <h1>Organizations</h1>
@@ -13,3 +14,35 @@
         <a class="btn btn-primary" href="/comercios">View commerces</a>
     </div></div></section>
 </div>
+
+<section class="mt-5" aria-labelledby="demo-data-title">
+    <h2 id="demo-data-title">Demo data</h2>
+    <p>Load five operators, five commerces, their accounts, and a week of shipment and delivery activity. This seed runs once.</p>
+    @if (Model.Error is not null)
+    {
+        <p class="alert alert-danger" role="alert">@Model.Error</p>
+    }
+    @if (Model.Confirmacion is not null)
+    {
+        <p class="alert alert-success" role="status">@Model.Confirmacion</p>
+    }
+    @if (Model.Estado is { Sembrada: true } estado)
+    {
+        <div class="border rounded p-3" role="status">
+            <p class="mb-2"><strong>Demo data already loaded</strong> · @Model.FechaLocal(estado.SembradoEnUtc!.Value)</p>
+            <dl class="row mb-0">
+                <dt class="col-sm-6">Operators / commerces</dt><dd class="col-sm-6">@estado.Operadores / @estado.Comercios</dd>
+                <dt class="col-sm-6">Operator / commerce accounts</dt><dd class="col-sm-6">@estado.CuentasOperador / @estado.CuentasComercio</dd>
+                <dt class="col-sm-6">Shipments / delivery routes</dt><dd class="col-sm-6">@estado.Envios / @estado.Rutas</dd>
+                <dt class="col-sm-6">Delivery operations</dt><dd class="col-sm-6">@estado.Operaciones</dd>
+            </dl>
+        </div>
+    }
+    else if (Model.Estado is { Sembrada: false })
+    {
+        <p role="status">Demo data has not been loaded.</p>
+        <form method="post" asp-page-handler="Sembrar" data-single-submit class="mt-3">
+            <button type="submit" class="btn btn-primary" data-loading-text="Loading demo data…">Seed demo data</button>
+        </form>
+    }
+</section>
