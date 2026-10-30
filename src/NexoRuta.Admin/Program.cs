@@ -1,3 +1,4 @@
+using NexoRuta.Hosting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,11 @@ using NexoRuta.ApiClient.Features.Plataforma.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 
 var builder = WebApplication.CreateBuilder(args);
+if (!builder.Services.AddSharedDataProtection(builder.Configuration, "NexoRuta.Admin", "admin")
+    && builder.Environment.IsProduction())
+    throw new InvalidOperationException("Production Admin requires shared Data Protection storage.");
+builder.Services.AddTrustedProxyHeaders(builder.Configuration);
+builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Admin");
 builder.Services.AddHealthChecks();
 builder.Services.AddDataProtection().SetApplicationName("NexoRuta.Admin");
 builder.Services.AddRazorPages(options =>
@@ -49,8 +55,14 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5041/");
     client.Timeout = TimeSpan.FromSeconds(15);
 }).AddTypedClient<AuthApiClient>().AddTypedClient<UsuariosApiClient>().AddTypedClient<OrganizacionesAdminApiClient>();
+builder.Services.AddHttpClient("NexoRuta.DemoData", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5041/");
+    client.Timeout = TimeSpan.FromMinutes(5);
+}).AddTypedClient<DatosDemoApiClient>();
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Error");
 app.Use(async (context, next) =>
 {

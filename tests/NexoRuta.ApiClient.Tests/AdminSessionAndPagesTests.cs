@@ -8,8 +8,10 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NexoRuta.Admin.Core.Security;
 using NexoRuta.ApiClient.Core.Session;
@@ -398,7 +400,7 @@ public sealed class AdminSessionAndPagesTests
     [Fact]
     public async Task NonDevelopmentCookieRequiresHttpsAndRemainsNonpersistent()
     {
-        using var factory = new PortalFactory<ApiPermissionAuthorizationHandler>(new FakeApi(), "Production");
+        using var factory = new PortalFactory<ApiPermissionAuthorizationHandler>(new FakeApi(), "Testing");
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost/") });
         using var response = await Login(client);
         var cookie = response.Headers.GetValues("Set-Cookie").Last(x => x.StartsWith("NexoRuta.Admin=", StringComparison.Ordinal));
@@ -533,6 +535,13 @@ public sealed class AdminSessionAndPagesTests
 
     private sealed class PortalFactory<T>(FakeApi api, string environment = "Development") : WebApplicationFactory<T> where T : class
     {
+        protected override IHost CreateHost(IHostBuilder builder)
+        {
+            builder.ConfigureHostConfiguration(configuration => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?> { [HostDefaults.EnvironmentKey] = environment }));
+            return base.CreateHost(builder);
+        }
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment(environment);
@@ -540,6 +549,8 @@ public sealed class AdminSessionAndPagesTests
             {
                 services.AddDataProtection().UseEphemeralDataProtectionProvider();
                 services.Configure<HttpClientFactoryOptions>("NexoRuta", options => options.HttpMessageHandlerBuilderActions
+                    .Add(handler => handler.PrimaryHandler = new ApiHandler(api)));
+                services.Configure<HttpClientFactoryOptions>("NexoRuta.DemoData", options => options.HttpMessageHandlerBuilderActions
                     .Add(handler => handler.PrimaryHandler = new ApiHandler(api)));
             });
         }
@@ -586,6 +597,19 @@ public sealed class AdminSessionAndPagesTests
             });
             if (uri.AbsolutePath == "/api/usuarios/actual/permisos")
                 return PermissionStatus is { } permissionStatus ? Failure(permissionStatus) : Json(200, Permissions);
+            if (uri.AbsolutePath == "/api/admin/demo-data" && request.Method == HttpMethod.Get)
+                return Json(200, new
+                {
+                    sembrada = false,
+                    sembradoEnUtc = (DateTimeOffset?)null,
+                    operadores = 0,
+                    comercios = 0,
+                    cuentasOperador = 0,
+                    cuentasComercio = 0,
+                    envios = 0,
+                    rutas = 0,
+                    operaciones = 0
+                });
             if (uri.AbsolutePath == $"/api/admin/solicitudes-baja/{CancellationRequestId}/resolver" && request.Method == HttpMethod.Post)
             {
                 using var resolution = JsonDocument.Parse(body!);

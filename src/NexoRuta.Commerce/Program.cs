@@ -1,3 +1,4 @@
+using NexoRuta.Hosting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +13,12 @@ using NexoRuta.Commerce.Components;
 using NexoRuta.Commerce.Core.Security;
 
 var builder = WebApplication.CreateBuilder(args);
+if (!builder.Services.AddSharedDataProtection(builder.Configuration,
+        builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "commerce")
+    && builder.Environment.IsProduction())
+    throw new InvalidOperationException("Production Commerce requires shared Data Protection storage.");
+builder.Services.AddTrustedProxyHeaders(builder.Configuration);
+builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Commerce");
 builder.Services.AddHealthChecks();
 
 // Add services to the container.
@@ -79,6 +86,7 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<OperadoresApiClient>();
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

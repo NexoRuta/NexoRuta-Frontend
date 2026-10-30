@@ -12,7 +12,8 @@ public sealed record EnvioResponse(
     string Direccion,
     string Estado,
     long Version,
-    IReadOnlyList<BultoResponse> Bultos)
+    IReadOnlyList<BultoResponse> Bultos,
+    DateTimeOffset CreadoEnUtc)
 {
     public bool DestinoConfirmado { get; init; }
     public string? ReferenciaExterna { get; init; }

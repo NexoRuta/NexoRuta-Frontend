@@ -154,33 +154,47 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicitPost()
-    {
-        var api = new FakeApi();
-        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
-        using var factory = new BackofficeFactory(api);
-        using var client = Client(factory);
-        await LoginAsync(client, "user@example.test");
-        var token = await GetAntiforgeryTokenAsync(client, "/reglas-operativas");
-        using var initial = await client.PostAsync("/reglas-operativas?handler=CrearBorrador", Form(token));
-        Assert.Equal(HttpStatusCode.Redirect, initial.StatusCode);
-        Assert.Equal("/reglas-operativas/borrador", new Uri(client.BaseAddress!, initial.Headers.Location!).AbsolutePath);
-        Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/reglas-operativas/borrador" && call.Method == HttpMethod.Post);
+[Fact]
+public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicitPost()
+{
+    var api = new FakeApi();
+    api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+    using var factory = new BackofficeFactory(api);
+    using var client = Client(factory);
+    await LoginAsync(client, "user@example.test");
 
-        api.HasRulesDraft = false;
-        api.HasRulesPublication = true;
-        using var publishedState = await client.GetAsync("/reglas-operativas");
-        var html = await publishedState.Content.ReadAsStringAsync();
-        Assert.Contains("Crear copia para editar", html);
-        Assert.Contains("Plazo de validación de prueba", html);
-        Assert.DoesNotContain("Configurar reglas", html);
-        token = await GetAntiforgeryTokenAsync(client, "/reglas-operativas");
-        using var copy = await client.PostAsync("/reglas-operativas?handler=CrearBorrador", Form(token));
-        Assert.Equal(HttpStatusCode.Redirect, copy.StatusCode);
-        Assert.True(api.HasRulesDraft);
-    }
+    var token = await GetAntiforgeryTokenAsync(client, "/reglas-operativas");
+    using var initial = await client.PostAsync(
+        "/reglas-operativas?handler=CrearBorrador", Form(token));
 
+    Assert.Equal(HttpStatusCode.Redirect, initial.StatusCode);
+    Assert.Equal(
+        "/reglas-operativas/borrador",
+        new Uri(client.BaseAddress!, initial.Headers.Location!).AbsolutePath);
+    Assert.Contains(api.Calls, call =>
+        call.Path == "/api/configuracion/reglas-operativas/borrador"
+        && call.Method == HttpMethod.Post);
+
+    api.HasRulesDraft = false;
+    api.HasRulesPublication = true;
+
+    using var publishedState = await client.GetAsync("/reglas-operativas");
+    Assert.Equal(HttpStatusCode.OK, publishedState.StatusCode);
+
+    var html = await publishedState.Content.ReadAsStringAsync();
+    Assert.Contains("Reglas publicadas vigentes", html);
+    Assert.Contains("Ver reglas vigentes", html);
+    Assert.Contains("Crear copia para editar", html);
+    Assert.DoesNotContain("Configurar reglas", html);
+    Assert.False(api.HasRulesDraft);
+
+    token = await GetAntiforgeryTokenAsync(client, "/reglas-operativas");
+    using var copy = await client.PostAsync(
+        "/reglas-operativas?handler=CrearBorrador", Form(token));
+
+    Assert.Equal(HttpStatusCode.Redirect, copy.StatusCode);
+    Assert.True(api.HasRulesDraft);
+}
     [Fact]
     public async Task OperationalRulesHomeOffersToContinueAnExistingDraftSeparatelyFromThePublication()
     {

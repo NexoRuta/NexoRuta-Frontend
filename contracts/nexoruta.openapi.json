@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost/"
+      "url": "http://127.0.0.1:5099/"
     }
   ],
   "paths": {
@@ -6476,6 +6476,162 @@
         }
       }
     },
+    "/api/admin/demo-data": {
+      "get": {
+        "tags": [
+          "DatosDemo"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "DatosDemo"
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosDemoStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/operadores": {
       "post": {
         "tags": [
@@ -12313,6 +12469,88 @@
         },
         "additionalProperties": false
       },
+      "DatosDemoStatusResponse": {
+        "required": [
+          "sembrada",
+          "sembradoEnUtc",
+          "operadores",
+          "comercios",
+          "cuentasOperador",
+          "cuentasComercio",
+          "envios",
+          "rutas",
+          "operaciones"
+        ],
+        "type": "object",
+        "properties": {
+          "sembrada": {
+            "type": "boolean"
+          },
+          "sembradoEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "operadores": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "comercios": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cuentasOperador": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cuentasComercio": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "envios": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rutas": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "operaciones": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "DecisionDevolucionEnvioResponse": {
         "required": [
           "envioId",
@@ -12541,7 +12779,8 @@
           "pesoGramos",
           "largoCentimetros",
           "anchoCentimetros",
-          "altoCentimetros"
+          "altoCentimetros",
+          "creadoEnUtc"
         ],
         "type": "object",
         "properties": {
@@ -12604,6 +12843,10 @@
               "string"
             ],
             "format": "decimal"
+          },
+          "creadoEnUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -12620,7 +12863,8 @@
           "direccion",
           "estado",
           "version",
-          "bultos"
+          "bultos",
+          "creadoEnUtc"
         ],
         "type": "object",
         "properties": {
@@ -12671,6 +12915,10 @@
             "items": {
               "$ref": "#/components/schemas/BultoDetalle"
             }
+          },
+          "creadoEnUtc": {
+            "type": "string",
+            "format": "date-time"
           },
           "destinoConfirmado": {
             "type": "boolean"
@@ -16333,6 +16581,9 @@
     },
     {
       "name": "CambiarEstadoOrganizacion"
+    },
+    {
+      "name": "DatosDemo"
     },
     {
       "name": "Organizaciones"

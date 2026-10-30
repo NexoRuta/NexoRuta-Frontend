@@ -1,12 +1,17 @@
 name: Frontend CI
+run-name: Frontend CI / ${{ github.event.pull_request.number || github.ref_name }}
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
-    branches: [main]
+    types: [opened, edited, reopened, synchronize]
+    branches: [develop, main]
 
 permissions:
   contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -19,26 +24,61 @@ jobs:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPOSITORY: ${{ github.repository }}
+          BASE_BRANCH: ${{ github.base_ref }}
         run: |
-          if [[ "$PR_HEAD_REF" != "develop" || "$PR_HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]]; then
-            echo "This workflow only accepts PRs from develop in the same repository." >&2
-            exit 1
+          if [[ "$BASE_BRANCH" == main ]]; then
+            if [[ "$PR_HEAD_REPOSITORY" != "$BASE_REPOSITORY" ]]; then
+              echo "Pull requests into main must come from this repository's develop branch." >&2
+              exit 1
+            fi
+            if [[ "$PR_HEAD_REF" != develop ]]; then
+              echo "Pull requests into main must come from develop." >&2
+              exit 1
+            fi
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # Pin the canonical map data so a later backend push cannot change this build.
       - name: Checkout canonical department asset
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: NexoRuta/NexoRuta-Backend
-          ref: 149eea50a48d35bd7a3616beadc36015af567f81
+          ref: main
           path: .ci/backend
           sparse-checkout: src/ZonasCobertura/Data
-      - uses: actions/setup-dotnet@v4
+      - name: Record canonical department asset source
+        run: |
+          git -C .ci/backend rev-parse HEAD
+          sha256sum .ci/backend/src/ZonasCobertura/Data/departamentos-uruguay.geojson
+      - name: Validate workflow syntax
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/*.yml
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
       - name: Restore frontend
-        run: dotnet restore NexoRuta.sln
+        run: dotnet restore NexoRuta.sln --locked-mode
       - name: Build frontend
         run: dotnet build NexoRuta.sln --no-restore --configuration Release
       - name: Test portals, API client and OpenAPI contracts
-        run: dotnet test NexoRuta.sln --no-build --no-restore --configuration Release
+        env:
+          DOTNET_PROCESSOR_COUNT: "4"
+        run: dotnet test NexoRuta.sln --no-build --no-restore --configuration Release --logger trx --results-directory artifacts/frontend
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: frontend-test-results-${{ github.run_id }}
+          path: artifacts/**/*.trx
+          if-no-files-found: error
+          retention-days: 14
+
+  result:
+    name: Frontend CI / result
+    if: always()
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the frontend validation
+        env:
+          RESULT: ${{ needs.build.result }}
+        run: test "$RESULT" = success
