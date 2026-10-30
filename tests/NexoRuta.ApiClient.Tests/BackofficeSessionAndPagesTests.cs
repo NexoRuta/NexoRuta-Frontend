@@ -154,32 +154,47 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.StartsWith("/acceso-denegado", denied.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicitPost()
-    {
-        var api = new FakeApi();
-        api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
-        using var factory = new BackofficeFactory(api);
-        using var client = Client(factory);
-        await LoginAsync(client, "user@example.test");
-        var token = await GetAntiforgeryTokenAsync(client, "/reglas-operativas");
-        using var initial = await client.PostAsync("/reglas-operativas?handler=CrearBorrador", Form(token));
-        Assert.Equal(HttpStatusCode.Redirect, initial.StatusCode);
-        Assert.Equal("/reglas-operativas/borrador", new Uri(client.BaseAddress!, initial.Headers.Location!).AbsolutePath);
-        Assert.Contains(api.Calls, call => call.Path == "/api/configuracion/reglas-operativas/borrador" && call.Method == HttpMethod.Post);
+[Fact]
+public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicitPost()
+{
+    var api = new FakeApi();
+    api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
+    using var factory = new BackofficeFactory(api);
+    using var client = Client(factory);
+    await LoginAsync(client, "user@example.test");
 
-        api.HasRulesDraft = false;
-        api.HasRulesPublication = true;
-        using var publishedState = await client.GetAsync("/reglas-operativas");
-        var html = await publishedState.Content.ReadAsStringAsync();
-        Assert.Contains("Crear copia para editar", html);
-        Assert.DoesNotContain("Configurar reglas", html);
-        token = await GetAntiforgeryTokenAsync(client, "/reglas-operativas");
-        using var copy = await client.PostAsync("/reglas-operativas?handler=CrearBorrador", Form(token));
-        Assert.Equal(HttpStatusCode.Redirect, copy.StatusCode);
-        Assert.True(api.HasRulesDraft);
-    }
+    var token = await GetAntiforgeryTokenAsync(client, "/reglas-operativas");
+    using var initial = await client.PostAsync(
+        "/reglas-operativas?handler=CrearBorrador", Form(token));
 
+    Assert.Equal(HttpStatusCode.Redirect, initial.StatusCode);
+    Assert.Equal(
+        "/reglas-operativas/borrador",
+        new Uri(client.BaseAddress!, initial.Headers.Location!).AbsolutePath);
+    Assert.Contains(api.Calls, call =>
+        call.Path == "/api/configuracion/reglas-operativas/borrador"
+        && call.Method == HttpMethod.Post);
+
+    api.HasRulesDraft = false;
+    api.HasRulesPublication = true;
+
+    using var publishedState = await client.GetAsync("/reglas-operativas");
+    Assert.Equal(HttpStatusCode.OK, publishedState.StatusCode);
+
+    var html = await publishedState.Content.ReadAsStringAsync();
+    Assert.Contains("Reglas publicadas vigentes", html);
+    Assert.Contains("Ver reglas vigentes", html);
+    Assert.Contains("Crear copia para editar", html);
+    Assert.DoesNotContain("Configurar reglas", html);
+    Assert.False(api.HasRulesDraft);
+
+    token = await GetAntiforgeryTokenAsync(client, "/reglas-operativas");
+    using var copy = await client.PostAsync(
+        "/reglas-operativas?handler=CrearBorrador", Form(token));
+
+    Assert.Equal(HttpStatusCode.Redirect, copy.StatusCode);
+    Assert.True(api.HasRulesDraft);
+}
     [Fact]
     public async Task OperationalRulesHomeOffersToContinueAnExistingDraftSeparatelyFromThePublication()
     {
@@ -203,6 +218,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     {
         var api = new FakeApi { HasRulesDraft = true, RulesConcurrencyVersion = 0,
             RulesIntervalMinutes = 1_501, RulesUrgentMinutes = 525_600,
+            RulesProofDeadlineMinutes = 1_500,
             RulesProofs = ["Fotografia", "DocumentoReceptor"],
             RulesMotives = [new("DOMICILIO_CERRADO", "Domicilio cerrado", true), new("SIN_ACCESO", "Sin acceso", false)] };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
@@ -226,6 +242,9 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("Plazo Urgente", html);
         Assert.Contains("name=\"PlazoEstandar.Horas\"", html);
         Assert.Contains("name=\"PlazoEstandar.Minutos\"", html);
+        Assert.Contains("Plazo de validación de prueba", html);
+        Assert.Contains("name=\"PlazoValidacionPrueba.Horas\"", html);
+        Assert.Contains("name=\"PlazoValidacionPrueba.Minutos\"", html);
         Assert.Contains("value=\"\">—</option>", html);
         Assert.DoesNotContain("jwt-user", html);
     }
@@ -243,13 +262,15 @@ public sealed partial class BackofficeSessionAndPagesTests
             ("VersionConcurrencia", "0"), ("ColeccionesEnviadas", "true"), ("MaxIntentosEntrega", ""),
             ("IntervaloEntreIntentos.Dias", ""), ("IntervaloEntreIntentos.Horas", ""), ("IntervaloEntreIntentos.Minutos", ""),
             ("PoliticaDevolucionAlAgotarIntentos", ""), ("PlazoEstandar.Dias", ""), ("PlazoEstandar.Horas", ""), ("PlazoEstandar.Minutos", ""),
-            ("PlazoUrgente.Dias", ""), ("PlazoUrgente.Horas", ""), ("PlazoUrgente.Minutos", "")));
+            ("PlazoUrgente.Dias", ""), ("PlazoUrgente.Horas", ""), ("PlazoUrgente.Minutos", ""),
+            ("PlazoValidacionPrueba.Dias", ""), ("PlazoValidacionPrueba.Horas", ""), ("PlazoValidacionPrueba.Minutos", "")));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var payload = Assert.Single(api.RulePayloads).Body;
         Assert.Equal(JsonValueKind.Null, payload.GetProperty("maxIntentosEntrega").ValueKind);
         Assert.Equal(JsonValueKind.Null, payload.GetProperty("intervaloEntreIntentosMinutos").ValueKind);
         Assert.Equal(JsonValueKind.Null, payload.GetProperty("plazoEstandarMinutos").ValueKind);
         Assert.Equal(JsonValueKind.Null, payload.GetProperty("plazoUrgenteMinutos").ValueKind);
+        Assert.Equal(JsonValueKind.Null, payload.GetProperty("plazoValidacionPruebaMinutos").ValueKind);
         Assert.Equal(0, payload.GetProperty("requisitosPrueba").GetArrayLength());
         Assert.Equal(0, payload.GetProperty("motivos").GetArrayLength());
     }
@@ -394,6 +415,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     {
         var api = new FakeApi { HasRulesDraft = true, RulesMaxAttempts = 3, RulesIntervalMinutes = 30,
             RulesPolicy = "DecisionOperativa", RulesStandardMinutes = 1440, RulesUrgentMinutes = 60,
+            RulesProofDeadlineMinutes = 120,
             RulesProofs = ["FirmaEnPantalla"], RulesMotives = [new("DOMICILIO_CERRADO", "Domicilio cerrado", true)] };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
         using var factory = new BackofficeFactory(api);
@@ -432,6 +454,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("Prueba requerida para entregar", html);
         Assert.Contains("Política cuando se agotan los intentos", html);
         Assert.Contains("Plazos de entrega", html);
+        Assert.Contains("Plazo de validación de prueba", html);
         Assert.Contains("Motivos de no entrega disponibles", html);
     }
 
@@ -505,6 +528,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     public async Task OperationalRulesHistoryIsPagedAndPublicationDetailIsReadonly()
     {
         var api = new FakeApi { HasRulesPublication = true, RulesPublishedNumber = 21, RulesMaxAttempts = 3,
+            RulesProofDeadlineMinutes = 90,
             RulesProofs = ["Fotografia"], RulesMotives = [new("DOMICILIO_CERRADO", "Domicilio cerrado", true)] };
         api.PermissionOverrides["jwt-user"] = ["configuracion.gestionar"];
         using var factory = new BackofficeFactory(api);
@@ -520,6 +544,8 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("Publicación", html);
         Assert.Contains("Fotografía", html);
         Assert.Contains("Crear copia para editar", html);
+        Assert.Contains("Plazo de validación de prueba", html);
+        Assert.Contains("1 hora, 30 minutos", html);
         Assert.DoesNotContain("name=\"MaxIntentosEntrega\"", html);
     }
 
@@ -2415,6 +2441,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         public ConcurrentQueue<StateCall> StateRequests { get; } = new();
         public bool OrganizationHasOwner { get; init; } = true;
         public bool IsOrganizationOwner { get; init; } = true;
+        public bool CanManageOperationalDecisions { get; init; }
         public HttpStatusCode? OrganizationUpdateStatusOverride { get; init; }
         public bool OrganizationApiUnavailable { get; set; }
         public bool CancellationRequestPending { get; set; }
@@ -2450,6 +2477,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         public string? RulesPolicy { get; set; }
         public int? RulesStandardMinutes { get; set; }
         public int? RulesUrgentMinutes { get; set; }
+        public int? RulesProofDeadlineMinutes { get; set; }
         public List<string> RulesProofs { get; set; } = [];
         public List<RuleMotiveFixture> RulesMotives { get; set; } = [];
         public HttpStatusCode? RulesSaveStatusOverride { get; set; }
@@ -2504,7 +2532,8 @@ public sealed partial class BackofficeSessionAndPagesTests
                     return Json(status, new { message = "Permission service unavailable" });
                 return Json(HttpStatusCode.OK, Permissions(token));
             }
-            if (path == "/api/usuarios/actual") return Json(HttpStatusCode.OK, CurrentUser(token, IsCancellationAdmin));
+            if (path == "/api/usuarios/actual") return Json(HttpStatusCode.OK,
+                CurrentUser(token, IsCancellationAdmin, CanManageOperationalDecisions));
             if (path == "/api/organizacion/suspendida")
                 return Json(HttpStatusCode.OK, new { organizacionId = Guid.NewGuid(), tipoOrganizacion = token == "jwt-suspended-commerce" ? "Comercio" : "Operador", nombre = "Suspended organization", estado = "Suspendida", mensaje = "Sign in again after reactivation." });
             if (path == "/api/organizacion/actual" && request.Method == HttpMethod.Get)
@@ -2559,6 +2588,7 @@ public sealed partial class BackofficeSessionAndPagesTests
                     ? null : body.GetProperty("politicaDevolucionAlAgotarIntentos").GetString();
                 RulesStandardMinutes = ReadNullableInt(body, "plazoEstandarMinutos");
                 RulesUrgentMinutes = ReadNullableInt(body, "plazoUrgenteMinutos");
+                RulesProofDeadlineMinutes = ReadNullableInt(body, "plazoValidacionPruebaMinutos");
                 RulesProofs = body.GetProperty("requisitosPrueba").EnumerateArray().Select(item => item.GetString()!).ToList();
                 RulesMotives = body.GetProperty("motivos").EnumerateArray().Select(item => new RuleMotiveFixture(
                     item.GetProperty("codigo").GetString()!, item.GetProperty("descripcion").GetString()!, item.GetProperty("disponible").GetBoolean())).ToList();
@@ -2910,7 +2940,8 @@ public sealed partial class BackofficeSessionAndPagesTests
                 versionConcurrencia = RulesConcurrencyVersion, maxIntentosEntrega = RulesMaxAttempts,
                 intervaloEntreIntentosMinutos = RulesIntervalMinutes,
                 politicaDevolucionAlAgotarIntentos = RulesPolicy, plazoEstandarMinutos = RulesStandardMinutes,
-                plazoUrgenteMinutos = RulesUrgentMinutes, requisitosPrueba = RulesProofs,
+                plazoUrgenteMinutos = RulesUrgentMinutes, plazoValidacionPruebaMinutos = RulesProofDeadlineMinutes,
+                requisitosPrueba = RulesProofs,
                 motivos = RulesMotives.Select(motive => new { codigo = motive.Code, descripcion = motive.Description, disponible = motive.Available }),
                 creadaUtc = DateTimeOffset.UtcNow, publicadaUtc = state == "Publicada" ? DateTimeOffset.UtcNow : (DateTimeOffset?)null };
 
@@ -2967,7 +2998,8 @@ public sealed partial class BackofficeSessionAndPagesTests
             };
         }
 
-        private static object CurrentUser(string? token, bool cancellationAdmin = false)
+        private static object CurrentUser(string? token, bool cancellationAdmin = false,
+            bool canManageOperationalDecisions = false)
         {
             var commerce = token == "jwt-commerce";
             var platform = token == "jwt-platform";
@@ -2983,7 +3015,8 @@ public sealed partial class BackofficeSessionAndPagesTests
                 comercioNombre = commerce ? "Commerce" : null,
                 tipo = platform ? "Plataforma" : commerce ? "Comercio" : "Operador",
                 rolId = platform ? (Guid?)null : RoleId,
-                rolCodigo = platform ? null : cancellationAdmin ? "administrador_operador" : "dynamic"
+                rolCodigo = platform ? null : cancellationAdmin ? "administrador_operador" : "dynamic",
+                puedeGestionarDecisionesOperativasEnvio = canManageOperationalDecisions
             };
         }
 

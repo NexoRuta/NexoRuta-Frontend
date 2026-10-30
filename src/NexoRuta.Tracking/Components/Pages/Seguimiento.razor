@@ -127,7 +127,7 @@
     private NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses.IdentidadVisualPublicaResponse? identidad;
     private string codigo = "";
     private CancellationTokenSource solicitudes = new();
-    private bool PuedeCancelar => estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado";
+    private bool PuedeCancelar => estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado" or "EnDevolucion";
     private string? LogoDataUri => identidad?.LogoContenido is { Length: > 0 } bytes && identidad.LogoTipoContenido is "image/png" or "image/jpeg"
         ? $"data:{identidad.LogoTipoContenido};base64,{Convert.ToBase64String(bytes)}" : null;
     private string TelefonoHref => identidad?.TelefonoPublico is { } value

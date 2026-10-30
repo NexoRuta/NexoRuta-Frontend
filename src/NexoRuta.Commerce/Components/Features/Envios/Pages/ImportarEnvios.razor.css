@@ -1,0 +1,70 @@
+.import-guidance,
+.import-form,
+.import-result {
+    margin-block: 1.25rem;
+    max-inline-size: 56rem;
+}
+
+.import-guidance {
+    padding: 1rem;
+    border-inline-start: .25rem solid var(--bs-primary);
+    background: var(--bs-tertiary-bg);
+}
+
+.import-guidance p:last-child,
+.import-guidance ul:last-child {
+    margin-block-end: 0;
+}
+
+.import-csv-header code {
+    display: block;
+    margin-block-start: .35rem;
+    overflow-wrap: anywhere;
+}
+
+.import-field {
+    margin-block: 1rem;
+}
+
+.selected-file {
+    margin-block: .5rem 0;
+    overflow-wrap: anywhere;
+}
+
+.field-error {
+    color: var(--bs-danger-text-emphasis);
+    margin-block: .4rem 0;
+}
+
+.retry-note {
+    max-inline-size: 48rem;
+}
+
+.operator-options-loading > div {
+    display: grid;
+    gap: .5rem;
+    max-inline-size: 34rem;
+}
+
+.operator-options-loading span {
+    display: block;
+    block-size: 2.5rem;
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-tertiary-bg);
+    animation: import-skeleton 1.2s ease-in-out infinite alternate;
+}
+
+.operator-options-loading span:last-child {
+    inline-size: 65%;
+}
+
+@keyframes import-skeleton {
+    from { opacity: .55; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .operator-options-loading span {
+        animation: none;
+    }
+}

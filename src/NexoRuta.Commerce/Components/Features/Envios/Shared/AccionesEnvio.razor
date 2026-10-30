@@ -1,0 +1,113 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="nr-shipment-more-actions @(PanelAbierto ? "is-open" : null)" @onkeydown="ManejarTecla">
+    <button @ref="botonMenu" class="nr-shipment-more-trigger" type="button"
+            aria-label="Más acciones para el envío @IdCorto"
+            aria-expanded="@(PanelAbierto ? "true" : "false")" aria-controls="@PopupId" @onclick="AlternarMenu">
+        <span aria-hidden="true">⋯</span>
+    </button>
+    @if (PanelAbierto)
+    {
+        <div id="@PopupId" class="nr-shipment-more-popover" role="group"
+             aria-label="@(mostrarIdentificador ? "Identificador completo del envío" : "Acciones secundarias del envío")">
+            @if (mostrarIdentificador)
+            {
+                <p class="nr-shipment-id-label">Identificador completo</p>
+                <code @ref="identificadorCompleto" class="nr-shipment-full-id" tabindex="0">@EnvioId</code>
+                <button type="button" @onclick="CerrarPanel">Cerrar identificador</button>
+            }
+            else
+            {
+                @if (PuedeCancelar)
+                {
+                    <button @ref="primeraAccion" class="is-danger" type="button" @onclick="CancelarAsync">Cancelar envío</button>
+                }
+                <button @ref="botonIdentificador" type="button" @onclick="MostrarIdentificador">Ver identificador completo</button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid EnvioId { get; set; }
+    [Parameter] public bool PuedeCancelar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+
+    private ElementReference botonMenu;
+    private ElementReference primeraAccion;
+    private ElementReference botonIdentificador;
+    private ElementReference identificadorCompleto;
+    private bool abierto;
+    private bool mostrarIdentificador;
+    private bool enfocarAccion;
+    private bool enfocarIdentificador;
+    private bool devolverFoco;
+    private bool PanelAbierto => abierto || mostrarIdentificador;
+    private string IdCorto => EnvioId.ToString("N")[..8];
+    private string PopupId => $"shipment-actions-{EnvioId:N}";
+
+    private void AlternarMenu()
+    {
+        if (abierto)
+        {
+            CerrarPanel();
+            return;
+        }
+
+        mostrarIdentificador = false;
+        abierto = true;
+        enfocarAccion = true;
+    }
+
+    private void ManejarTecla(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape" && PanelAbierto)
+        {
+            CerrarPanel();
+        }
+    }
+
+    private void CerrarPanel()
+    {
+        abierto = false;
+        mostrarIdentificador = false;
+        devolverFoco = true;
+    }
+
+    private async Task CancelarAsync()
+    {
+        abierto = false;
+        mostrarIdentificador = false;
+        devolverFoco = true;
+        await OnCancelar.InvokeAsync();
+    }
+
+    private void MostrarIdentificador()
+    {
+        abierto = false;
+        mostrarIdentificador = true;
+        enfocarIdentificador = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (enfocarIdentificador)
+        {
+            enfocarIdentificador = false;
+            await identificadorCompleto.FocusAsync();
+        }
+        else if (enfocarAccion)
+        {
+            enfocarAccion = false;
+            if (PuedeCancelar)
+                await primeraAccion.FocusAsync();
+            else
+                await botonIdentificador.FocusAsync();
+        }
+        else if (devolverFoco)
+        {
+            devolverFoco = false;
+            await botonMenu.FocusAsync();
+        }
+    }
+}

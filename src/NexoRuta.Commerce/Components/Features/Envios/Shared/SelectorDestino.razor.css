@@ -1,0 +1,109 @@
+.nr-destination-picker {
+    display: grid;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.nr-destination-search {
+    position: relative;
+    display: grid;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.nr-destination-search label {
+    font-weight: 650;
+}
+
+.nr-destination-search input {
+    min-height: 2.875rem;
+    min-width: 0;
+    font: inherit;
+}
+
+.nr-destination-search input:focus-visible,
+.nr-destination-suggestion:focus-visible {
+    outline: 3px solid var(--bs-primary, #0d6efd);
+    outline-offset: 2px;
+}
+
+.nr-destination-help,
+.nr-destination-status,
+.nr-destination-feedback,
+.nr-destination-attribution,
+.nr-destination-map-message {
+    margin: 0;
+    line-height: 1.45;
+}
+
+.nr-destination-help,
+.nr-destination-attribution {
+    color: var(--bs-secondary-color, #667085);
+    font-size: 0.9rem;
+}
+
+.nr-destination-status {
+    color: var(--bs-secondary-color, #667085);
+}
+
+.nr-destination-feedback {
+    border-inline-start: 3px solid var(--bs-warning, #ffc107);
+    padding: 0.45rem 0.65rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.nr-destination-suggestions {
+    z-index: 2;
+    display: grid;
+    max-height: 16rem;
+    overflow: auto;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg, #fff);
+    box-shadow: 0 0.4rem 1rem rgb(16 24 40 / 10%);
+}
+
+.nr-destination-suggestion {
+    min-height: 2.875rem;
+    border: 0;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    padding: 0.7rem 0.85rem;
+    color: var(--bs-body-color, #212529);
+    background: transparent;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.nr-destination-suggestion:last-child {
+    border-bottom: 0;
+}
+
+.nr-destination-suggestion:hover,
+.nr-destination-suggestion[aria-selected="true"] {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.nr-destination-map {
+    width: 100%;
+    min-width: 0;
+    height: clamp(20rem, 48vh, 32rem);
+    min-height: 18rem;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.9rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.nr-destination-map-message {
+    border-inline-start: 3px solid var(--bs-info, #0dcaf0);
+    padding: 0.5rem 0.7rem;
+    color: var(--bs-body-color, #212529);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+@media (max-width: 360px) {
+    .nr-destination-map {
+        height: 20rem;
+        min-height: 20rem;
+    }
+}

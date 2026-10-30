@@ -12,4 +12,5 @@ public sealed record UsuarioActualResponse(
     string Tipo,
     Guid? RolId,
     string? RolCodigo,
-    int? TipoAcceso = null);
+    int? TipoAcceso = null,
+    bool PuedeGestionarDecisionesOperativasEnvio = false);

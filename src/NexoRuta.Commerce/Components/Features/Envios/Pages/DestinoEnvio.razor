@@ -1,11 +1,9 @@
 @page "/envios/{EnvioId:guid}/destino"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy)]
 @rendermode InteractiveServer
-@using System.ComponentModel.DataAnnotations
 @using System.Net
 @using Microsoft.AspNetCore.Components.Authorization
 @using NexoRuta.ApiClient.Core.Session
-@using NexoRuta.ApiClient.Core.Exceptions
 @using NexoRuta.ApiClient.Features.Envios.Clients
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
 @using NexoRuta.Commerce.Components.Features.Envios.Shared
@@ -14,61 +12,74 @@
 @inject NavigationManager Navigation
 @implements IDisposable
 
-<PageTitle>Confirmar ubicación | NexoRuta</PageTitle>
+<PageTitle>Ubicación del destino | NexoRuta</PageTitle>
 <header class="nr-page-heading">
     <div>
         <p class="nr-eyebrow">ENVÍOS · DESTINO</p>
         <h1>Ubicación del destino</h1>
-        <p>Revisá el punto de entrega antes de confirmar.</p>
+        <p>Buscá la dirección, revisá el punto y confirmalo.</p>
     </div>
     <div class="nr-page-actions"><a class="btn btn-outline-secondary" href="/envios">Volver a mis envíos</a></div>
 </header>
-@if (mensaje is not null) { <p class="alert alert-warning" role="status">@mensaje</p> }
+
+@if (mensaje is not null)
+{
+    <p class="alert @(mensajeError ? "alert-danger" : "alert-success")" role="@(mensajeError ? "alert" : "status")">@mensaje</p>
+}
 @if (destino is null && ocupado)
 {
     <div class="nr-detail-skeleton" aria-busy="true" aria-label="Cargando ubicación del destino">
         <p class="visually-hidden" role="status">Consultando dirección y punto de entrega.</p><span></span><span></span><span></span>
     </div>
 }
-else if (ocupado) { <p role="status">Actualizando los datos del destino…</p> }
-@if (destino is not null)
+else if (destino is not null)
 {
-    <section class="nr-destination-panel" aria-labelledby="direccion-destino-titulo">
-    <h2 id="direccion-destino-titulo" class="h4">@destino.Direccion</h2>
-    @if (destino.ConfirmadaEnUtc is not null) { <p>El destino tiene una ubicación confirmada.</p> }
-    @if (destino.Estado != "Admitido")
-    { <p class="alert alert-info">El destino ya no puede modificarse después de la recepción en depósito.</p> }
-    else
-    {
-        <p>Revisá el punto antes de confirmar. Si no coincide con la dirección, mové el marcador o corregí las coordenadas.</p>
-        <button class="btn btn-outline-primary" disabled="@ocupado" @onclick="BuscarAsync">Volver a buscar la dirección</button>
-        @if (propuestas is not null)
-        {
-            @if (propuestas.Propuestas.Count == 0) { <p role="status">No encontramos coincidencias. Indicá el punto manualmente o volvé a buscar.</p> }
-            <ul>
-                @foreach (var propuesta in propuestas.Propuestas)
+    <section class="nr-destination-layout" aria-label="Ubicación del envío">
+        <div class="nr-destination-map-column">
+            <div class="nr-destination-registered">
+                <p class="nr-eyebrow">DIRECCIÓN REGISTRADA</p>
+                <h2>@destino.Direccion</h2>
+                @if (destino.ConfirmadaEnUtc is not null)
                 {
-                    <li><button class="btn btn-link text-start" disabled="@ocupado" @onclick="() => Elegir(propuesta)">@propuesta.Descripcion</button></li>
+                    <p class="nr-destination-confirmed">Ubicación confirmada · @destino.ConfirmadaEnUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
                 }
-            </ul>
-            <p class="small">@propuestas.Atribucion</p>
-            @if (propuestas.Atribucion.Contains("Geoapify", StringComparison.Ordinal))
-            { <p class="small"><a href="https://www.geoapify.com/" rel="noopener noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer">© OpenStreetMap contributors</a></p> }
-        }
-    }
-    <SelectorDestino @key="EnvioId" Latitud="punto.Latitud" Longitud="punto.Longitud" PuntoCambiado="ElegirEnMapa" />
-    <EditForm class="nr-form-stack nr-destination-form" Model="punto" OnValidSubmit="ConfirmarAsync" FormName="confirmar-destino">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-        <fieldset class="nr-form-stack" disabled="@(ocupado || destino.Estado != "Admitido")">
-            <label>Latitud <InputNumber @bind-Value="punto.Latitud" @bind-Value:after="CambioPunto" step="any" /></label>
-            <ValidationMessage For="() => punto.Latitud" />
-            <label>Longitud <InputNumber @bind-Value="punto.Longitud" @bind-Value:after="CambioPunto" step="any" /></label>
-            <ValidationMessage For="() => punto.Longitud" />
-            <label><InputCheckbox @bind-Value="revisado" /> Revisé que el punto corresponde a la dirección del destinatario.</label>
-            <button class="btn btn-primary" type="submit" disabled="@(!revisado || punto.Latitud is null || punto.Longitud is null)">Confirmar ubicación del destino</button>
-        </fieldset>
-    </EditForm>
+            </div>
+            @if (!PuedeGestionarDestino)
+            {
+                <p class="nr-destination-readonly" role="status">El envío ya no admite cambios de ubicación. El punto se muestra solo para consulta.</p>
+            }
+            else if (destino.Estado == "EnDeposito")
+            {
+                <p class="nr-destination-readonly" role="status">El envío ya fue recibido. Confirmá la ubicación pendiente para habilitar la planificación.</p>
+            }
+            <SelectorDestino @key="EnvioId" Latitud="punto.Latitud" Longitud="punto.Longitud"
+                             Editable="PuedeGestionarDestino" Bloqueado="ocupado" PuntoCambiado="ActualizarPunto" />
+        </div>
+
+        <aside class="nr-destination-review" aria-labelledby="destino-revision-titulo">
+            <p class="nr-eyebrow">REVISIÓN</p>
+            <h2 id="destino-revision-titulo">Punto de entrega</h2>
+            <p class="nr-destination-point-state">@EstadoPunto</p>
+            @if (!string.IsNullOrWhiteSpace(descripcionProvisional))
+            {
+                <p class="nr-destination-point-label">@descripcionProvisional</p>
+            }
+            @if (PuedeGestionarDestino)
+            {
+                <p class="nr-destination-hint">La selección queda provisional hasta que confirmes. El servidor valida el punto y la versión del envío.</p>
+                <label class="nr-destination-review-check" for="destino-revisado">
+                    <input id="destino-revisado" type="checkbox" checked="@revisado" disabled="@(!PuntoValido || ocupado)" @onchange="CambiarRevision" />
+                    <span>Revisé que el marcador coincide con la dirección registrada.</span>
+                </label>
+                <button type="button" class="btn btn-primary nr-destination-primary" disabled="@(!PuedeConfirmar)" @onclick="ConfirmarAsync">
+                    @(destino.ConfirmadaEnUtc is null ? "Confirmar ubicación" : "Confirmar nueva ubicación")
+                </button>
+            }
+            else
+            {
+                <p class="nr-destination-hint">La ubicación es de consulta; no se puede modificar desde este estado.</p>
+            }
+        </aside>
     </section>
 }
 
@@ -76,84 +87,140 @@ else if (ocupado) { <p role="status">Actualizando los datos del destino…</p> }
     [Parameter] public Guid EnvioId { get; set; }
     private CancellationTokenSource solicitudes = new();
     private DestinoEnvioResponse? destino;
-    private PropuestasDestinoResponse? propuestas;
     private PuntoFormulario punto = new();
-    private string token = "", mensaje = "";
-    private bool ocupado, revisado;
+    private string token = "";
+    private string? mensaje, descripcionProvisional;
+    private bool ocupado, revisado, puntoPersistido, mensajeError;
+    private bool PuedeGestionarDestino => destino?.Estado == "Admitido"
+        || destino is { Estado: "EnDeposito", ConfirmadaEnUtc: null };
+    private bool PuntoValido => punto.Latitud is { } lat && double.IsFinite(lat) && lat is >= -90 and <= 90
+        && punto.Longitud is { } lon && double.IsFinite(lon) && lon is >= -180 and <= 180;
+    private bool PuedeConfirmar => !ocupado && revisado && PuedeGestionarDestino && PuntoValido;
+    private string EstadoPunto => !PuntoValido ? "Todavía no seleccionaste un punto." : puntoPersistido
+        ? "Punto registrado · pendiente de revisar." : string.IsNullOrWhiteSpace(descripcionProvisional)
+            ? "Punto seleccionado en el mapa · pendiente de confirmar." : "Sugerencia seleccionada · pendiente de confirmar.";
 
     protected override async Task OnParametersSetAsync()
     {
         solicitudes.Cancel(); solicitudes.Dispose(); solicitudes = new();
         var ct = solicitudes.Token;
-        destino = null; propuestas = null; punto = new(); revisado = false; mensaje = "";
+        destino = null; punto = new(); descripcionProvisional = null; puntoPersistido = revisado = false; mensaje = null; mensajeError = false;
         ocupado = true;
         try
         {
             token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
             var actual = await Destinos.ObtenerAsync(EnvioId, token, ct);
             if (ct.IsCancellationRequested) return;
-            destino = actual; punto.Latitud = actual.Latitud; punto.Longitud = actual.Longitud;
-            if (actual.ConfirmadaEnUtc is null && actual.Estado == "Admitido") await ConsultarPropuestas(ct);
+            destino = actual;
+            punto.Latitud = actual.Latitud; punto.Longitud = actual.Longitud;
+            puntoPersistido = PuntoValido;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (HttpRequestException ex) { if (!ct.IsCancellationRequested) MostrarError(ex); }
         finally { if (!ct.IsCancellationRequested) ocupado = false; }
     }
-    private async Task ConsultarPropuestas(CancellationToken ct)
+
+    private void ActualizarPunto((double? Latitud, double? Longitud, string? Descripcion) seleccionado)
     {
-        var resultado = await Destinos.ProponerAsync(EnvioId, token, ct);
-        if (ct.IsCancellationRequested) return;
-        if (resultado.Version != destino?.Version || resultado.Direccion != destino.Direccion)
-        { propuestas = null; mensaje = "La dirección cambió durante la consulta. Recargá la página antes de confirmar."; destino = null; return; }
-        propuestas = resultado;
+        punto.Latitud = seleccionado.Latitud;
+        punto.Longitud = seleccionado.Longitud;
+        descripcionProvisional = seleccionado.Descripcion;
+        puntoPersistido = false;
+        revisado = false;
+        mensaje = null; mensajeError = false;
     }
-    private async Task BuscarAsync()
-    {
-        if (ocupado || destino is null) return;
-        var ct = solicitudes.Token; ocupado = true; mensaje = "";
-        try { await ConsultarPropuestas(ct); }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (HttpRequestException ex) { if (!ct.IsCancellationRequested) MostrarError(ex); }
-        finally { if (!ct.IsCancellationRequested) ocupado = false; }
-    }
-    private void Elegir(PropuestaDestinoResponse propuesta) => ElegirEnMapa((propuesta.Latitud, propuesta.Longitud));
-    private void ElegirEnMapa((double Latitud, double Longitud) elegido)
-    {
-        if (ocupado || destino?.Estado != "Admitido") return;
-        punto.Latitud = elegido.Latitud; punto.Longitud = elegido.Longitud; CambioPunto();
-    }
-    private void CambioPunto() { revisado = false; mensaje = ""; }
+
+    private void CambiarRevision(ChangeEventArgs args) => revisado = args.Value is bool value && value;
+
     private async Task ConfirmarAsync()
     {
-        if (ocupado || !revisado || destino?.Estado != "Admitido" || punto.Latitud is not { } lat || punto.Longitud is not { } lon) return;
-        var ct = solicitudes.Token; ocupado = true; mensaje = "";
+        var actual = destino;
+        if (!PuedeConfirmar || actual is null || punto.Latitud is not { } latitud || punto.Longitud is not { } longitud) return;
+        var ct = solicitudes.Token;
+        ocupado = true; mensaje = null; mensajeError = false;
+        var postAceptado = false;
         try
         {
-            await Destinos.ConfirmarAsync(EnvioId, destino.Version, lat, lon, token, ct);
-            var actual = await Destinos.ObtenerAsync(EnvioId, token, ct);
+            await Destinos.ConfirmarAsync(EnvioId, actual.Version, latitud, longitud, token, ct);
+            postAceptado = true;
+            destino = await Destinos.ObtenerAsync(EnvioId, token, ct);
             if (ct.IsCancellationRequested) return;
-            destino = actual; revisado = false; mensaje = "Ubicación confirmada. El destino quedó listo para su planificación.";
+            punto.Latitud = destino.Latitud; punto.Longitud = destino.Longitud;
+            puntoPersistido = PuntoValido; descripcionProvisional = null; revisado = false;
+            mensaje = "Ubicación confirmada. El punto quedó listo para su planificación.";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (HttpRequestException) when (postAceptado)
+        {
+            if (!ct.IsCancellationRequested)
+            {
+                mensaje = "El servidor aceptó la confirmación, pero no pudimos actualizar la pantalla. Recargá para verificar el estado.";
+                mensajeError = false;
+            }
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
+        {
+            revisado = false;
+            await ActualizarDestinoTrasConflicto(ct);
+            if (!ct.IsCancellationRequested) { mensaje = "El envío cambió mientras revisabas el punto. Actualizamos sus datos; verificá nuevamente la selección antes de confirmar."; mensajeError = true; }
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is null || (int)ex.StatusCode >= 500)
+        {
+            await VerificarResultadoIncierto(latitud, longitud, ct);
+        }
         catch (HttpRequestException ex) { if (!ct.IsCancellationRequested) MostrarError(ex); }
         finally { if (!ct.IsCancellationRequested) ocupado = false; }
     }
+
+    private async Task ActualizarDestinoTrasConflicto(CancellationToken ct)
+    {
+        try { destino = await Destinos.ObtenerAsync(EnvioId, token, ct); }
+        catch (HttpRequestException) { }
+    }
+
+    private async Task VerificarResultadoIncierto(double latitud, double longitud, CancellationToken ct)
+    {
+        try
+        {
+            var actual = await Destinos.ObtenerAsync(EnvioId, token, ct);
+            if (ct.IsCancellationRequested) return;
+            destino = actual;
+            var mismaUbicacion = actual.ConfirmadaEnUtc is not null && actual.Latitud is { } guardadaLat
+                && actual.Longitud is { } guardadaLon && Math.Abs(guardadaLat - latitud) < 0.0000001
+                && Math.Abs(guardadaLon - longitud) < 0.0000001;
+            if (mismaUbicacion)
+            {
+                punto.Latitud = actual.Latitud; punto.Longitud = actual.Longitud; puntoPersistido = true;
+                descripcionProvisional = null; revisado = false;
+                mensaje = "La ubicación figura confirmada en el servidor. La respuesta anterior no llegó a la pantalla.";
+                mensajeError = false;
+            }
+            else
+            {
+                mensaje = "No recibimos una confirmación. La selección se conserva; no la volvimos a enviar. Actualizá antes de intentar otra vez.";
+                mensajeError = true;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            if (!ct.IsCancellationRequested) { mensaje = "No recibimos respuesta ni pudimos verificar el estado. La selección se conserva; actualizá antes de repetir."; mensajeError = true; }
+        }
+    }
+
     private void MostrarError(HttpRequestException ex)
     {
         if (ex.StatusCode == HttpStatusCode.Unauthorized) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); return; }
-        mensaje = ex.StatusCode switch {
+        mensajeError = true;
+        mensaje = ex.StatusCode switch
+        {
             HttpStatusCode.NotFound => "El envío no está disponible en tu comercio.",
             HttpStatusCode.Forbidden => "No tenés permiso para gestionar el destino.",
-            HttpStatusCode.Conflict => "El destino o el envío cambiaron. Recargá antes de confirmar.",
-            HttpStatusCode.TooManyRequests => "Esperá un minuto antes de buscar nuevamente.",
-            HttpStatusCode.ServiceUnavailable => "No se pudo consultar la dirección. Podés indicar el punto manualmente o volver a intentar más tarde.",
-            _ => "No pudimos completar la operación. Revisá los datos y la conexión." };
-        if (ex.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.NotFound or HttpStatusCode.Forbidden) destino = null;
+            HttpStatusCode.Conflict => "El envío cambió. Actualizá sus datos antes de confirmar.",
+            HttpStatusCode.UnprocessableEntity or HttpStatusCode.BadRequest => "El servidor rechazó el punto. Revisá el marcador y volvé a seleccionar la ubicación.",
+            _ => "No pudimos consultar el envío. Revisá tu conexión e intentá actualizar la pantalla."
+        };
     }
+
     public void Dispose() { solicitudes.Cancel(); solicitudes.Dispose(); }
-    private sealed class PuntoFormulario
-    {
-        [Required, Range(-90, 90)] public double? Latitud { get; set; }
-        [Required, Range(-180, 180)] public double? Longitud { get; set; }
-    }
+    private sealed class PuntoFormulario { public double? Latitud { get; set; } public double? Longitud { get; set; } }
 }

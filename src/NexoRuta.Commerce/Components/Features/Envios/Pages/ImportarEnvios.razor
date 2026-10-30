@@ -1,0 +1,288 @@
+@page "/envios/importar"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy)]
+
+@using System.Globalization
+@using System.Net
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using NexoRuta.ApiClient.Core.Exceptions
+@using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Features.Envios.Clients
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
+@using NexoRuta.ApiClient.Features.Operadores.Clients
+@using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses
+@using NexoRuta.Commerce.Components.Features.Envios.Shared
+@using Microsoft.AspNetCore.Components.Authorization
+@inject EnviosApiClient EnviosClient
+@inject OperadoresApiClient OperadoresClient
+@inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Importar envíos | NexoRuta</PageTitle>
+
+<header class="nr-page-heading">
+    <div>
+        <p class="nr-eyebrow">ENVÍOS</p>
+        <h1>Importar desde CSV</h1>
+        <p>Registrá varios envíos con un archivo y un único operador.</p>
+    </div>
+    <div class="nr-page-actions">
+        <a class="btn btn-outline-secondary" href="/envios/crear">Crear un envío</a>
+    </div>
+</header>
+
+<section class="import-guidance" aria-labelledby="csv-format-title">
+    <h2 id="csv-format-title" class="h5">Formato del archivo</h2>
+    <p>Usá CSV UTF-8, separado por comas. Los campos que contengan comas deben ir entre comillas dobles; podés incluir BOM.</p>
+    <p class="import-csv-header"><strong>Encabezado exacto:</strong> <code>referenciaExterna,nombreDestinatario,emailDestinatario,direccion,codigoBulto,pesoGramos,largoCentimetros,anchoCentimetros,altoCentimetros</code></p>
+    <p>El peso se expresa en gramos y las dimensiones en centímetros. Los decimales usan punto, por ejemplo <code>1250.50</code>. Cada fila representa un envío con un bulto.</p>
+    <ul>
+        <li>Máximo 5 MiB y 500 registros de datos.</li>
+        <li>Una referencia externa estable por envío; distingue mayúsculas y minúsculas.</li>
+        <li>Si hay un error o conflicto, no se crea ningún envío nuevo del archivo.</li>
+        <li>Reimportar datos originales equivalentes no modifica envíos existentes.</li>
+    </ul>
+    <p>La plantilla incluye una fila de ejemplo ficticia. No agregues comercio, estado ni operador por fila.</p>
+    <a class="btn btn-outline-secondary" href="/plantillas/alta-envios.csv" download>Descargar plantilla CSV</a>
+</section>
+
+<section class="import-form" aria-labelledby="import-form-title" aria-busy="@cargandoOperadores">
+    <h2 id="import-form-title" class="h5">Archivo y operador</h2>
+
+    @if (cargandoOperadores)
+    {
+        <div class="operator-options-loading" aria-busy="true" aria-label="Cargando operadores">
+            <p class="visually-hidden" role="status">Cargando operadores disponibles.</p>
+            <div aria-hidden="true"><span></span><span></span></div>
+        </div>
+    }
+    else if (errorOperadores is not null)
+    {
+        <p class="alert alert-danger" role="alert">@errorOperadores</p>
+        <button type="button" class="btn btn-outline-secondary" @onclick="CargarOperadoresAsync">Reintentar carga de operadores</button>
+    }
+    else if (operadores.Count == 0)
+    {
+        <p class="alert alert-warning" role="status">No hay operadores activos ni operadores históricos de importaciones disponibles.</p>
+    }
+    else
+    {
+        <div class="import-field">
+            <label class="form-label" for="import-operator">Operador para todo el archivo</label>
+            <InputSelect id="import-operator" class="form-select" @bind-Value="operadorId" @bind-Value:after="CambiarOperador"
+                         aria-describedby="operator-help">
+                <option value="">Seleccioná un operador</option>
+                @foreach (var operador in operadores)
+                {
+                    <option value="@operador.OperadorId">@operador.Nombre@(operador.Activo ? string.Empty : " — inactivo; solo reimportaciones existentes")</option>
+                }
+            </InputSelect>
+            <p id="operator-help" class="form-text">Los operadores inactivos solo permiten reimportar sus envíos existentes. Si el archivo tiene filas nuevas, el servidor rechazará todo el lote.</p>
+        </div>
+
+        <div class="import-field">
+            <label class="form-label" for="import-file">Archivo CSV</label>
+            <InputFile id="import-file" class="form-control" accept=".csv,text/csv" OnChange="ArchivoSeleccionado"
+                       aria-describedby="@FileDescribedBy"
+                       aria-invalid="@(!string.IsNullOrEmpty(errorArchivo))" />
+            <p id="file-help" class="form-text">Elegí un archivo de hasta 5 MiB. El límite de registros es de 500 filas.</p>
+            @if (archivo is not null)
+            {
+                <p class="selected-file" aria-live="polite"><strong>@archivo.Name</strong> · @FormatoTamano(archivo.Size)</p>
+            }
+            @if (errorArchivo is not null)
+            {
+                <p id="file-error" class="field-error" role="alert">@errorArchivo</p>
+            }
+        </div>
+
+        @if (error is not null)
+        {
+            <p class="alert alert-danger" role="alert">@error</p>
+        }
+        @if (procesando)
+        {
+            <p class="alert alert-info" role="status" aria-live="polite" aria-busy="true">@mensajeProceso</p>
+        }
+
+        <button type="button" class="btn btn-primary" disabled="@(!PuedeImportar)" @onclick="ImportarAsync">
+            @(procesando ? "Procesando…" : reintentoSeguro ? "Reintentar con el mismo archivo" : "Importar archivo")
+        </button>
+        @if (reintentoSeguro)
+        {
+            <p class="form-text retry-note">No se recibió una confirmación. Se conserva el archivo y operador seleccionados; reintentá sin cambiar el contenido ni las referencias. Si el navegador ya no conserva el archivo, seleccioná de nuevo exactamente el mismo archivo.</p>
+        }
+    }
+</section>
+
+@if (resultado is not null)
+{
+    <ResultadoImportacionEnvios Resultado="resultado" />
+}
+
+@code {
+    private const long MaximumFileBytes = 5 * 1024 * 1024;
+    private readonly CancellationTokenSource cancelacion = new();
+    private IReadOnlyList<OperadorImportacionResponse> operadores = [];
+    private IBrowserFile? archivo;
+    private Guid? operadorId;
+    private ImportacionEnviosApiResult? resultado;
+    private string token = "";
+    private string? error;
+    private string? errorArchivo;
+    private string? errorOperadores;
+    private string? mensajeProceso;
+    private bool cargandoOperadores = true;
+    private bool procesando;
+    private bool reintentoSeguro;
+    private string FileDescribedBy => errorArchivo is null ? "file-help" : "file-help file-error";
+    private bool PuedeImportar => !procesando && !cargandoOperadores && archivo is not null && errorArchivo is null
+        && operadorId is not null && operadores.Count > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
+            await CargarOperadoresAsync();
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true);
+        }
+    }
+
+    private async Task CargarOperadoresAsync()
+    {
+        if (procesando) return;
+        var cancellationToken = cancelacion.Token;
+        cargandoOperadores = true;
+        errorOperadores = null;
+        try
+        {
+            operadores = await OperadoresClient.ListarParaImportacionAsync(token, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true);
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        {
+            errorOperadores = "No tenés permiso para importar envíos.";
+        }
+        catch (NexoRutaApiException)
+        {
+            errorOperadores = "No pudimos cargar los operadores para importar. Intentá nuevamente.";
+        }
+        catch (HttpRequestException)
+        {
+            errorOperadores = "No se pudo conectar con el servicio de envíos. Intentá nuevamente.";
+        }
+        finally
+        {
+            cargandoOperadores = false;
+        }
+    }
+
+    private void ArchivoSeleccionado(InputFileChangeEventArgs args)
+    {
+        archivo = args.File;
+        errorArchivo = null;
+        error = null;
+        resultado = null;
+        reintentoSeguro = false;
+
+        if (!Path.GetExtension(archivo.Name).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+            errorArchivo = "Seleccioná un archivo con extensión .csv.";
+        else if (archivo.Size > MaximumFileBytes)
+            errorArchivo = "El archivo supera el límite de 5 MiB.";
+    }
+
+    private void CambiarOperador()
+    {
+        error = null;
+        resultado = null;
+        reintentoSeguro = false;
+    }
+
+    private async Task ImportarAsync()
+    {
+        if (!PuedeImportar || archivo is null || operadorId is not { } selectedOperatorId) return;
+
+        var file = archivo;
+        var cancellationToken = cancelacion.Token;
+        procesando = true;
+        reintentoSeguro = false;
+        error = null;
+        resultado = null;
+        mensajeProceso = "Enviando archivo…";
+        try
+        {
+            resultado = await EnviosClient.ImportarAsync(file.Name, file.Size, selectedOperatorId,
+                ct => ValueTask.FromResult(file.OpenReadStream(MaximumFileBytes, ct)), token,
+                async () => await InvokeAsync(() =>
+                {
+                    mensajeProceso = "Archivo enviado. Procesando la importación en el servidor…";
+                    StateHasChanged();
+                }), cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true);
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        {
+            error = "No tenés permiso para importar envíos.";
+        }
+        catch (NexoRutaApiException exception) when (exception.StatusCode is { } statusCode && (int)statusCode >= 500)
+        {
+            error = "La API respondió con un error. El resultado podría no haberse recibido; podés reintentar con el mismo archivo, operador y referencias para recuperar el resultado sin duplicar.";
+            reintentoSeguro = true;
+        }
+        catch (NexoRutaApiException exception)
+        {
+            error = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            MostrarResultadoIncierto();
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            MostrarResultadoIncierto();
+        }
+        catch (JSException)
+        {
+            error = "El navegador no pudo volver a leer el archivo. Seleccioná de nuevo exactamente el mismo archivo y operador para reintentar.";
+            reintentoSeguro = true;
+        }
+        catch (IOException)
+        {
+            MostrarResultadoIncierto();
+        }
+        finally
+        {
+            procesando = false;
+            mensajeProceso = null;
+        }
+    }
+
+    private void MostrarResultadoIncierto()
+    {
+        error = "No se recibió una confirmación. El resultado podría haberse procesado; reintentá con el mismo archivo, operador y referencias para recuperar el resultado sin duplicar.";
+        reintentoSeguro = true;
+    }
+
+    private static string FormatoTamano(long bytes)
+        => $"{bytes.ToString("N0", CultureInfo.CurrentCulture)} bytes ({(bytes / 1024d / 1024d).ToString("0.##", CultureInfo.CurrentCulture)} MiB)";
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+}
