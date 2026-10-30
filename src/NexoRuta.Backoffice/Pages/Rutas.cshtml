@@ -4,12 +4,13 @@
     ViewData["Title"] = "Rutas y depósito";
     var ruta = Model.RutaSeleccionada;
     var recepciones = Model.RecepcionesPendientes;
-    var conteoActivas = Model.Rutas.Count(r => r.Estado is "Planificada" or "EnCurso");
+    var conteoActivas = Model.Rutas.Count(r => r.Estado == "EnCurso" || Model.ConservaReservaDeRecursos(r) && r.Estado == "Planificada");
+    var porDespachar = Model.Rutas.Count(r => r.Estado == "Planificada" && Model.ConservaReservaDeRecursos(r) && r.Paradas.Any(p => p.Activa));
     var paradasActivas = Model.Rutas.Sum(r => r.Paradas.Count(p => p.Activa));
     var bultosEnRuta = ruta?.Paradas.Where(p => p.Activa).Sum(p => p.Bultos.Count) ?? 0;
     var custodiasEnRuta = ruta?.Paradas.Where(p => p.Activa).SelectMany(p => p.Bultos).Select(b => b.Custodia).ToArray() ?? Array.Empty<string>();
     var resumenCarga = custodiasEnRuta.Length == 0 ? "Sin bultos" : custodiasEnRuta.All(c => c == "Deposito") ? "En depósito" : custodiasEnRuta.All(c => c == "Repartidor") ? "Con repartidor" : "Custodia mixta";
-    var disponibilidadHoja = ruta?.Estado switch { "Planificada" => "planificada para el reparto", "Despachada" or "EnCurso" => "disponible para el repartidor", "Finalizada" => "finalizada", _ => "registrada" };
+    var disponibilidadHoja = ruta?.Estado switch { "Planificada" => "planificada para el reparto", "Despachada" or "EnCurso" => "disponible para el repartidor", "Finalizada" => "finalizada", "Cancelada" => "cancelada; sin reserva de recursos", _ => "registrada" };
     var destinoListo = ruta is not null && ruta.Paradas.Where(p => p.Activa).All(p => Model.DestinoConfirmado(p.EnvioId));
     var custodiaLista = ruta is not null && ruta.Paradas.Where(p => p.Activa).All(p => p.Bultos.Count > 0 && p.Bultos.All(b => b.Custodia == "Deposito"));
     var enviosEnDetalle = ruta?.Paradas.Select(p => p.EnvioId).ToHashSet() ?? new HashSet<Guid>();
@@ -87,7 +88,7 @@
 
         <section class="nr-routes-metrics" aria-label="Resumen de la fecha">
             <div><strong>@Model.Rutas.Count</strong><span>@(Model.Rutas.Count == 1 ? "ruta" : "rutas")</span></div>
-            <div><strong>@Model.Rutas.Count(r => r.Estado == "Planificada")</strong><span>por despachar</span></div>
+            <div><strong>@porDespachar</strong><span>por despachar</span></div>
             <div><strong>@recepciones.Count</strong><span>recepciones pendientes</span></div>
             <span class="nr-metric-context">@paradasActivas @(paradasActivas == 1 ? "parada activa" : "paradas activas") · @conteoActivas @(conteoActivas == 1 ? "ruta activa o planificada" : "rutas activas o planificadas")</span>
         </section>
@@ -175,6 +176,18 @@
                                         </div>
                                     </div>
                                     <div class="nr-route-card-bottom"><span>@totalBultos @(totalBultos == 1 ? "bulto" : "bultos") · Ruta @item.Id.ToString("N")[..6].ToUpperInvariant()</span><span class="nr-route-card-time"><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 5.5V10l3 2"/></svg>@(primerHora is { } h ? Model.Hora(h, item.Politica.ZonaHoraria) : "Sin horario")</span></div>
+                                    @if (item.Estado == "Planificada" && item.ReservaRecursosActiva == false)
+                                    {
+                                        <small class="nr-route-card-reservation is-released">Recursos liberados</small>
+                                    }
+                                    else if (item.Estado == "Cancelada")
+                                    {
+                                        <small class="nr-route-card-reservation is-released">Ruta cancelada · historial conservado</small>
+                                    }
+                                    else if (item.Estado == "Planificada" && item.ReservaRecursosActiva == true && !item.Paradas.Any(p => p.Activa))
+                                    {
+                                        <small class="nr-route-card-reservation">@(item.Paradas.Count == 0 ? "Ruta vacía intencional · reserva activa" : "Sin paradas activas · reserva aún activa")</small>
+                                    }
                                 </a>
                             }
                         </div>
@@ -197,7 +210,22 @@
                             <div><dt>Paradas</dt><dd><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="4" cy="4" r="1"/><circle cx="4" cy="10" r="1"/><circle cx="4" cy="16" r="1"/><path d="M8 4h9M8 10h9M8 16h9"/></svg>@ruta.Paradas.Count(p => p.Activa)</dd></div>
                             <div><dt>Carga</dt><dd><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m10 2 7 4v8l-7 4-7-4V6zM3 6l7 4 7-4m-7 4v8"/></svg>@bultosEnRuta @(bultosEnRuta == 1 ? "bulto" : "bultos")</dd><span>@resumenCarga</span></div>
                         </dl>
-                        <div class="nr-route-notice" role="note"><span aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8"/><path d="M10 9v5m0-8h.01"/></svg></span><p><strong>Hoja @disponibilidadHoja.</strong> La custodia del bulto sigue siendo @resumenCarga.ToLowerInvariant(); despachar no la transfiere ni cambia el estado del envío.</p></div>
+                        @if (ruta.Estado == "Planificada" && ruta.ReservaRecursosActiva == false)
+                        {
+                            <div class="nr-routes-alert is-info" role="status"><strong>Recursos liberados.</strong> Se conserva el historial y el estado Planificada, pero la hoja ya no reserva repartidor ni vehículo. No admite despacho ni reasignaciones.</div>
+                        }
+                        else if (ruta.Estado == "Cancelada")
+                        {
+                            <div class="nr-routes-alert is-info" role="status"><strong>Ruta cancelada; recursos liberados.</strong> Se conservan el historial y las paradas suspendidas. Esta ruta no admite despacho ni reasignaciones.</div>
+                        }
+                        else if (ruta.Estado == "Planificada" && ruta.ReservaRecursosActiva == true && !ruta.Paradas.Any(p => p.Activa))
+                        {
+                            <div class="nr-routes-alert is-info" role="note"><strong>La ruta conserva su reserva.</strong> @(ruta.Paradas.Count == 0 ? "Fue creada vacía para recibir reasignaciones." : "No tiene paradas activas, pero cancelar el último envío no libera los recursos.") Si ya no se utilizará, cancelá la ruta explícitamente; si fue creada para reasignaciones, puede seguir reservando repartidor y vehículo.</div>
+                        }
+                        else
+                        {
+                            <div class="nr-route-notice" role="note"><span aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8"/><path d="M10 9v5m0-8h.01"/></svg></span><p><strong>Hoja @disponibilidadHoja.</strong> La custodia del bulto sigue siendo @resumenCarga.ToLowerInvariant(); despachar no la transfiere ni cambia el estado del envío.</p></div>
+                        }
                         @if (ruta.IncidenciasCierre.Count > 0)
                         {
                             <div class="nr-routes-alert is-warning" role="status"><strong>Cierre con incidencia · antecedentes conservados</strong><ul>@foreach (var incidencia in ruta.IncidenciasCierre) { var bultoConIncidencia = ruta.Paradas.SelectMany(p => p.Bultos).SingleOrDefault(b => b.Id == incidencia.BultoId); <li>@incidencia.Codigo · @incidencia.OcurridaEnUtc.ToString("dd/MM HH:mm 'UTC'") · Custodia actual: @(bultoConIncidencia?.Custodia ?? "No disponible")</li> }</ul><p class="mb-0">Verificá la presencia física antes de confirmar una recepción.</p></div>
@@ -210,7 +238,7 @@
                                 <div class="nr-stops-table-wrap" role="region" aria-label="Paradas de la ruta"><table class="nr-stops-table"><caption class="nr-visually-hidden">Paradas activas y suspendidas de la hoja</caption><thead><tr><th id="stop-order-heading" scope="col">Orden y hora</th><th id="stop-recipient-heading" scope="col">Destinatario y dirección</th><th id="stop-state-heading" scope="col">Estado del envío</th><th id="stop-package-heading" scope="col">Bulto y custodia</th><th id="stop-actions-heading" scope="col">Acciones</th></tr></thead><tbody>
                                     @foreach (var parada in ruta.Paradas.OrderBy(p => p.Orden))
                                     {
-                                        var destinosReasignacion = Model.Rutas.Where(r => r.Estado == "Planificada" && r.Paradas.All(p => p.EnvioId != parada.EnvioId)).ToArray();
+                                        var destinosReasignacion = Model.Rutas.Where(r => Model.PuedeRecibirReasignaciones(r) && r.Paradas.All(p => p.EnvioId != parada.EnvioId)).ToArray();
                                         var envioIdFormato = parada.EnvioId.ToString("N").ToUpperInvariant();
                                         <tr class="@(parada.Activa ? null : "is-suspended")">
                                             <td headers="stop-order-heading" data-label="Orden y hora"><div class="nr-stop-position"><strong>@parada.Orden</strong><span>@Model.Hora(parada.LlegadaEstimadaUtc, ruta.Politica.ZonaHoraria)</span></div></td>
@@ -264,7 +292,20 @@
                         </section>
                         <footer class="nr-route-detail-footer">
                             <a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-pestana="deposito" class="nr-receipt-shortcut"><span class="nr-receipt-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h18v13H3zM7 7V4h10v3m-9 5h8m-8 4h5"/></svg></span><span class="nr-receipt-shortcut-copy"><strong>Recepción en depósito</strong><small>@(recepciones.Count == 0 ? "Sin recepciones pendientes" : $"{recepciones.Count} envíos por recibir")</small></span><span class="nr-action-secondary">Ver pendientes <span aria-hidden="true">→</span></span></a>
-                            @if (ruta.Estado == "Planificada" && ruta.Paradas.Any(p => p.Activa))
+                            @if (Model.PuedeCancelarRuta(ruta))
+                            {
+                                <details class="nr-context-action">
+                                    <summary>Cancelar ruta</summary>
+                                    <p>La ruta dejará de reservar al repartidor y al vehículo. No cambia envíos ni custodia; conserva el historial y las paradas suspendidas.</p>
+                                    <form method="post" asp-page-handler="CancelarRuta" data-single-submit>
+                                        @await Html.PartialAsync("Shared/_RutasPostContext")
+                                        <input type="hidden" name="rutaId" value="@ruta.Id" />
+                                        <input type="hidden" name="version" value="@ruta.Version" />
+                                        <button class="nr-action-secondary" type="submit">Cancelar ruta y liberar recursos</button>
+                                    </form>
+                                </details>
+                            }
+                            @if (Model.PuedeRecibirReasignaciones(ruta) && ruta.Paradas.Any(p => p.Activa))
                             {
                                 if (!Model.PuedeConsultarEnvios) { <span class="nr-muted-note">Se requiere permiso de consulta de envíos para validar destino y custodia.</span> }
                                 else if (destinoListo && custodiaLista)
@@ -281,11 +322,11 @@
             {
                 <section class="nr-reassign-panel" id="reasignaciones">
                     <header class="nr-section-heading"><div><p class="nr-routes-eyebrow">Cambio de hoja</p><h2>Reasignaciones pendientes fuera de la ruta seleccionada</h2><p>Solo se cambia la ruta de un envío todavía asignado y con todos sus bultos bajo custodia física en depósito.</p></div><span class="nr-count-pill">@reasignacionesFueraDeDetalle.Length</span></header>
-                    @if (!Model.Rutas.Any(r => r.Estado == "Planificada")) { <p class="nr-muted-note">No hay rutas planificadas en esta fecha para recibir una reasignación.</p> }
+                    @if (!Model.Rutas.Any(Model.PuedeRecibirReasignaciones)) { <p class="nr-muted-note">No hay rutas con reserva activa en esta fecha para recibir una reasignación.</p> }
                     @foreach (var envio in reasignacionesFueraDeDetalle)
                     {
                         var bultosEnDeposito = envio.Bultos.Count > 0 && envio.Bultos.All(b => b.Custodia == "Deposito");
-                        var destinos = Model.Rutas.Where(r => r.Estado == "Planificada" && r.Paradas.All(p => p.EnvioId != envio.Id)).ToArray();
+                        var destinos = Model.Rutas.Where(r => Model.PuedeRecibirReasignaciones(r) && r.Paradas.All(p => p.EnvioId != envio.Id)).ToArray();
                         <article class="nr-reassign-card"><div><h3>@envio.DestinatarioNombre <span class="nr-state-pill">@Model.EtiquetaEstadoEnvio(envio.Estado)</span></h3><p>@envio.Direccion · @string.Join(", ", envio.Bultos.Select(b => b.Codigo))</p><small>Custodia actual: @string.Join(", ", envio.Bultos.Select(b => Model.EtiquetaCustodia(b.Custodia))). No se transfiere al reasignar.</small></div>
                             @if (!bultosEnDeposito) { <p class="nr-muted-note">No se puede reasignar hasta recibir todos sus bultos físicamente en depósito.</p> }
                             else if (destinos.Length == 0) { <p class="nr-muted-note">No hay otra ruta planificada elegible en esta fecha.</p> }

@@ -19,6 +19,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
 {
     private const string ZonaHorariaPredeterminada = "America/Montevideo";
     [BindProperty(SupportsGet = true)] public DateOnly Fecha { get; set; }
+    [BindProperty] public string? FechaSalida { get; set; }
     [BindProperty(SupportsGet = true)] public Guid? RutaSeleccionadaId { get; set; }
     [BindProperty(SupportsGet = true)] public string? Pestana { get; set; }
     [BindProperty(SupportsGet = true)] public string? BuscarRuta { get; set; }
@@ -37,10 +38,15 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
     [BindProperty] public bool CrearBorrador { get; set; }
     [BindProperty] public List<ParadaFormulario> Plan { get; set; } = [];
     public IReadOnlyList<HojaRutaResponse> Rutas { get; private set; } = [];
+    public IReadOnlyList<HojaRutaResponse> RutasReserva => Rutas.Where(r => r.Fecha == Fecha
+        && ConservaReservaDeRecursos(r)
+        && (r.RepartidorAccesoId == RepartidorAccesoId || r.VehiculoId == VehiculoId)
+        ).ToArray();
     public RecursosPlanificacionResponse? Recursos { get; private set; }
     public IReadOnlyList<EnvioResponse> Envios { get; private set; } = [];
     public bool CargaCompleta { get; private set; }
     public bool PuedeConsultarEnvios { get; private set; }
+    public bool PuedeGestionarRutas { get; private set; }
     public bool PuedeGestionarDecisionesOperativasEnvio { get; private set; }
     public string? Error { get; private set; }
     [TempData] public string? Confirmacion { get; set; }
@@ -66,8 +72,20 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         .OrderBy(e => e.DestinatarioNombre, StringComparer.CurrentCultureIgnoreCase).ToArray();
     public Task<IActionResult> OnGetAsync() => Cargar();
     public Task<IActionResult> OnGetReintentarAsync() => Cargar();
-    public Task<IActionResult> OnPostPlanificarAsync() => Ejecutar(async () =>
+    public Task<IActionResult> OnPostPlanificarAsync() => PlanificarConFechaSeleccionada();
+    private async Task<IActionResult> PlanificarConFechaSeleccionada()
     {
+        if (!DateOnly.TryParseExact(FechaSalida, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaSeleccionada)
+            || fechaSeleccionada == default)
+        {
+            Fecha = default;
+            ModelState.AddModelError(nameof(FechaSalida), "Seleccioná una fecha de salida válida.");
+            Error = "La fecha de salida no es válida. Seleccioná una fecha para continuar.";
+            return await Cargar();
+        }
+        Fecha = fechaSeleccionada;
+        return await Ejecutar(async () =>
+        {
         if (!ModelState.IsValid) throw new ArgumentException("Revisá los campos de la planificación.");
         var elegidas = Plan.Where(p => p.Incluir).ToArray();
         if (elegidas.Length == 0 && !CrearBorrador || elegidas.Length > 500 || elegidas.Any(p => p.EnvioId == Guid.Empty || p.Orden is null or < 1 || p.Hora is null)
@@ -78,12 +96,37 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
             ConvertirLlegada(Fecha, p.Hora!.Value, recursos.Politica.ZonaHoraria))).ToArray();
         await api.PlanificarAsync(new(RepartidorAccesoId, VehiculoId, Fecha, paradas), Token(), HttpContext.RequestAborted);
         Confirmacion = "Ruta planificada. Revisá sus paradas y la recepción física antes de despachar.";
-    });
+        });
+    }
     public Task<IActionResult> OnPostDespacharAsync(Guid rutaId, long version) => Ejecutar(async () =>
     {
         await api.DespacharAsync(rutaId, version, Token(), HttpContext.RequestAborted);
         Confirmacion = "Ruta despachada; el repartidor ya puede descargar su hoja.";
     });
+    public async Task<IActionResult> OnPostCancelarRutaAsync(Guid rutaId, long version)
+    {
+        if (!(await authorization.AuthorizeAsync(User, resource: null, "envios.gestionar")).Succeeded) return Forbid();
+        try
+        {
+            if (rutaId == Guid.Empty || version < 0) throw new ArgumentException("La ruta o su versión no son válidas.");
+            var ruta = await api.CancelarRutaAsync(rutaId, version, Token(), HttpContext.RequestAborted);
+            RutaSeleccionadaId = ruta.Id;
+            Pestana = "rutas";
+            Confirmacion = "Ruta cancelada. Se liberaron repartidor y vehículo; el historial y las paradas suspendidas se conservaron.";
+            return RedirectarDiario();
+        }
+        catch (NexoRutaApiException ex)
+        {
+            var redir = await ApiSession.RedirectIfExpiredAsync(this, ex);
+            if (redir is not null) return redir;
+            Error = (int?)ex.StatusCode == 409
+                ? $"{ex.Message} Se actualizó la ruta; revisá su estado antes de volver a actuar."
+                : ex.Message;
+        }
+        catch (ArgumentException ex) { Error = ex.Message; }
+        catch (HttpRequestException) { Error = "No se pudo confirmar el resultado. Actualizá la ruta antes de repetir la operación."; }
+        return await Cargar();
+    }
     public Task<IActionResult> OnPostRecibirAsync(Guid envioId, long version) => Ejecutar(async () =>
     {
         await api.RecibirAsync(envioId, version, Token(), HttpContext.RequestAborted);
@@ -201,14 +244,18 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
     private async Task<IActionResult> Cargar()
     {
         CargaCompleta = false;
-        var inicializarFecha = Fecha == default;
+        var fechaInvalida = ModelState.TryGetValue(nameof(FechaSalida), out var fechaSalidaModelState) && fechaSalidaModelState.Errors.Count > 0
+            || ModelState.TryGetValue(nameof(Fecha), out var fechaModelState) && fechaModelState.Errors.Count > 0;
+        var inicializarFecha = Fecha == default && !fechaInvalida;
         if (inicializarFecha) Fecha = FechaActual(ZonaHorariaPredeterminada);
+        if (fechaInvalida) Error ??= "La fecha de salida no es válida. Seleccioná una fecha para continuar.";
         try
         {
             var recursos = await api.RecursosAsync(Token(), HttpContext.RequestAborted);
             if (inicializarFecha) Fecha = FechaActual(recursos.Politica.ZonaHoraria);
-            var rutas = await api.ListarAsync(Fecha, Token(), HttpContext.RequestAborted);
+            var rutas = fechaInvalida ? Array.Empty<HojaRutaResponse>() : await api.ListarAsync(Fecha, Token(), HttpContext.RequestAborted);
             PuedeConsultarEnvios = (await authorization.AuthorizeAsync(User, resource: null, "envios.consultar")).Succeeded;
+            PuedeGestionarRutas = (await authorization.AuthorizeAsync(User, resource: null, "envios.gestionar")).Succeeded;
             var enviosActuales = PuedeConsultarEnvios
                 ? await envios.ListarEnviosAsync(Token(), HttpContext.RequestAborted)
                 : Array.Empty<EnvioResponse>();
@@ -221,6 +268,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
             HoyOperativo = FechaActual(recursos.Politica.ZonaHoraria);
             PuedeGestionarDecisionesOperativasEnvio = usuarioActual.PuedeGestionarDecisionesOperativasEnvio;
             Plan = plan;
+            FechaSalida ??= fechaInvalida ? string.Empty : Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             CargaCompleta = true;
         }
         catch (NexoRutaApiException ex) { var redir = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redir is not null) return redir; Error ??= ex.Message; }
@@ -251,6 +299,13 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, zona));
     }
     public string Repartidor(Guid acceso) => Recursos?.Repartidores.SingleOrDefault(r => r.AccesoId == acceso)?.Nombre ?? "Repartidor deshabilitado";
+    public string RecursosReservados(HojaRutaResponse ruta)
+    {
+        var recursos = new List<string>();
+        if (ruta.RepartidorAccesoId == RepartidorAccesoId) recursos.Add($"repartidor {Repartidor(ruta.RepartidorAccesoId)}");
+        if (ruta.VehiculoId == VehiculoId) recursos.Add($"vehículo {ruta.Matricula}");
+        return string.Join(" y ", recursos);
+    }
     public string InicialesRepartidor(Guid acceso)
     {
         var partes = Repartidor(acceso).Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -262,6 +317,12 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         if (bultosEnvio is null || bultosEnvio.Count == 0) return false;
         return bultosEnvio.All(b => b.Custodia == "Deposito");
     }
+    public bool ConservaReservaDeRecursos(HojaRutaResponse ruta) => ruta.Estado is not ("Finalizada" or "Cancelada")
+        && (ruta.ReservaRecursosActiva ?? true);
+    public bool PuedeRecibirReasignaciones(HojaRutaResponse ruta) => ruta.Estado == "Planificada"
+        && ConservaReservaDeRecursos(ruta);
+    public bool PuedeCancelarRuta(HojaRutaResponse ruta) => PuedeGestionarRutas
+        && ruta.Estado == "Planificada" && ruta.Paradas.All(p => !p.Activa);
     public bool DestinoConfirmado(Guid envioId) => Envios.SingleOrDefault(e => e.Id == envioId)?.DestinoConfirmado == true;
     public bool AdmiteRecepcion(EnvioResponse envio) =>
         envio.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion" ||
@@ -286,6 +347,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         "EnCurso" => "En curso",
         "Despachada" => "Despachada",
         "Finalizada" => "Finalizada",
+        "Cancelada" => "Cancelada",
         _ => estado
     };
     public string EtiquetaEstadoEnvio(string estado) => estado switch

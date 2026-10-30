@@ -1,0 +1,15 @@
+.nr-shipment-more-actions { position: relative; flex: 0 0 2.75rem; inline-size: 2.75rem; }
+.nr-shipment-more-actions.is-open { z-index: 3; }
+.nr-shipment-more-trigger { display: inline-flex; width: 2.75rem; min-height: 2.75rem; align-items: center; justify-content: center; border: 0; border-radius: var(--nr-radius-sm); background: transparent; color: var(--nr-text-muted); font-size: 1.45rem; line-height: 1; cursor: pointer; }
+.nr-shipment-more-trigger:hover { background: var(--nr-surface-muted); color: var(--nr-text); }
+.nr-shipment-more-popover { position: absolute; inset-block-start: calc(100% + .2rem); inset-inline-end: 0; z-index: 20; display: grid; width: max-content; min-width: 13rem; max-width: min(18rem, calc(100vw - 2rem)); box-sizing: border-box; gap: .15rem; padding: .3rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); box-shadow: var(--nr-shadow); }
+.nr-shipment-more-popover button { min-height: 2.75rem; padding: .45rem .65rem; border: 0; border-radius: var(--nr-radius-sm); background: transparent; color: var(--nr-text); font: inherit; text-align: start; cursor: pointer; }
+.nr-shipment-more-popover button:hover { background: var(--nr-surface-muted); }
+.nr-shipment-more-popover button.is-danger { color: var(--nr-danger-strong); }
+.nr-shipment-id-label { margin: .25rem .4rem 0; color: var(--nr-text-muted); font-size: .78rem; font-weight: 650; }
+.nr-shipment-full-id { display: block; max-width: 100%; padding: .25rem .4rem; color: var(--nr-text); font-size: .75rem; overflow-wrap: anywhere; user-select: text; white-space: normal; }
+.nr-shipment-more-actions :is(button):focus-visible { outline: 3px solid var(--nr-focus); outline-offset: 2px; }
+
+@media (max-width: 1100px) and (min-width: 701px) {
+    .nr-shipment-more-popover { min-width: min(13rem, calc(100vw - 2rem)); }
+}

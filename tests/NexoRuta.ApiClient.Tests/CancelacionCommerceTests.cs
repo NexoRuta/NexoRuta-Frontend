@@ -49,10 +49,10 @@ public sealed partial class SeguimientoPagesTests
         await renderer.Dispatcher.InvokeAsync(async () =>
         {
             var root = await renderer.RenderAsync<MisEnvios>();
-            Assert.Contains("Cancelar envío", WebUtility.HtmlDecode(root.ToHtmlString()));
+            Assert.Contains("Más acciones para el envío", WebUtility.HtmlDecode(root.ToHtmlString()));
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
             var envio = Assert.Single((IReadOnlyList<EnvioResponse>)typeof(MisEnvios).GetField("envios", flags)!.GetValue(page)!);
-            var preparar = typeof(MisEnvios).GetMethod("PrepararCancelacion", flags)!;
+            var preparar = typeof(MisEnvios).GetMethod("PrepararCancelacionAsync", flags)!;
             await ((IHandleEvent)page).HandleEventAsync(new EventCallbackWorkItem((Action)(() => preparar.Invoke(page, [envio]))), null);
             Assert.Contains("Confirmar cancelación", WebUtility.HtmlDecode(root.ToHtmlString()));
             Assert.Equal(0, llamadas);

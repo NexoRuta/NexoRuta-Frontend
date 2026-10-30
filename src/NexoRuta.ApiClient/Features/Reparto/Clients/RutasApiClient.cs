@@ -19,6 +19,8 @@ public sealed class RutasApiClient(HttpClient http)
         EnviarAsync("api/rutas", datos, token, ct);
     public Task<HojaRutaResponse> DespacharAsync(Guid id, long version, string token, CancellationToken ct) =>
         EnviarAsync($"api/rutas/{id}/despacho", new { version }, token, ct);
+    public Task<HojaRutaResponse> CancelarRutaAsync(Guid id, long version, string token, CancellationToken ct) =>
+        EnviarAsync($"api/rutas/{id}/cancelacion", new { version }, token, ct);
     public Task<HojaRutaResponse> ReasignarAsync(Guid envio, ReasignarEnvioRequest datos, string token, CancellationToken ct) =>
         EnviarAsync($"api/envios/{envio}/reasignacion", datos, token, ct);
     public async Task<ReprogramacionEnvioResponse> ReprogramarAsync(Guid envio, long version, string token, CancellationToken ct)

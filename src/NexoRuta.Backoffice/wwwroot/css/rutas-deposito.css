@@ -76,6 +76,8 @@
 .nr-route-vehicle { display: flex; align-items: center; gap: .4rem; margin: .32rem 0 0; color: var(--nr-text-muted); font-size: .82rem; }
 .nr-route-vehicle svg { width: .95rem; height: .95rem; }
 .nr-route-card-bottom { margin-block-start: .65rem; padding-block-start: .5rem; border-top: 1px solid var(--nr-border); color: var(--nr-text-muted); font-size: .84rem; }
+.nr-route-card-reservation { display: block; margin-block-start: .45rem; color: var(--nr-action-strong); font-size: .78rem; font-weight: 600; }
+.nr-route-card-reservation.is-released { color: var(--nr-text-muted); }
 .nr-route-card-row { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); align-items: center; gap: .65rem; }
 .nr-route-avatar { display: grid; width: 2.75rem; height: 2.75rem; flex: 0 0 auto; place-items: center; border: 1px solid var(--nr-border); border-radius: 50%; background: var(--nr-surface-muted); color: var(--nr-action-strong); font-size: .88rem; font-weight: 750; letter-spacing: .02em; }
 .nr-route-avatar.is-large { width: 3.25rem; height: 3.25rem; font-size: 1rem; }

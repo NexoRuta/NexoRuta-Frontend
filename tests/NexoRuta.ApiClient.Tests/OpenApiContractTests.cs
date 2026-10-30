@@ -526,6 +526,28 @@ public sealed class OpenApiContractTests
         AssertSchema(type, schema, document.RootElement);
     }
 
+    [Fact]
+    public async Task ShipmentListContractPublishesOptionalExternalReferenceAndRecipientEmail()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var schema = Resolve(root.GetProperty("paths").GetProperty("/api/envios").GetProperty("get")
+            .GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root).GetProperty("items");
+        schema = Resolve(schema, root);
+        var properties = schema.GetProperty("properties");
+        var required = schema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+
+        var externalReference = properties.GetProperty("referenciaExterna");
+        var referenceTypes = externalReference.GetProperty("type").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("string", referenceTypes);
+        Assert.Contains("null", referenceTypes);
+        Assert.DoesNotContain("referenciaExterna", required);
+
+        Assert.Equal("string", properties.GetProperty("destinatarioEmail").GetProperty("type").GetString());
+        Assert.DoesNotContain("destinatarioEmail", required);
+    }
+
     [Theory]
     [InlineData("/api/usuarios", "post")]
     [InlineData("/api/usuarios/{usuarioId}/estado", "patch")]

@@ -15,5 +15,7 @@ public sealed record EnvioResponse(
     IReadOnlyList<BultoResponse> Bultos)
 {
     public bool DestinoConfirmado { get; init; }
+    public string? ReferenciaExterna { get; init; }
+    public string? DestinatarioEmail { get; init; }
     public bool AdmiteCancelacion() => Estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado" or "EnDevolucion";
 }

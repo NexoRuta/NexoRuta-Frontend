@@ -5613,6 +5613,146 @@
         }
       }
     },
+    "/api/rutas/{id}/cancelacion": {
+      "post": {
+        "tags": [
+          "Rutas"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HojaRutaResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HojaRutaResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HojaRutaResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/deposito/envios/{id}/recepcion": {
       "post": {
         "tags": [
@@ -12300,6 +12440,7 @@
       "DestinoEnvioDatos": {
         "required": [
           "envioId",
+          "destinatarioNombre",
           "direccion",
           "version",
           "estado",
@@ -12312,6 +12453,9 @@
           "envioId": {
             "type": "string",
             "format": "uuid"
+          },
+          "destinatarioNombre": {
+            "type": "string"
           },
           "direccion": {
             "type": "string"
@@ -12476,8 +12620,7 @@
           "direccion",
           "estado",
           "version",
-          "bultos",
-          "destinoConfirmado"
+          "bultos"
         ],
         "type": "object",
         "properties": {
@@ -12531,6 +12674,15 @@
           },
           "destinoConfirmado": {
             "type": "boolean"
+          },
+          "referenciaExterna": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "destinatarioEmail": {
+            "type": "string"
           }
         }
       },
@@ -12874,7 +13026,8 @@
           "ultimaSecuencia",
           "politica",
           "paradas",
-          "incidenciasCierre"
+          "incidenciasCierre",
+          "reservaRecursosActiva"
         ],
         "type": "object",
         "properties": {
@@ -12934,6 +13087,9 @@
             "items": {
               "$ref": "#/components/schemas/IncidenciaCierreDatos"
             }
+          },
+          "reservaRecursosActiva": {
+            "type": "boolean"
           }
         }
       },

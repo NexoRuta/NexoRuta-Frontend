@@ -1,0 +1,134 @@
+.nr-shipments-page { min-width: 0; color: var(--nr-text); }
+.nr-shipments-heading { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; margin-block-end: 1.35rem; }
+.nr-shipments-heading h1 { margin: 0; font-size: clamp(1.8rem, 3vw, 2.35rem); font-weight: 750; letter-spacing: -.035em; }
+.nr-shipments-heading p:last-child { margin: .25rem 0 0; color: var(--nr-text-muted); }
+.nr-shipments-eyebrow { margin: 0 0 .2rem; color: var(--nr-action); font-size: .78rem; font-weight: 750; letter-spacing: .06em; }
+.nr-shipments-page-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .55rem; }
+.nr-shipments-page-actions .btn { min-height: 2.75rem; }
+.nr-shipments-refresh { inline-size: 2.75rem; padding: 0; font-size: 1.35rem; }
+.nr-shipments-message { margin: 0 0 .9rem; padding: .7rem .9rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface-muted); color: var(--nr-text); }
+.nr-shipments-initial-load { min-height: 16rem; padding: 1.25rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); }
+.nr-shipments-skeleton { display: grid; gap: 1rem; }
+.nr-shipments-skeleton span { display: block; block-size: 2.5rem; border-radius: var(--nr-radius-sm); background: var(--nr-surface-muted); }
+.nr-shipments-skeleton span:nth-child(2) { inline-size: 84%; }
+.nr-shipments-skeleton span:nth-child(3) { inline-size: 68%; }
+.nr-shipments-content { min-width: 0; }
+.nr-shipments-query-error { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-block-end: .9rem; padding: .75rem .9rem; border: 1px solid var(--nr-danger); border-radius: var(--nr-radius-sm); background: var(--nr-danger-soft); color: var(--nr-danger-strong); }
+.nr-shipments-query-error .btn { flex: 0 0 auto; }
+.nr-shipments-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, 21rem); gap: .8rem; margin-block-end: .75rem; }
+.nr-shipments-toolbar > div { min-width: 0; }
+.nr-shipments-search-wrap { position: relative; }
+.nr-shipments-search { min-height: 3rem; padding-inline-start: 2.65rem; }
+.nr-shipments-search-icon { position: absolute; inset-inline-start: .9rem; inset-block-start: .48rem; z-index: 1; color: var(--nr-text-muted); font-size: 1.3rem; }
+.nr-shipments-toolbar .form-select { min-height: 3rem; }
+.nr-shipments-status-tabs { display: flex; flex-wrap: wrap; gap: .45rem; margin-block-end: .8rem; }
+.nr-shipments-status-tab { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .55rem; padding: .35rem .8rem; border: 1px solid transparent; border-radius: var(--nr-radius-sm); background: var(--nr-surface-muted); color: var(--nr-text); font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.nr-shipments-status-tab:hover { border-color: var(--nr-border); }
+.nr-shipments-status-tab.is-selected { border-color: var(--nr-action); background: var(--nr-action); color: var(--nr-action-text, #fff); }
+.nr-shipments-tab-count { display: inline-flex; min-inline-size: 1.55rem; min-block-size: 1.45rem; align-items: center; justify-content: center; padding-inline: .3rem; border-radius: 999px; background: var(--nr-surface); color: var(--nr-text); font-size: .78rem; font-weight: 700; }
+.nr-shipments-table-shell { overflow: visible; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); box-shadow: var(--nr-shadow); }
+.nr-shipments-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.nr-col-shipment { width: 16%; }
+.nr-col-recipient { width: 19%; }
+.nr-col-destination { width: 21%; }
+.nr-col-operator { width: 17%; }
+.nr-col-status { width: 13%; }
+.nr-col-actions { width: 14%; }
+.nr-shipments-table th, .nr-shipments-table td { min-width: 0; padding: .78rem .65rem; border-bottom: 1px solid var(--nr-border); overflow-wrap: anywhere; text-align: start; vertical-align: middle; }
+.nr-shipments-table thead th { padding-block: .72rem; background: var(--nr-surface-muted); color: var(--nr-text); font-size: .82rem; font-weight: 700; }
+.nr-shipments-table tbody tr:last-child > * { border-bottom: 0; }
+.nr-shipment-identity, .nr-shipment-recipient, .nr-shipment-destination { display: grid; min-width: 0; gap: .2rem; }
+.nr-shipment-reference { font-size: .94rem; line-height: 1.3; }
+.nr-shipment-package-summary, .nr-shipment-recipient a { color: var(--nr-text-muted); font-size: .85rem; line-height: 1.35; }
+.nr-shipment-recipient strong { font-size: .92rem; }
+.nr-shipment-recipient a { overflow-wrap: anywhere; text-decoration: none; }
+.nr-shipment-recipient a:hover, .nr-shipment-destination a:hover { text-decoration: underline; }
+.nr-shipment-address { overflow-wrap: anywhere; }
+.nr-shipment-destination a { color: var(--nr-action-strong); font-size: .84rem; font-weight: 600; text-decoration: none; }
+.nr-shipment-destination-pending { color: var(--bs-warning-text-emphasis); font-size: .82rem; }
+.nr-shipment-destination-pending::before { content: "●"; margin-inline-end: .35rem; }
+.nr-shipment-operator { display: flex; min-width: 0; align-items: center; gap: .55rem; }
+.nr-shipment-operator-logo, .nr-shipment-operator-initials { flex: 0 0 2.4rem; inline-size: 2.4rem; block-size: 2.4rem; border-radius: .7rem; }
+.nr-shipment-operator-logo { object-fit: contain; }
+.nr-shipment-operator-initials { display: inline-flex; align-items: center; justify-content: center; background: var(--nr-surface-muted); color: var(--nr-text); font-weight: 700; }
+.nr-shipment-operator-copy { display: grid; min-width: 0; gap: .12rem; }
+.nr-shipment-operator-copy strong, .nr-shipment-operator-name { min-width: 0; overflow-wrap: anywhere; font-size: .9rem; }
+.nr-shipment-operator-contact { color: var(--nr-text-muted); font-size: .8rem; }
+.nr-shipment-operator-contact summary { min-height: 1.5rem; width: fit-content; color: var(--nr-action-strong); cursor: pointer; }
+.nr-shipment-operator-contact > div { display: grid; gap: .2rem; padding-block-start: .2rem; }
+.nr-shipment-operator-contact a { overflow-wrap: anywhere; }
+.nr-shipment-status { display: inline-flex; max-width: 100%; min-height: 1.8rem; align-items: center; padding: .25rem .55rem; border-radius: var(--nr-radius-lg); font-size: .82rem; font-weight: 700; line-height: 1.25; }
+.nr-shipment-status--admitted { background: var(--nr-action-soft); color: var(--nr-action-strong); }
+.nr-shipment-status--depot { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+.nr-shipment-status--transit { background: var(--bs-info-bg-subtle); color: var(--bs-info-text-emphasis); }
+.nr-shipment-status--complete { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
+.nr-shipment-status--closed { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+.nr-shipment-status--other { background: var(--nr-surface-muted); color: var(--nr-text); }
+.nr-shipment-actions-cell { text-align: end !important; }
+.nr-shipment-actions { display: flex; align-items: center; justify-content: flex-end; gap: .15rem; }
+.nr-shipment-track-link { flex: 0 0 auto; min-height: 2.75rem; padding: .35rem .2rem; border: 0; background: transparent; color: var(--nr-action-strong); font: inherit; font-size: .86rem; font-weight: 650; text-align: end; white-space: nowrap; overflow-wrap: normal; word-break: normal; cursor: pointer; }
+.nr-shipment-track-link:hover { text-decoration: underline; }
+.nr-shipment-track-link:disabled { color: var(--nr-text-muted); cursor: wait; }
+.nr-shipments-table tbody tr:nth-last-child(-n + 2) td.nr-shipment-actions-cell ::deep .nr-shipment-more-actions.is-open .nr-shipment-more-popover { inset-block-start: auto; inset-block-end: calc(100% + .2rem); }
+.nr-shipments-footer { display: flex; min-height: 3.75rem; align-items: center; justify-content: space-between; gap: 1rem; padding: .55rem .7rem; border-block-start: 1px solid var(--nr-border); }
+.nr-shipments-range { margin: 0; color: var(--nr-text-muted); font-size: .88rem; }
+.nr-shipments-pagination { display: flex; align-items: center; gap: .3rem; }
+.nr-page-button { display: inline-flex; min-width: 2.5rem; min-height: 2.5rem; align-items: center; justify-content: center; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); color: var(--nr-text); font: inherit; cursor: pointer; }
+.nr-page-button:hover:not(:disabled):not(.is-current) { background: var(--nr-surface-muted); }
+.nr-page-button.is-current { border-color: var(--nr-action); background: var(--nr-action); color: var(--nr-action-text, #fff); font-weight: 700; }
+.nr-page-button:disabled { color: var(--nr-text-muted); opacity: .65; cursor: not-allowed; }
+.nr-shipments-empty { display: grid; justify-items: center; gap: .8rem; padding: clamp(1.5rem, 5vw, 3rem); border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); text-align: center; }
+.nr-shipments-empty h2 { margin: 0; font-size: 1.1rem; }
+.nr-cancel-shipment-panel { display: grid; max-width: 42rem; gap: .65rem; margin-block-start: 1rem; padding: 1.1rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); box-shadow: var(--nr-shadow); }
+.nr-cancel-shipment-panel h2, .nr-cancel-shipment-panel p { margin: 0; }
+.nr-cancel-shipment-panel label { font-weight: 650; }
+.nr-cancel-shipment-panel textarea { min-height: 5rem; }
+.nr-cancel-shipment-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.nr-shipments-page :is(a, button, input, select, summary, textarea):focus-visible { outline: 3px solid var(--nr-focus); outline-offset: 2px; }
+
+@media (max-width: 900px) {
+    .nr-col-shipment { width: 17%; }
+    .nr-col-recipient { width: 19%; }
+    .nr-col-destination { width: 20%; }
+    .nr-col-operator { width: 16%; }
+    .nr-col-status { width: 13%; }
+    .nr-col-actions { width: 15%; }
+    .nr-shipments-table th, .nr-shipments-table td { padding-inline: .45rem; }
+    .nr-shipment-operator { gap: .35rem; }
+}
+
+@media (max-width: 1100px) and (min-width: 701px) {
+    .nr-shipment-actions { flex-direction: column; align-items: flex-end; }
+}
+
+@media (max-width: 700px) {
+    .nr-shipments-heading { align-items: flex-start; flex-direction: column; }
+    .nr-shipments-page-actions { width: 100%; justify-content: flex-start; }
+    .nr-shipments-page-actions .btn { flex: 1 1 auto; }
+    .nr-shipments-page-actions .nr-shipments-refresh { flex: 0 0 2.75rem; }
+    .nr-shipments-toolbar { grid-template-columns: minmax(0, 1fr); }
+    .nr-shipments-status-tabs { gap: .35rem; }
+    .nr-shipments-status-tab { min-height: 2.5rem; padding-inline: .55rem; font-size: .83rem; }
+    .nr-shipments-table-shell { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+    .nr-shipments-table, .nr-shipments-table tbody { display: block; width: 100%; }
+    .nr-shipments-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+    .nr-shipments-table tbody { display: grid; gap: .7rem; }
+    .nr-shipments-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: .35rem .55rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); box-shadow: var(--nr-shadow); }
+    .nr-shipments-table tbody tr > :is(th, td) { display: grid; grid-template-columns: minmax(5.3rem, 30%) minmax(0, 1fr); align-items: start; gap: .55rem; padding: .55rem .2rem; border-block-end: 1px solid var(--nr-border); text-align: start !important; }
+    .nr-shipments-table tbody tr > :is(th, td)::before { content: attr(data-label); color: var(--nr-text-muted); font-size: .78rem; font-weight: 700; }
+    .nr-shipments-table tbody tr > :last-child { border-block-end: 0; }
+    .nr-shipment-actions-cell { grid-template-columns: minmax(5.3rem, 30%) minmax(0, 1fr) !important; }
+    .nr-shipment-actions { justify-content: flex-start; }
+    .nr-shipment-actions { flex-direction: row; }
+    .nr-shipment-track-link { text-align: start; }
+    .nr-shipments-footer { align-items: flex-start; flex-direction: column; padding-inline: 0; border: 0; }
+    .nr-shipments-pagination { width: 100%; justify-content: flex-end; }
+}
+
+@media (max-width: 360px) {
+    .nr-shipments-page-actions { gap: .35rem; }
+    .nr-shipments-page-actions .btn { padding-inline: .55rem; font-size: .88rem; }
+    .nr-shipments-status-tab { flex: 1 1 auto; justify-content: center; }
+    .nr-shipments-table tbody tr > :is(th, td) { grid-template-columns: minmax(4.7rem, 29%) minmax(0, 1fr); gap: .4rem; }
+    .nr-shipment-actions-cell { grid-template-columns: minmax(4.7rem, 29%) minmax(0, 1fr) !important; }
+}

@@ -13,8 +13,8 @@
     var custodiaConfirmada = enviosSeleccionados.Length > 0 && enviosSeleccionados.All(e => e!.Bultos.Count > 0 && e.Bultos.All(b => b.Custodia == "Deposito"));
     var vehiculoSeleccionado = recursos?.Vehiculos.SingleOrDefault(v => v.Id == Model.VehiculoId);
     var culturaUruguay = CultureInfo.GetCultureInfo("es-UY");
-    var fechaResumen = Model.Fecha.ToDateTime(TimeOnly.MinValue).ToString("dddd d 'de' MMMM", culturaUruguay);
-    fechaResumen = char.ToUpper(fechaResumen[0], culturaUruguay) + fechaResumen[1..];
+    var fechaResumen = Model.Fecha == default ? "Fecha no válida" : Model.Fecha.ToDateTime(TimeOnly.MinValue).ToString("dddd d 'de' MMMM", culturaUruguay);
+    if (Model.Fecha != default) fechaResumen = char.ToUpper(fechaResumen[0], culturaUruguay) + fechaResumen[1..];
 }
 @section Head {
     <link rel="stylesheet" href="~/css/rutas-deposito.css" asp-append-version="true" />
@@ -34,7 +34,22 @@
         </a>
     </header>
 
-    @if (Model.Error is not null) { <div class="nr-routes-alert is-error" role="alert">@Model.Error</div> }
+    @if (Model.Error is not null)
+    {
+        <div class="nr-routes-alert is-error" role="alert">
+            <p>@Model.Error</p>
+            @if (Model.Error.Contains("reserv", StringComparison.OrdinalIgnoreCase))
+            {
+                @foreach (var ruta in Model.RutasReserva)
+                {
+                    <p>
+                        @Model.RecursosReservados(ruta) · @Model.Repartidor(ruta.RepartidorAccesoId) · @ruta.Matricula · @Model.EstadoRuta(ruta.Estado)
+                        <a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-pestana="rutas" asp-route-rutaSeleccionadaId="@ruta.Id">Revisar ruta</a>
+                    </p>
+                }
+            }
+        </div>
+    }
     @if (Model.Confirmacion is not null) { <div class="nr-routes-alert is-success" role="status">@Model.Confirmacion</div> }
 
     @if (!Model.CargaCompleta || recursos is null)
@@ -46,13 +61,12 @@
         @if (!Model.PuedeConsultarEnvios) { <div class="nr-routes-alert is-warning" role="status">Tu acceso no incluye consulta de envíos. Podés preparar una ruta vacía, pero no se muestran candidatos ni se puede seleccionar una parada.</div> }
         <div class="nr-planning-grid">
             <form method="post" asp-page-handler="Planificar" class="nr-planning-form" data-single-submit id="route-planning-form">
-                <input type="hidden" asp-for="Fecha" />
                 <section class="nr-planning-section">
                     <header class="nr-section-heading"><div><h2>1. Repartidor y vehículo</h2></div></header>
                     <div class="nr-resource-grid">
                         <div class="nr-field"><label for="RepartidorAccesoId">Repartidor</label><select asp-for="RepartidorAccesoId" id="RepartidorAccesoId" required><option value="">Seleccionar repartidor</option>@foreach (var r in recursos.Repartidores) { <option value="@r.AccesoId">@r.Nombre</option> }</select></div>
                         <div class="nr-field"><label for="VehiculoId">Vehículo</label><select asp-for="VehiculoId" id="VehiculoId" data-vehicle-select required><option value="">Seleccionar vehículo</option>@foreach (var v in recursos.Vehiculos) { <option value="@v.Id" data-weight-capacity="@v.PesoMaximoGramos.ToString(CultureInfo.InvariantCulture)" data-volume-capacity="@v.VolumenMaximoCm3.ToString(CultureInfo.InvariantCulture)">@v.Matricula</option> }</select><small data-capacity-label>@(vehiculoSeleccionado is null ? "Capacidad máxima según el vehículo." : $"{vehiculoSeleccionado.PesoMaximoGramos / 1000m:0.##} kg de capacidad · {vehiculoSeleccionado.VolumenMaximoCm3:0.###} m³")</small></div>
-                        <div class="nr-field"><label for="Fecha">Fecha de salida</label><input asp-for="Fecha" id="Fecha" type="date" required /><small>Zona horaria: @recursos.Politica.ZonaHoraria</small></div>
+                        <div class="nr-field"><label for="Fecha">Fecha de salida</label><input asp-for="FechaSalida" id="Fecha" type="date" required /><small>Zona horaria: @recursos.Politica.ZonaHoraria</small><span asp-validation-for="FechaSalida" class="field-validation-error"></span></div>
                     </div>
                 </section>
 
@@ -84,7 +98,7 @@
                                         <div class="nr-shipment-identity"><div class="nr-shipment-title"><h3>@envio.DestinatarioNombre</h3><span class="nr-state-pill">@Model.EtiquetaEstadoEnvio(envio.Estado)</span></div><p>@envio.Direccion</p><div class="nr-shipment-package-line"><strong>@string.Join(", ", envio.Bultos.Select(b => b.Codigo))</strong><span>@peso g · @envio.Bultos.Count bulto(s)</span></div><div class="nr-eligibility-list"><span class="@(envio.DestinoConfirmado ? "is-confirmed" : "is-pending")"><i aria-hidden="true">@(envio.DestinoConfirmado ? "✓" : "!")</i>Destino @(envio.DestinoConfirmado ? "confirmado" : "pendiente")</span><span class="@(custodiaOk ? "is-confirmed" : "is-pending")"><i aria-hidden="true">@(custodiaOk ? "✓" : "!")</i>Bulto @(custodiaOk ? "recibido en depósito" : "sin recepción en depósito")</span></div></div>
                                         <div class="nr-stop-fields"><div><label for="Plan_@(i)__Orden">Orden</label><input asp-for="Plan[i].Orden" id="Plan_@(i)__Orden" type="number" min="1" max="500" disabled="@(!item.Incluir || !elegible)" data-stop-order /></div><div><label for="Plan_@(i)__Hora">Hora estimada</label><input asp-for="Plan[i].Hora" id="Plan_@(i)__Hora" type="time" disabled="@(!item.Incluir || !elegible)" data-stop-time /></div></div>
                                     </div>
-                                    @if (!elegible) { <p class="nr-ineligible-reason">No se puede seleccionar: @(envio.DestinoConfirmado ? "confirmá la recepción física de todos los bultos." : custodiaOk ? "confirmá el destino antes de planificar." : "confirmá el destino y la recepción física de todos los bultos.")</p> }
+                                    @if (!elegible) { <p class="nr-ineligible-reason">No se puede seleccionar: @(envio.DestinoConfirmado ? "confirmá la recepción física de todos los bultos." : custodiaOk ? "el comercio debe confirmar el destino desde Commerce > Mis envíos > Ubicación del destino antes de planificar." : "se requiere destino confirmado y recepción física de los bultos. El comercio puede completar la ubicación desde Commerce > Mis envíos > Ubicación del destino.")</p> }
                                 </article>
                             }
                             <p class="nr-no-search-results" data-no-search-results hidden>No hay envíos que coincidan con la búsqueda y los filtros.</p>

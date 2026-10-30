@@ -122,6 +122,7 @@
 
         courier.addEventListener("change", refreshSummary);
         vehicle.addEventListener("change", refreshSummary);
+        date.addEventListener("input", refreshSummary);
         date.addEventListener("change", refreshSummary);
         filterRows();
         refreshSummary();
