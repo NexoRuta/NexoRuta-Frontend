@@ -55,6 +55,11 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5041/");
     client.Timeout = TimeSpan.FromSeconds(15);
 }).AddTypedClient<AuthApiClient>().AddTypedClient<UsuariosApiClient>().AddTypedClient<OrganizacionesAdminApiClient>();
+builder.Services.AddHttpClient("NexoRuta.DemoData", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5041/");
+    client.Timeout = TimeSpan.FromMinutes(5);
+}).AddTypedClient<DatosDemoApiClient>();
 
 var app = builder.Build();
 app.UseForwardedHeaders();

@@ -550,6 +550,8 @@ public sealed class AdminSessionAndPagesTests
                 services.AddDataProtection().UseEphemeralDataProtectionProvider();
                 services.Configure<HttpClientFactoryOptions>("NexoRuta", options => options.HttpMessageHandlerBuilderActions
                     .Add(handler => handler.PrimaryHandler = new ApiHandler(api)));
+                services.Configure<HttpClientFactoryOptions>("NexoRuta.DemoData", options => options.HttpMessageHandlerBuilderActions
+                    .Add(handler => handler.PrimaryHandler = new ApiHandler(api)));
             });
         }
     }
@@ -595,6 +597,19 @@ public sealed class AdminSessionAndPagesTests
             });
             if (uri.AbsolutePath == "/api/usuarios/actual/permisos")
                 return PermissionStatus is { } permissionStatus ? Failure(permissionStatus) : Json(200, Permissions);
+            if (uri.AbsolutePath == "/api/admin/demo-data" && request.Method == HttpMethod.Get)
+                return Json(200, new
+                {
+                    sembrada = false,
+                    sembradoEnUtc = (DateTimeOffset?)null,
+                    operadores = 0,
+                    comercios = 0,
+                    cuentasOperador = 0,
+                    cuentasComercio = 0,
+                    envios = 0,
+                    rutas = 0,
+                    operaciones = 0
+                });
             if (uri.AbsolutePath == $"/api/admin/solicitudes-baja/{CancellationRequestId}/resolver" && request.Method == HttpMethod.Post)
             {
                 using var resolution = JsonDocument.Parse(body!);

@@ -12,4 +12,5 @@ public sealed record EnvioCreadoResponse(
     decimal PesoGramos,
     decimal LargoCentimetros,
     decimal AnchoCentimetros,
-    decimal AltoCentimetros);
+    decimal AltoCentimetros,
+    DateTimeOffset CreadoEnUtc);

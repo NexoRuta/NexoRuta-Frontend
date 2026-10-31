@@ -39,7 +39,7 @@ internal static class ApiHttp
             throw new NexoRutaApiException(await ReadErrorAsync(response, cancellationToken), response.StatusCode);
     }
 
-    private static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    internal static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         try
         {

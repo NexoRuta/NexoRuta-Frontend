@@ -52,7 +52,7 @@
                 <form method="post" asp-page-handler="Estado" data-single-submit>
                     <input type="hidden" name="estado" value="@ZonaCoberturaUi.EstadoActiva" />
                     <input type="hidden" name="version" value="@zona.Version" />
-                    <button class="btn btn-outline-success" type="submit" disabled="@(Model.Conflicto || activeSlots == 0)">Activar zona</button>
+                    <button class="btn btn-outline-success" type="submit" data-loading-text="Activando…" disabled="@(Model.Conflicto || activeSlots == 0)">Activar zona</button>
                 </form>
                 @if (activeSlots == 0) { <p class="form-text">Agregá al menos una franja activa para habilitar la zona.</p> }
             }

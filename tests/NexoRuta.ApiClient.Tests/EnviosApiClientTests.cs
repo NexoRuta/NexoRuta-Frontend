@@ -62,7 +62,8 @@ public sealed class EnviosApiClientTests
                 [{"id":"00000000-0000-0000-0000-000000000001","operadorId":"00000000-0000-0000-0000-000000000002",
                 "comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004",
                 "usuarioEmail":"ana@comercio.local","operadorNombre":"Distribución Sur","comercioNombre":"Comercio Centro",
-                "destinatarioNombre":"Ana","direccion":"18 de Julio 123","estado":"Admitido",
+                "destinatarioNombre":"Ana","destinatarioEmail":"ana.destino@example.test",
+                "referenciaExterna":"PED-2026-0001","direccion":"18 de Julio 123","estado":"Admitido",
                 "bultos":[{"codigo":"B-001","pesoGramos":"1250","largoCentimetros":30,"anchoCentimetros":20,"altoCentimetros":10}]}]
                 """));
         });
@@ -70,6 +71,8 @@ public sealed class EnviosApiClientTests
         var shipment = Assert.Single(await new EnviosApiClient(http).ListarEnviosAsync(ApiToken));
 
         Assert.Equal("Ana", shipment.DestinatarioNombre);
+        Assert.Equal("ana.destino@example.test", shipment.GetType().GetProperty("DestinatarioEmail")?.GetValue(shipment));
+        Assert.Equal("PED-2026-0001", shipment.GetType().GetProperty("ReferenciaExterna")?.GetValue(shipment));
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000003"), shipment.ComercioId);
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000002"), shipment.OperadorId);
         Assert.Equal(1250m, Assert.Single(shipment.Bultos).PesoGramos);

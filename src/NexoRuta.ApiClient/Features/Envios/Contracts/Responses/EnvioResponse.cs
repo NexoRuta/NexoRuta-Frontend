@@ -12,7 +12,11 @@ public sealed record EnvioResponse(
     string Direccion,
     string Estado,
     long Version,
-    IReadOnlyList<BultoResponse> Bultos)
+    IReadOnlyList<BultoResponse> Bultos,
+    DateTimeOffset CreadoEnUtc)
 {
-    public bool AdmiteCancelacion() => Estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado";
+    public bool DestinoConfirmado { get; init; }
+    public string? ReferenciaExterna { get; init; }
+    public string? DestinatarioEmail { get; init; }
+    public bool AdmiteCancelacion() => Estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado" or "EnDevolucion";
 }

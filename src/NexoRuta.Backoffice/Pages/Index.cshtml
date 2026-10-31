@@ -91,6 +91,7 @@ else if (Model.ConsultaCorrecta && Model.TotalResultados > 0)
                 <tr class="nr-shipment-row">
                     <th scope="row" headers="shipments-col-shipment" data-label="Envío">
                         <span class="nr-shipment-id">@shortId</span>
+                        <time class="nr-shipment-created" datetime="@envio.CreadoEnUtc.ToString("O")">@Model.FechaLocal(envio.CreadoEnUtc)</time>
                         <button type="button" class="nr-copy-shipment" data-copy-shipment-id="@envio.Id.ToString("D")" data-copy-status="copy-status-@envio.Id" aria-label="Copiar identificador completo del envío @shortId">Copiar</button>
                         <span class="visually-hidden" id="copy-status-@envio.Id" role="status" aria-live="polite"></span>
                     </th>
@@ -160,6 +161,7 @@ else if (Model.ConsultaCorrecta && Model.TotalResultados > 0)
                                     <summary><span>Información técnica</span><span class="nr-detail-technical-hint">Identificadores y versión</span></summary>
                                     <dl class="nr-shipment-detail-list">
                                         <dt>Identificador completo</dt><dd><code>@envio.Id</code></dd>
+                                        <dt>Fecha de creación</dt><dd><time datetime="@envio.CreadoEnUtc.ToString("O")">@Model.FechaLocal(envio.CreadoEnUtc)</time></dd>
                                         <dt>ID de comercio</dt><dd><code>@envio.ComercioId</code></dd>
                                         <dt>ID de operador</dt><dd><code>@envio.OperadorId</code></dd>
                                         <dt>ID de usuario</dt><dd><code>@envio.CreadoPorUsuarioId</code></dd>

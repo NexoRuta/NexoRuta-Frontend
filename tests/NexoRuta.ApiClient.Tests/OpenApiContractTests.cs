@@ -49,6 +49,7 @@ public sealed class OpenApiContractTests
         var required = request.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
         foreach (var field in new[] { "versionConcurrencia", "maxIntentosEntrega", "intervaloEntreIntentosMinutos",
                      "politicaDevolucionAlAgotarIntentos", "plazoEstandarMinutos", "plazoUrgenteMinutos",
+                     "plazoValidacionPruebaMinutos",
                      "requisitosPrueba", "motivos" })
             Assert.Contains(field, required);
         Assert.Equal("int64", request.GetProperty("properties").GetProperty("versionConcurrencia")
@@ -57,6 +58,10 @@ public sealed class OpenApiContractTests
             .GetProperty("minimum").GetInt32());
         Assert.Contains("null", request.GetProperty("properties").GetProperty("maxIntentosEntrega")
             .GetProperty("type").EnumerateArray().Select(item => item.GetString()));
+        var proofDeadline = request.GetProperty("properties").GetProperty("plazoValidacionPruebaMinutos");
+        Assert.Contains("null", proofDeadline.GetProperty("type").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(1, proofDeadline.GetProperty("minimum").GetInt32());
+        Assert.Equal(525_600, proofDeadline.GetProperty("maximum").GetInt32());
 
         var proofItems = Resolve(request.GetProperty("properties").GetProperty("requisitosPrueba")
             .GetProperty("items"), root);
@@ -90,6 +95,54 @@ public sealed class OpenApiContractTests
     }
 
     [Fact]
+    public async Task ReprogrammingEndpointUsesVersionedBusinessActionContract()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var post = root.GetProperty("paths").GetProperty("/api/envios/{id}/reprogramacion").GetProperty("post");
+        foreach (var status in new[] { "200", "400", "403", "404", "409" })
+            Assert.Contains(status, post.GetProperty("responses").EnumerateObject().Select(item => item.Name));
+
+        var request = Resolve(post.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Equal(0, request.GetProperty("properties").GetProperty("versionEnvio").GetProperty("minimum").GetInt32());
+
+        var response = Resolve(post.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        var fields = response.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
+        foreach (var field in new[] { "envioId", "versionEnvio", "intentosFallidos", "maximoIntentos", "proximoIntentoElegibleUtc" })
+            Assert.Contains(field, fields);
+        Assert.Contains("null", response.GetProperty("properties").GetProperty("proximoIntentoElegibleUtc")
+            .GetProperty("type").EnumerateArray().Select(item => item.GetString()));
+    }
+
+    [Fact]
+    public async Task LossConfirmationUsesDurableCommandAndVersionedActionContract()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var post = root.GetProperty("paths").GetProperty("/api/envios/{id}/confirmar-extravio").GetProperty("post");
+        foreach (var status in new[] { "200", "400", "403", "404", "409" })
+            Assert.Contains(status, post.GetProperty("responses").EnumerateObject().Select(item => item.Name));
+
+        var request = Resolve(post.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        var requestFields = request.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
+        Assert.Contains("versionEnvio", requestFields);
+        Assert.Contains("comandoId", requestFields);
+        Assert.Contains("motivo", requestFields);
+        Assert.Equal(500, request.GetProperty("properties").GetProperty("motivo").GetProperty("maxLength").GetInt32());
+        Assert.Equal(0, request.GetProperty("properties").GetProperty("versionEnvio").GetProperty("minimum").GetInt32());
+
+        var response = Resolve(post.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        var responseFields = response.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
+        foreach (var field in new[] { "confirmacionId", "comandoId", "estadoConfirmado", "versionAnterior", "versionNueva",
+                     "estadoActual", "versionActual", "repetida" })
+            Assert.Contains(field, responseFields);
+    }
+
+    [Fact]
     public async Task PublicCancellationRequiresCodeAndShipmentCreationRequiresRecipientEmail()
     {
         using var document = await LoadOpenApiAsync(); var root = document.RootElement; var paths = root.GetProperty("paths");
@@ -103,6 +156,38 @@ public sealed class OpenApiContractTests
         var alta = Resolve(paths.GetProperty("/api/envios").GetProperty("post").GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
         Assert.Contains("destinatarioEmail", alta.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
         Assert.Equal(254, alta.GetProperty("properties").GetProperty("destinatarioEmail").GetProperty("maxLength").GetInt32());
+    }
+
+    [Fact]
+    public async Task ShipmentCsvImportAndHistoricalOperatorCatalogMatchFrontendContracts()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+
+        var import = paths.GetProperty("/api/envios/importaciones").GetProperty("post");
+        var multipart = import.GetProperty("requestBody").GetProperty("content").GetProperty("multipart/form-data");
+        var form = Resolve(multipart.GetProperty("schema"), root);
+        var formFields = form.GetProperty("properties").EnumerateObject().Select(property => property.Name).ToArray();
+        Assert.Equal(new[] { "Archivo", "OperadorId" }, formFields);
+        Assert.Contains("multipart/form-data", import.GetProperty("requestBody").GetProperty("content").EnumerateObject()
+            .Select(content => content.Name));
+        foreach (var status in new[] { "200", "400", "401", "403", "409", "413", "422", "503" })
+            Assert.Contains(status, import.GetProperty("responses").EnumerateObject().Select(response => response.Name));
+        AssertSchema(typeof(ImportacionEnviosResponse), import.GetProperty("responses").GetProperty("200")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(ImportacionEnviosResponse), import.GetProperty("responses").GetProperty("409")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(ImportacionEnviosResponse), import.GetProperty("responses").GetProperty("422")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+
+        var catalog = paths.GetProperty("/api/operadores/importacion-envios").GetProperty("get");
+        var catalogResponse = catalog.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema");
+        var catalogItems = Resolve(catalogResponse.GetProperty("items"), root);
+        AssertSchema(typeof(OperadorImportacionResponse), catalogItems, root);
+        Assert.Equal(new[] { "200", "401", "403" }, catalog.GetProperty("responses").EnumerateObject()
+            .Select(response => response.Name).Order().ToArray());
     }
 
     [Fact]
@@ -439,6 +524,28 @@ public sealed class OpenApiContractTests
         var schema = document.RootElement.GetProperty("paths").GetProperty(path).GetProperty(method)
             .GetProperty("responses").GetProperty(status).GetProperty("content").GetProperty("application/json").GetProperty("schema");
         AssertSchema(type, schema, document.RootElement);
+    }
+
+    [Fact]
+    public async Task ShipmentListContractPublishesOptionalExternalReferenceAndRecipientEmail()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var schema = Resolve(root.GetProperty("paths").GetProperty("/api/envios").GetProperty("get")
+            .GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root).GetProperty("items");
+        schema = Resolve(schema, root);
+        var properties = schema.GetProperty("properties");
+        var required = schema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+
+        var externalReference = properties.GetProperty("referenciaExterna");
+        var referenceTypes = externalReference.GetProperty("type").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("string", referenceTypes);
+        Assert.Contains("null", referenceTypes);
+        Assert.DoesNotContain("referenciaExterna", required);
+
+        Assert.Equal("string", properties.GetProperty("destinatarioEmail").GetProperty("type").GetString());
+        Assert.DoesNotContain("destinatarioEmail", required);
     }
 
     [Theory]
