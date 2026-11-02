@@ -1,56 +1,285 @@
 @using Microsoft.JSInterop
+@using System.Net
+@using NexoRuta.ApiClient.Features.Envios.Clients
 @inject IJSRuntime Js
 @inject IConfiguration Configuration
+@inject DestinosEnvioApiClient Destinos
 @implements IAsyncDisposable
 
-@if (token is null)
-{
-    <p class="alert alert-warning" role="status">El mapa no está configurado. Podés indicar las coordenadas manualmente; no se eligió ningún punto por defecto.</p>
-}
-else
-{
-    <div @ref="elemento" style="height:360px;min-height:240px" aria-label="Mapa del destino; seleccioná el punto o mové el marcador"></div>
-    @if (mensaje is not null) { <p role="status">@mensaje</p> }
-}
+<div class="nr-destination-picker">
+    @if (Editable)
+    {
+        <div class="nr-destination-search">
+            <label for="destino-busqueda">Buscar dirección</label>
+            <input @ref="buscador" id="destino-busqueda" type="search" class="form-control"
+                   value="@textoBusqueda" @oninput="CambiarBusqueda" maxlength="240" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+                   aria-controls="destino-sugerencias" aria-expanded="@((sugerencias.Count > 0).ToString().ToLowerInvariant())"
+                   aria-activedescendant="@(indiceActivo >= 0 ? $"destino-opcion-{indiceActivo}" : null)"
+                   aria-describedby="destino-ayuda" disabled="@Bloqueado" />
+            <p id="destino-ayuda" class="nr-destination-help">Escribí al menos tres caracteres y elegí una sugerencia. Después podés ajustar el punto en el mapa.</p>
+            @if (buscando) { <p class="nr-destination-status" role="status">Buscando direcciones…</p> }
+            @if (mensajeBusqueda is not null) { <p class="nr-destination-feedback" role="alert">@mensajeBusqueda</p> }
+            else if (sinResultados) { <p class="nr-destination-feedback" role="status">No encontramos coincidencias. Probá con calle y número o seleccioná el punto en el mapa.</p> }
+            @if (sugerencias.Count > 0)
+            {
+                <div id="destino-sugerencias" class="nr-destination-suggestions" role="listbox" aria-label="Sugerencias de dirección">
+                    @for (var i = 0; i < sugerencias.Count; i++)
+                    {
+                        var indice = i;
+                        var sugerencia = sugerencias[i];
+                        <button id="destino-opcion-@indice" class="nr-destination-suggestion" type="button" role="option"
+                                aria-selected="@(indiceActivo == indice)" tabindex="-1" @onclick="() => ElegirAsync(sugerencia)">
+                            @sugerencia.Descripcion
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
+    <p class="nr-destination-attribution">Búsqueda de direcciones: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener noreferrer">© Mapbox</a></p>
+
+    @if (token is null)
+    {
+        <p class="nr-destination-map-message" role="status">Mapbox no está configurado para esta pantalla. La dirección registrada se conserva.</p>
+    }
+    else
+    {
+        <div @ref="elemento" class="nr-destination-map" role="application"
+             aria-label="Mapa de la ubicación del destino" aria-busy="@mapaCargando"></div>
+        @if (mapaCargando) { <p class="nr-destination-status" role="status">Cargando el mapa…</p> }
+        @if (mensajeMapa is not null) { <p class="nr-destination-map-message" role="status">@mensajeMapa</p> }
+    }
+</div>
 
 @code {
+    [Parameter] public bool ParaAlta { get; set; }
+    [Parameter] public Guid EnvioId { get; set; }
+    [Parameter] public string ApiToken { get; set; } = "";
     [Parameter] public double? Latitud { get; set; }
     [Parameter] public double? Longitud { get; set; }
-    [Parameter] public EventCallback<(double Latitud, double Longitud)> PuntoCambiado { get; set; }
-    private ElementReference elemento;
-    private string? token, mensaje;
-    private bool fallo;
-    private IJSObjectReference? modulo, mapa;
+    [Parameter] public bool Editable { get; set; }
+    [Parameter] public bool Bloqueado { get; set; }
+    [Parameter] public EventCallback<(double? Latitud, double? Longitud, string? Descripcion)> PuntoCambiado { get; set; }
+
+    private const string EstiloPredeterminado = "mapbox://styles/mapbox/streets-v12";
+    private static readonly TimeSpan DemoraBusqueda = TimeSpan.FromMilliseconds(300);
+    private ElementReference elemento, buscador;
+    private string? token, estilo, mensajeMapa, mensajeBusqueda;
+    private string textoBusqueda = "";
+    private bool mapaCargando, buscando, busquedaResuelta, falloMapa;
+    private int indiceActivo = -1;
+    private long secuenciaBusqueda;
+    private CancellationTokenSource? busquedaCancelacion;
+    private IJSObjectReference? modulo, mapa, teclado;
     private DotNetObjectReference<SelectorDestino>? referencia;
+
+    private bool sinResultados => busquedaResuelta && !buscando && sugerencias.Count == 0 && mensajeBusqueda is null;
+    private bool PuedeEditar => Editable && !Bloqueado;
+    private readonly List<Sugerencia> sugerencias = [];
+
     protected override void OnInitialized()
     {
         var valor = Configuration["Mapbox:PublicAccessToken"];
         token = valor?.StartsWith("pk.", StringComparison.Ordinal) == true ? valor : null;
+        estilo = string.IsNullOrWhiteSpace(Configuration["Mapbox:StyleUrl"])
+            ? EstiloPredeterminado
+            : Configuration["Mapbox:StyleUrl"];
+        mapaCargando = token is not null;
     }
+
+    protected override void OnParametersSet()
+    {
+        if (PuedeEditar) return;
+        ++secuenciaBusqueda;
+        busquedaCancelacion?.Cancel();
+        textoBusqueda = "";
+        sugerencias.Clear();
+        indiceActivo = -1;
+        buscando = busquedaResuelta = false;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (token is null || fallo) return;
         try
         {
             if (modulo is null)
             {
                 modulo = await Js.InvokeAsync<IJSObjectReference>("import", "./js/destino-mapbox.js");
                 referencia = DotNetObjectReference.Create(this);
-                mapa = await modulo.InvokeAsync<IJSObjectReference>("crear", elemento, token, referencia);
+                if (PuedeEditar) teclado = await modulo.InvokeAsync<IJSObjectReference>("conectarTeclado", buscador, referencia);
             }
-            if (mapa is not null) await mapa.InvokeVoidAsync("mostrar", Latitud, Longitud);
+            if (mapa is null && token is not null && !falloMapa)
+                mapa = await modulo.InvokeAsync<IJSObjectReference>("crear", elemento, token, estilo, referencia, PuedeEditar);
+            if (mapa is not null)
+            {
+                await mapa.InvokeVoidAsync("configurarEdicion", PuedeEditar);
+                await mapa.InvokeVoidAsync("mostrar", Latitud, Longitud);
+            }
+            if (PuedeEditar && teclado is null && modulo is not null && referencia is not null)
+                teclado = await modulo.InvokeAsync<IJSObjectReference>("conectarTeclado", buscador, referencia);
         }
-        catch (JSException) { fallo = true; mensaje = "No se pudo cargar el mapa. Revisá la conexión o indicá las coordenadas manualmente."; StateHasChanged(); }
+        catch (JSException)
+        {
+            falloMapa = true;
+            mapaCargando = false;
+            mensajeMapa = "No se pudo cargar el mapa. La dirección registrada permanece disponible.";
+            StateHasChanged();
+        }
     }
-    [JSInvokable] public Task Seleccionar(double latitud, double longitud) => PuntoCambiado.InvokeAsync((latitud, longitud));
-    public async ValueTask DisposeAsync()
+
+    private async Task CambiarBusqueda(ChangeEventArgs args)
     {
+        if (!PuedeEditar) return;
+        textoBusqueda = args.Value?.ToString() ?? "";
+        var consulta = textoBusqueda.Trim();
+        sugerencias.Clear(); indiceActivo = -1; mensajeBusqueda = null; busquedaResuelta = false;
+        busquedaCancelacion?.Cancel(); busquedaCancelacion?.Dispose();
+        var cancelacion = new CancellationTokenSource(); busquedaCancelacion = cancelacion;
+        var secuencia = ++secuenciaBusqueda;
+        // A new query is not a selected destination. Invalidate the provisional selection, not stored data.
+        await PuntoCambiado.InvokeAsync((null, null, null));
+        if (consulta.Length < 3) { buscando = false; return; }
+        if (consulta.Length > 240)
+        {
+            buscando = false;
+            mensajeBusqueda = "La búsqueda debe tener hasta 240 caracteres.";
+            busquedaResuelta = true;
+            return;
+        }
+        if ((!ParaAlta && EnvioId == Guid.Empty) || string.IsNullOrWhiteSpace(ApiToken))
+        {
+            buscando = false;
+            mensajeBusqueda = "No se pudo iniciar la búsqueda. Recargá la página e intentá nuevamente.";
+            busquedaResuelta = true;
+            return;
+        }
+
+        buscando = true;
         try
         {
+            await Task.Delay(DemoraBusqueda, cancelacion.Token);
+            var respuesta = ParaAlta
+                ? await Destinos.BuscarParaAltaAsync(consulta, ApiToken, cancelacion.Token)
+                : await Destinos.BuscarAsync(EnvioId, consulta, ApiToken, cancelacion.Token);
+            if (cancelacion.IsCancellationRequested || secuencia != secuenciaBusqueda) return;
+            sugerencias.Clear();
+            sugerencias.AddRange(respuesta.Propuestas.Select((p, i) => new Sugerencia
+                { Id = i.ToString(), Descripcion = p.Descripcion, Latitud = p.Latitud, Longitud = p.Longitud }).Where(EsValida));
+            busquedaResuelta = true;
+        }
+        catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
+        catch (OperationCanceledException)
+        {
+            if (!cancelacion.IsCancellationRequested && secuencia == secuenciaBusqueda)
+                mensajeBusqueda = "La búsqueda tardó demasiado. Podés seleccionar el punto manualmente en el mapa.";
+        }
+        catch (HttpRequestException ex)
+        {
+            if (!cancelacion.IsCancellationRequested && secuencia == secuenciaBusqueda)
+                mensajeBusqueda = ex.StatusCode switch
+                {
+                    HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "No tenés acceso a la búsqueda. Revisá tu sesión y permisos.",
+                    HttpStatusCode.TooManyRequests when ex.Message.Contains("Se agotó la cuota", StringComparison.Ordinal) => "Se agotó la cuota de búsqueda de direcciones. Podés seleccionar el punto manualmente en el mapa.",
+                    HttpStatusCode.TooManyRequests => "La búsqueda alcanzó el límite temporal o la cuota del proveedor. Esperá antes de intentar nuevamente o seleccioná el punto en el mapa.",
+                    HttpStatusCode.ServiceUnavailable => "La búsqueda externa no está habilitada, configurada o disponible. Podés seleccionar el punto manualmente en el mapa.",
+                    HttpStatusCode.Conflict => "El envío ya no admite cambios de ubicación. Actualizá la página.",
+                    _ => "No se pudo buscar la dirección. Podés seleccionar el punto manualmente en el mapa."
+                };
+        }
+        finally
+        {
+            if (secuencia == secuenciaBusqueda && !cancelacion.IsCancellationRequested) buscando = false;
+        }
+    }
+
+    private async Task ElegirAsync(Sugerencia sugerencia)
+    {
+        if (!PuedeEditar) return;
+        busquedaCancelacion?.Cancel();
+        ++secuenciaBusqueda;
+        textoBusqueda = sugerencia.Descripcion;
+        sugerencias.Clear(); indiceActivo = -1; buscando = false; busquedaResuelta = false; mensajeBusqueda = null;
+        await PuntoCambiado.InvokeAsync((sugerencia.Latitud, sugerencia.Longitud, sugerencia.Descripcion));
+        if (modulo is not null) await modulo.InvokeVoidAsync("enfocarBusqueda", buscador);
+    }
+
+    [JSInvokable]
+    public Task Seleccionar(double latitud, double longitud, string? descripcion) => InvokeAsync(async () =>
+    {
+        if (!PuedeEditar) return;
+        busquedaCancelacion?.Cancel(); ++secuenciaBusqueda;
+        buscando = false; mensajeBusqueda = null;
+        if (descripcion is null) { textoBusqueda = ""; sugerencias.Clear(); indiceActivo = -1; busquedaResuelta = false; }
+        await PuntoCambiado.InvokeAsync((latitud, longitud, descripcion));
+    });
+
+    [JSInvokable]
+    public Task EstadoMapa(string estado) => InvokeAsync(() =>
+    {
+        mapaCargando = estado == "cargando";
+        mensajeMapa = estado switch
+        {
+            "listo" => null,
+            "sin-conexion" => "No hay conexión a Internet. La búsqueda y el mapa necesitan conexión.",
+            "token" => "Mapbox rechazó el token o el acceso al estilo. La dirección registrada se conserva.",
+            "proveedor" => "Mapbox no pudo cargar el mapa. La selección de direcciones puede seguir disponible.",
+            _ => mensajeMapa
+        };
+        StateHasChanged();
+    });
+
+    [JSInvokable]
+    public Task MoverSugerencia(int delta) => InvokeAsync(() =>
+    {
+        if (sugerencias.Count == 0) return;
+        indiceActivo = indiceActivo < 0
+            ? (delta >= 0 ? 0 : sugerencias.Count - 1)
+            : (indiceActivo + delta + sugerencias.Count) % sugerencias.Count;
+        StateHasChanged();
+    });
+
+    [JSInvokable]
+    public Task ElegirSugerenciaActiva() => InvokeAsync(async () =>
+    {
+        if (indiceActivo >= 0 && indiceActivo < sugerencias.Count)
+            await ElegirAsync(sugerencias[indiceActivo]);
+        StateHasChanged(); // JS interop is not a Blazor event.
+    });
+
+    [JSInvokable]
+    public Task CerrarSugerencias() => InvokeAsync(() =>
+    {
+        busquedaCancelacion?.Cancel(); ++secuenciaBusqueda;
+        sugerencias.Clear(); indiceActivo = -1; buscando = busquedaResuelta = false; StateHasChanged();
+    });
+
+    private static bool EsValida(Sugerencia item) => !string.IsNullOrWhiteSpace(item.Id)
+        && !string.IsNullOrWhiteSpace(item.Descripcion) && double.IsFinite(item.Latitud)
+        && item.Latitud is >= -90 and <= 90 && double.IsFinite(item.Longitud)
+        && item.Longitud is >= -180 and <= 180;
+
+    public async ValueTask DisposeAsync()
+    {
+        busquedaCancelacion?.Cancel();
+        ++secuenciaBusqueda;
+        try
+        {
+            if (teclado is not null) { await teclado.InvokeVoidAsync("dispose"); await teclado.DisposeAsync(); }
             if (mapa is not null) { await mapa.InvokeVoidAsync("dispose"); await mapa.DisposeAsync(); }
             if (modulo is not null) await modulo.DisposeAsync();
         }
         catch (JSDisconnectedException) { }
         referencia?.Dispose();
+        busquedaCancelacion?.Dispose();
     }
+
+    public sealed class Sugerencia
+    {
+        public string Id { get; set; } = "";
+        public string Descripcion { get; set; } = "";
+        public double Latitud { get; set; }
+        public double Longitud { get; set; }
+    }
+
 }

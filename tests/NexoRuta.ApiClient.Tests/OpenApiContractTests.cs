@@ -20,6 +20,26 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task StaticRoadEstimationContractsKeepManualAndCalculatedTimesSeparate()
+    {
+        using var d=await LoadOpenApiAsync();var paths=d.RootElement.GetProperty("paths");Assert.True(paths.TryGetProperty("/api/rutas/{id}/estimaciones",out var estimates));Assert.True(estimates.TryGetProperty("post",out _));Assert.True(estimates.TryGetProperty("get",out _));Assert.True(paths.TryGetProperty("/api/reparto/perfiles-viales/{id}",out _));Assert.True(paths.TryGetProperty("/api/rutas/{id}/estimaciones/recorrido",out _));
+        var schemas=d.RootElement.GetProperty("components").GetProperty("schemas");var time=schemas.GetProperty("HorarioVialResponse").GetProperty("properties");Assert.True(time.TryGetProperty("llegadaManualEnUtc",out _));Assert.True(time.TryGetProperty("llegadaCalculadaEnUtc",out _));
+        var result=schemas.GetProperty("EstimacionRutaResponse").GetProperty("properties");foreach(var field in new[]{"estado","vigencia","numeroVersion","calculadoEnUtc","regresoEstimadoBaseEnUtc","listoPrevistoEnUtc","tipoCalculo","ocupacionId","posicionFuente","criteriosGps","esReferencia"})Assert.True(result.TryGetProperty(field,out _));
+    }
+
+    [Fact]
+    public async Task OperationalBaseAndTemporalSnapshotContractsArePublishedWithTheClient()
+    {
+        using var document=await LoadOpenApiAsync();var root=document.RootElement;var paths=root.GetProperty("paths");
+        foreach(var p in new[]{"/api/reparto/base-operativa","/api/reparto/base-operativa/propuestas","/api/reparto/base-operativa/confirmacion"})Assert.True(paths.TryGetProperty(p,out _));
+        var schemas=root.GetProperty("components").GetProperty("schemas");
+        foreach(var name in new[]{"BaseOperativaResponse","PlanTemporalResponse"})Assert.True(schemas.TryGetProperty(name,out _));
+        var sheet=schemas.GetProperty("HojaRutaResponse").GetProperty("properties");
+        foreach(var field in new[]{"planTemporal","estadoEstimacion","motivoSinEstimacion","salidaEnUtc"})Assert.True(sheet.TryGetProperty(field,out _));
+        var plan=schemas.GetProperty("PlanificarRutaRequest").GetProperty("properties");Assert.True(plan.TryGetProperty("salidaPlanificadaEnUtc",out _));
+    }
+
+    [Fact]
     public async Task OperationalRulesContractContainsVersionedDraftPublicationAndValidationSchemas()
     {
         using var document = await LoadOpenApiAsync();
@@ -49,6 +69,7 @@ public sealed class OpenApiContractTests
         var required = request.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
         foreach (var field in new[] { "versionConcurrencia", "maxIntentosEntrega", "intervaloEntreIntentosMinutos",
                      "politicaDevolucionAlAgotarIntentos", "plazoEstandarMinutos", "plazoUrgenteMinutos",
+                     "plazoValidacionPruebaMinutos",
                      "requisitosPrueba", "motivos" })
             Assert.Contains(field, required);
         Assert.Equal("int64", request.GetProperty("properties").GetProperty("versionConcurrencia")
@@ -57,6 +78,10 @@ public sealed class OpenApiContractTests
             .GetProperty("minimum").GetInt32());
         Assert.Contains("null", request.GetProperty("properties").GetProperty("maxIntentosEntrega")
             .GetProperty("type").EnumerateArray().Select(item => item.GetString()));
+        var proofDeadline = request.GetProperty("properties").GetProperty("plazoValidacionPruebaMinutos");
+        Assert.Contains("null", proofDeadline.GetProperty("type").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(1, proofDeadline.GetProperty("minimum").GetInt32());
+        Assert.Equal(525_600, proofDeadline.GetProperty("maximum").GetInt32());
 
         var proofItems = Resolve(request.GetProperty("properties").GetProperty("requisitosPrueba")
             .GetProperty("items"), root);
@@ -90,6 +115,54 @@ public sealed class OpenApiContractTests
     }
 
     [Fact]
+    public async Task ReprogrammingEndpointUsesVersionedBusinessActionContract()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var post = root.GetProperty("paths").GetProperty("/api/envios/{id}/reprogramacion").GetProperty("post");
+        foreach (var status in new[] { "200", "400", "403", "404", "409" })
+            Assert.Contains(status, post.GetProperty("responses").EnumerateObject().Select(item => item.Name));
+
+        var request = Resolve(post.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        Assert.Equal(0, request.GetProperty("properties").GetProperty("versionEnvio").GetProperty("minimum").GetInt32());
+
+        var response = Resolve(post.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        var fields = response.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
+        foreach (var field in new[] { "envioId", "versionEnvio", "intentosFallidos", "maximoIntentos", "proximoIntentoElegibleUtc" })
+            Assert.Contains(field, fields);
+        Assert.Contains("null", response.GetProperty("properties").GetProperty("proximoIntentoElegibleUtc")
+            .GetProperty("type").EnumerateArray().Select(item => item.GetString()));
+    }
+
+    [Fact]
+    public async Task LossConfirmationUsesDurableCommandAndVersionedActionContract()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var post = root.GetProperty("paths").GetProperty("/api/envios/{id}/confirmar-extravio").GetProperty("post");
+        foreach (var status in new[] { "200", "400", "403", "404", "409" })
+            Assert.Contains(status, post.GetProperty("responses").EnumerateObject().Select(item => item.Name));
+
+        var request = Resolve(post.GetProperty("requestBody").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        var requestFields = request.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
+        Assert.Contains("versionEnvio", requestFields);
+        Assert.Contains("comandoId", requestFields);
+        Assert.Contains("motivo", requestFields);
+        Assert.Equal(500, request.GetProperty("properties").GetProperty("motivo").GetProperty("maxLength").GetInt32());
+        Assert.Equal(0, request.GetProperty("properties").GetProperty("versionEnvio").GetProperty("minimum").GetInt32());
+
+        var response = Resolve(post.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        var responseFields = response.GetProperty("required").EnumerateArray().Select(item => item.GetString()).ToHashSet();
+        foreach (var field in new[] { "confirmacionId", "comandoId", "estadoConfirmado", "versionAnterior", "versionNueva",
+                     "estadoActual", "versionActual", "repetida" })
+            Assert.Contains(field, responseFields);
+    }
+
+    [Fact]
     public async Task PublicCancellationRequiresCodeAndShipmentCreationRequiresRecipientEmail()
     {
         using var document = await LoadOpenApiAsync(); var root = document.RootElement; var paths = root.GetProperty("paths");
@@ -103,6 +176,38 @@ public sealed class OpenApiContractTests
         var alta = Resolve(paths.GetProperty("/api/envios").GetProperty("post").GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
         Assert.Contains("destinatarioEmail", alta.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
         Assert.Equal(254, alta.GetProperty("properties").GetProperty("destinatarioEmail").GetProperty("maxLength").GetInt32());
+    }
+
+    [Fact]
+    public async Task ShipmentCsvImportAndHistoricalOperatorCatalogMatchFrontendContracts()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+
+        var import = paths.GetProperty("/api/envios/importaciones").GetProperty("post");
+        var multipart = import.GetProperty("requestBody").GetProperty("content").GetProperty("multipart/form-data");
+        var form = Resolve(multipart.GetProperty("schema"), root);
+        var formFields = form.GetProperty("properties").EnumerateObject().Select(property => property.Name).ToArray();
+        Assert.Equal(new[] { "VersionFormato", "Archivo", "OperadorId" }, formFields);
+        Assert.Contains("multipart/form-data", import.GetProperty("requestBody").GetProperty("content").EnumerateObject()
+            .Select(content => content.Name));
+        foreach (var status in new[] { "200", "400", "401", "403", "409", "413", "422", "503" })
+            Assert.Contains(status, import.GetProperty("responses").EnumerateObject().Select(response => response.Name));
+        AssertSchema(typeof(ImportacionEnviosResponse), import.GetProperty("responses").GetProperty("200")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(ImportacionEnviosResponse), import.GetProperty("responses").GetProperty("409")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(ImportacionEnviosResponse), import.GetProperty("responses").GetProperty("422")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+
+        var catalog = paths.GetProperty("/api/operadores/importacion-envios").GetProperty("get");
+        var catalogResponse = catalog.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema");
+        var catalogItems = Resolve(catalogResponse.GetProperty("items"), root);
+        AssertSchema(typeof(OperadorImportacionResponse), catalogItems, root);
+        Assert.Equal(new[] { "200", "401", "403" }, catalog.GetProperty("responses").EnumerateObject()
+            .Select(response => response.Name).Order().ToArray());
     }
 
     [Fact]
@@ -441,6 +546,28 @@ public sealed class OpenApiContractTests
         AssertSchema(type, schema, document.RootElement);
     }
 
+    [Fact]
+    public async Task ShipmentListContractPublishesOptionalExternalReferenceAndRecipientEmail()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var schema = Resolve(root.GetProperty("paths").GetProperty("/api/envios").GetProperty("get")
+            .GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root).GetProperty("items");
+        schema = Resolve(schema, root);
+        var properties = schema.GetProperty("properties");
+        var required = schema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToArray();
+
+        var externalReference = properties.GetProperty("referenciaExterna");
+        var referenceTypes = externalReference.GetProperty("type").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("string", referenceTypes);
+        Assert.Contains("null", referenceTypes);
+        Assert.DoesNotContain("referenciaExterna", required);
+
+        Assert.Equal("string", properties.GetProperty("destinatarioEmail").GetProperty("type").GetString());
+        Assert.DoesNotContain("destinatarioEmail", required);
+    }
+
     [Theory]
     [InlineData("/api/usuarios", "post")]
     [InlineData("/api/usuarios/{usuarioId}/estado", "patch")]
@@ -568,10 +695,10 @@ public sealed class OpenApiContractTests
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
         schema = Resolve(schema, document);
-        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(bool) || type == typeof(int) || type == typeof(long) ||
+        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(double) || type == typeof(bool) || type == typeof(int) || type == typeof(long) ||
             type == typeof(DateTime) || type == typeof(DateTimeOffset))
         {
-            var expected = type == typeof(decimal) ? "number" : type == typeof(bool) ? "boolean" : type == typeof(int) || type == typeof(long) ? "integer" : "string";
+            var expected = type == typeof(decimal) || type == typeof(double) ? "number" : type == typeof(bool) ? "boolean" : type == typeof(int) || type == typeof(long) ? "integer" : "string";
             var declared = schema.GetProperty("type");
             IEnumerable<string?> types = declared.ValueKind == JsonValueKind.Array
                 ? declared.EnumerateArray().Select(x => x.GetString())
@@ -593,7 +720,7 @@ public sealed class OpenApiContractTests
             Assert.Contains("string", types);
             Assert.Equal("byte", schema.GetProperty("format").GetString());
         }
-        else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
+        else if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>) || type.GetGenericTypeDefinition() == typeof(List<>)))
         {
             Assert.Equal("array", schema.GetProperty("type").GetString());
             AssertSchema(type.GenericTypeArguments[0], schema.GetProperty("items"), document);
@@ -612,9 +739,17 @@ public sealed class OpenApiContractTests
     }
 
     private static JsonElement Resolve(JsonElement schema, JsonElement document)
-        => schema.TryGetProperty("$ref", out var reference)
-            ? document.GetProperty("components").GetProperty("schemas").GetProperty(reference.GetString()!.Split('/')[^1])
-            : schema;
+    {
+        if (schema.TryGetProperty("$ref", out var reference))
+            return Resolve(document.GetProperty("components").GetProperty("schemas").GetProperty(reference.GetString()!.Split('/')[^1]), document);
+        if (schema.TryGetProperty("oneOf", out var alternatives))
+        {
+            var nonNull = alternatives.EnumerateArray().Where(x => !x.TryGetProperty("type", out var kind) || kind.ValueKind != JsonValueKind.String || kind.GetString() != "null").ToArray();
+            Assert.Single(nonNull);
+            return Resolve(nonNull[0], document);
+        }
+        return schema;
+    }
 
     private static async Task<JsonDocument> LoadOpenApiAsync()
     {

@@ -15,6 +15,7 @@ public static class CommerceNavigationCatalog
         new("Envíos",
         [
             new("Crear envío", "/envios/crear", "/envios/crear", ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy),
+            new("Importar CSV", "/envios/importar", "/envios/importar", ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy),
             new("Mis envíos", "/envios", "/envios", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)
         ]),
         new("Comercio", [new("Mi comercio", "/mi-comercio", "/mi-comercio", null)]),

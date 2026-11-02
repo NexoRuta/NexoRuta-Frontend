@@ -1,0 +1,91 @@
+@using System.Net
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
+
+<section class="import-result" aria-labelledby="import-result-title">
+    <h2 id="import-result-title" class="h5">Resultado de la importación</h2>
+    @if (Resultado.Response.Estado == "Completada" && Resultado.StatusCode == HttpStatusCode.OK)
+    {
+        <p class="alert alert-success" role="status">Importación completada. Los envíos existentes no se modificaron.</p>
+    }
+    else if (Resultado.StatusCode == HttpStatusCode.Conflict)
+    {
+        <p class="alert alert-danger" role="alert">El archivo fue rechazado por un conflicto. No se creó ningún envío nuevo y los envíos existentes no se modificaron.</p>
+    }
+    else
+    {
+        <p class="alert alert-danger" role="alert">El archivo fue rechazado. No se creó ningún envío nuevo y los envíos existentes no se modificaron.</p>
+    }
+
+    <dl class="import-summary">
+        <div><dt>Creados</dt><dd>@Resultado.Response.Resumen.Creados</dd></div>
+        <div><dt>Ya existentes</dt><dd>@Resultado.Response.Resumen.Existentes</dd></div>
+        <div><dt>Duplicados en el archivo</dt><dd>@Resultado.Response.Resumen.DuplicadosEnArchivo</dd></div>
+        <div><dt>Conflictos</dt><dd>@Resultado.Response.Resumen.Conflictos</dd></div>
+        <div><dt>Inválidos</dt><dd>@Resultado.Response.Resumen.Invalidos</dd></div>
+        <div><dt>No procesados</dt><dd>@Resultado.Response.Resumen.NoProcesados</dd></div>
+    </dl>
+
+    <h3 class="h6">Detalle por registro</h3>
+    <div class="import-result-scroll" tabindex="0" aria-label="Resultados por registro. Usá las flechas para recorrer la lista.">
+        <ol class="import-result-list">
+            @foreach (var fila in Resultado.Response.Filas)
+            {
+                <li>
+                    <div class="import-result-row-heading">
+                        <strong>Fila @fila.Registro</strong>
+                        <span class="result-state">@EstadoVisible(fila.Estado)</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(fila.ReferenciaExterna))
+                    {
+                        <p><span class="fw-semibold">Referencia:</span> <code>@fila.ReferenciaExterna</code></p>
+                    }
+                    @if (fila.Estado == "DuplicadoDe" && fila.MismoQueRegistro is { } canonicalRow)
+                    {
+                        var canonicalState = Resultado.Response.Filas.FirstOrDefault(x => x.Registro == canonicalRow)?.Estado;
+                        @if (canonicalState is "Creado" or "YaExistente")
+                        {
+                            <p>Duplicado de la fila @canonicalRow; se procesó una sola vez.</p>
+                        }
+                        else
+                        {
+                            <p>Duplicado de la fila @canonicalRow; no se procesó porque el archivo se rechazó en forma atómica.</p>
+                        }
+                    }
+                    else if (fila.Estado == "YaExistente")
+                    {
+                        <p>El envío ya existía y no se modificó.</p>
+                    }
+                    else if (fila.Estado == "NoProcesado")
+                    {
+                        <p>No se creó porque el archivo se rechazó en forma atómica.</p>
+                    }
+                    @if (fila.Errores.Count > 0)
+                    {
+                        <ul class="row-errors">
+                            @foreach (var errorFila in fila.Errores)
+                            {
+                                <li>@(string.IsNullOrWhiteSpace(errorFila.Campo) ? string.Empty : $"{errorFila.Campo}: ")@errorFila.Mensaje</li>
+                            }
+                        </ul>
+                    }
+                </li>
+            }
+        </ol>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public ImportacionEnviosApiResult Resultado { get; set; } = default!;
+
+    private static string EstadoVisible(string estado) => estado switch
+    {
+        "Creado" => "Creado",
+        "YaExistente" => "Ya existente",
+        "DuplicadoDe" => "Duplicado en el archivo",
+        "Conflicto" => "Conflicto",
+        "Invalido" => "Inválido",
+        "NoProcesado" => "No procesado",
+        _ => "Estado no reconocido"
+    };
+}

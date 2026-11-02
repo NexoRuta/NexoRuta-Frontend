@@ -10,6 +10,11 @@ document.querySelectorAll("form[data-single-submit]").forEach((form) => {
         form.dataset.submitted = "true";
         const submitter = event.submitter;
         form.querySelectorAll('button[type="submit"]').forEach((button) => { if (button !== submitter) button.disabled = true; });
+        if (submitter instanceof HTMLButtonElement && submitter.dataset.loadingText) {
+            submitter.disabled = true;
+            submitter.setAttribute("aria-busy", "true");
+            submitter.textContent = submitter.dataset.loadingText;
+        }
     });
 });
 

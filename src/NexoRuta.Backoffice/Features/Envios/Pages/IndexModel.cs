@@ -14,6 +14,7 @@ namespace NexoRuta.Backoffice.Features.Envios.Pages;
 
 public class IndexModel(EnviosApiClient apiClient, UsuariosApiClient usuariosClient) : PageModel
 {
+    private static readonly TimeZoneInfo ZonaHoraria = TimeZoneInfo.FindSystemTimeZoneById("America/Montevideo");
     private const int TamanoPagina = 10;
     private static readonly string[] EstadosDelDominio =
     [
@@ -144,6 +145,9 @@ public class IndexModel(EnviosApiClient apiClient, UsuariosApiClient usuariosCli
         var kilogramos = envio.Bultos.Sum(bulto => bulto.PesoGramos) / 1000m;
         return kilogramos.ToString("0.##", CultureInfo.GetCultureInfo("es-UY"));
     }
+
+    public string FechaLocal(DateTimeOffset fechaUtc) =>
+        TimeZoneInfo.ConvertTime(fechaUtc, ZonaHoraria).ToString("dd/MM/yyyy HH:mm", CultureInfo.GetCultureInfo("es-UY"));
 
     public string ValorInformado(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "No informado" : value;

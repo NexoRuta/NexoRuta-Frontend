@@ -47,7 +47,8 @@ public sealed partial class SeguimientoPagesTests
     }
 
     [Theory]
-    [InlineData("Entregado")] [InlineData("EntregaPendienteValidacion")] [InlineData("EntregaSinValidacion")] [InlineData("Cancelado")]
+    [InlineData("Entregado")] [InlineData("Devuelto")] [InlineData("Extraviado")]
+    [InlineData("EntregaPendienteValidacion")] [InlineData("EntregaSinValidacion")] [InlineData("Cancelado")]
     public async Task TrackingOcultaCancelacionDespuesDeEntregaOCancelacion(string estado)
     {
         using var http = new HttpClient(new Handler(_ => Respuesta(200, JsonSerializer.Serialize(new { estado })))) { BaseAddress = new Uri("http://api.test/") };
@@ -57,6 +58,19 @@ public sealed partial class SeguimientoPagesTests
         await renderer.Dispatcher.InvokeAsync(async () => {
             var root = await renderer.RenderAsync<Seguimiento>(ParameterView.FromDictionary(new Dictionary<string, object?> { ["Token"] = Token }));
             Assert.DoesNotContain("cancelacion-titulo", root.ToHtmlString());
+        });
+    }
+
+    [Fact]
+    public async Task TrackingPermiteSolicitarCancelacionEnDevolucion()
+    {
+        using var http = new HttpClient(new Handler(_ => Respuesta(200, "{\"estado\":\"EnDevolucion\"}"))) { BaseAddress = new Uri("http://api.test/") };
+        var services = Servicios(new Seguimiento()); services.AddSingleton(new SeguimientoApiClient(http));
+        using var provider = services.BuildServiceProvider();
+        await using var renderer = new TestHtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () => {
+            var root = await renderer.RenderAsync<Seguimiento>(ParameterView.FromDictionary(new Dictionary<string, object?> { ["Token"] = Token }));
+            Assert.Contains("cancelacion-titulo", root.ToHtmlString());
         });
     }
 }

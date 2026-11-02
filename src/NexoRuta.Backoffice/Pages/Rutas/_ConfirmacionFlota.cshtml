@@ -1,0 +1,15 @@
+@model NexoRuta.Backoffice.Features.Reparto.Pages.AccionFlotaFormulario
+@{ var id = $"flota-{Model.Vehiculo}-{Model.Ocupacion}-{Model.Accion}-{Model.Envio}"; }
+<details class="mb-2">
+    <summary>@Model.Texto</summary>
+    <form data-single-submit method="post" asp-page="/Rutas" asp-page-handler="Flota">
+        <input type="hidden" name="Fecha" value="@Model.Fecha.ToString("yyyy-MM-dd")" />
+        <input type="hidden" name="FlotaVehiculo" value="@Model.Vehiculo" /><input type="hidden" name="FlotaOcupacion" value="@Model.Ocupacion" />
+        <input type="hidden" name="FlotaComando" value="@Guid.NewGuid()" /><input type="hidden" name="FlotaVersion" value="@Model.Version" />
+        <input type="hidden" name="FlotaAccion" value="@Model.Accion" /><input type="hidden" name="FlotaEnvio" value="@Model.Envio" />
+        <input type="hidden" name="FlotaVersionEnvio" value="@Model.VersionEnvio" />
+        <label for="@id">Motivo y comprobación realizada</label>
+        <textarea id="@id" name="FlotaMotivo" required maxlength="500" class="form-control"></textarea>
+        <button data-loading-text="Registrando confirmación…" type="submit" class="nr-action-secondary">@Model.Texto</button>
+    </form>
+</details>

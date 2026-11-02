@@ -97,6 +97,7 @@
 .nr-shipments-table tbody > tr > :is(th, td) { padding: .9rem .65rem; border-bottom: 1px solid var(--nr-border); }
 .nr-shipments-primary-text { font-weight: 600; }
 .nr-shipment-id { display: block; white-space: nowrap; font-family: var(--bs-font-monospace, monospace); font-size: .87rem; font-weight: 650; }
+.nr-shipment-created { display: block; margin-block-start: .15rem; color: var(--nr-text-muted); font-size: .8rem; }
 .nr-copy-shipment { min-height: 2.75rem; padding: .25rem .35rem; border: 0; background: transparent; color: var(--nr-action); font-size: .85rem; font-weight: 650; text-decoration: underline; text-underline-offset: .15em; }
 .nr-copy-shipment:hover { color: var(--nr-action-hover); }
 .nr-shipment-address { display: block; overflow-wrap: anywhere; }

@@ -29,7 +29,7 @@ public sealed class EnviosApiClientTests
             using var body = JsonDocument.Parse(await request.Content.ReadAsStringAsync(cancellationToken));
             Assert.Equal("Ana", body.RootElement.GetProperty("destinatarioNombre").GetString());
             Assert.Equal("destinatario@example.test", body.RootElement.GetProperty("destinatarioEmail").GetString());
-            Assert.Equal(1250m, body.RootElement.GetProperty("pesoGramos").GetDecimal());
+            Assert.Equal(1250m, body.RootElement.GetProperty("bultos")[0].GetProperty("pesoGramos").GetDecimal());
             Assert.Equal("00000000-0000-0000-0000-000000000002", body.RootElement.GetProperty("operadorId").GetString());
             Assert.False(body.RootElement.TryGetProperty("comercioId", out _));
             Assert.False(body.RootElement.TryGetProperty("creadoPorUsuarioId", out _));
@@ -37,7 +37,7 @@ public sealed class EnviosApiClientTests
                 {"id":"00000000-0000-0000-0000-000000000001","operadorId":"00000000-0000-0000-0000-000000000002",
                 "comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004",
                 "usuarioEmail":"ana@comercio.local","operadorNombre":"Distribución Sur","comercioNombre":"Comercio Centro",
-                "codigoBulto":"B-001","pesoGramos":1250,"largoCentimetros":30,"anchoCentimetros":20,"altoCentimetros":10}
+                "bultos":[{"codigo":"B-001","pesoGramos":1250,"largoCentimetros":30,"anchoCentimetros":20,"altoCentimetros":10}]}
                 """);
         });
 
@@ -46,8 +46,8 @@ public sealed class EnviosApiClientTests
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000001"), created.Id);
         Assert.Equal("Comercio Centro", created.ComercioNombre);
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000003"), created.ComercioId);
-        Assert.Equal("B-001", created.CodigoBulto);
-        Assert.Equal(1250m, created.PesoGramos);
+        Assert.Equal("B-001", created.Bultos[0].Codigo);
+        Assert.Equal(1250m, created.Bultos[0].PesoGramos);
     }
 
     [Fact]
@@ -62,7 +62,8 @@ public sealed class EnviosApiClientTests
                 [{"id":"00000000-0000-0000-0000-000000000001","operadorId":"00000000-0000-0000-0000-000000000002",
                 "comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004",
                 "usuarioEmail":"ana@comercio.local","operadorNombre":"Distribución Sur","comercioNombre":"Comercio Centro",
-                "destinatarioNombre":"Ana","direccion":"18 de Julio 123","estado":"Admitido",
+                "destinatarioNombre":"Ana","destinatarioEmail":"ana.destino@example.test",
+                "referenciaExterna":"PED-2026-0001","direccion":"18 de Julio 123","estado":"Admitido",
                 "bultos":[{"codigo":"B-001","pesoGramos":"1250","largoCentimetros":30,"anchoCentimetros":20,"altoCentimetros":10}]}]
                 """));
         });
@@ -70,6 +71,8 @@ public sealed class EnviosApiClientTests
         var shipment = Assert.Single(await new EnviosApiClient(http).ListarEnviosAsync(ApiToken));
 
         Assert.Equal("Ana", shipment.DestinatarioNombre);
+        Assert.Equal("ana.destino@example.test", shipment.GetType().GetProperty("DestinatarioEmail")?.GetValue(shipment));
+        Assert.Equal("PED-2026-0001", shipment.GetType().GetProperty("ReferenciaExterna")?.GetValue(shipment));
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000003"), shipment.ComercioId);
         Assert.Equal(Guid.Parse("00000000-0000-0000-0000-000000000002"), shipment.OperadorId);
         Assert.Equal(1250m, Assert.Single(shipment.Bultos).PesoGramos);
@@ -147,7 +150,7 @@ public sealed class EnviosApiClientTests
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("es-UY");
             var request = ValidRequest();
             var number = decimal.Parse(value, CultureInfo.InvariantCulture);
-            request.PesoGramos = request.LargoCentimetros = request.AnchoCentimetros = request.AltoCentimetros = number;
+            request.Bultos[0].PesoGramos = request.Bultos[0].LargoCentimetros = request.Bultos[0].AnchoCentimetros = request.Bultos[0].AltoCentimetros = number;
             Assert.Equal(expected, Validator.TryValidateObject(request, new ValidationContext(request), [], validateAllProperties: true));
         }
         finally
@@ -243,14 +246,11 @@ public sealed class EnviosApiClientTests
 
     private static CrearEnvioRequest ValidRequest() => new()
     {
+        Servicio = new() { ZonaId = Guid.Parse("00000000-0000-0000-0000-000000000002"), Latitud = -34.901, Longitud = -56.201, Modalidad = "Estandar" },
         OperadorId = Guid.Parse("00000000-0000-0000-0000-000000000002"),
         DestinatarioNombre = "Ana", DestinatarioEmail = "destinatario@example.test",
         Direccion = "18 de Julio 123",
-        CodigoBulto = "B-001",
-        PesoGramos = 1250m,
-        LargoCentimetros = 30m,
-        AnchoCentimetros = 20m,
-        AltoCentimetros = 10m
+        Bultos = new List<NexoRuta.ApiClient.Features.Envios.Contracts.Requests.BultoDeclaradoRequest> { new NexoRuta.ApiClient.Features.Envios.Contracts.Requests.BultoDeclaradoRequest { Codigo = "B-001", PesoGramos = 1250m, LargoCentimetros = 30m, AnchoCentimetros = 20m, AltoCentimetros = 10m } }
     };
 
     private static HttpClient CreateHttpClient(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send)

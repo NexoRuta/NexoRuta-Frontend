@@ -1,31 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@ViewData["Title"] | NexoRuta Admin</title>
+    <title>@ViewData["Title"] | NexoRuta, administración</title>
     <link rel="stylesheet" href="~/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/portal-design.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="bg-light">
-    <a class="visually-hidden-focusable" href="#main">Skip to content</a>
-    <header class="bg-white border-bottom mb-4">
-        <nav class="container d-flex flex-wrap align-items-center gap-3 py-3" aria-label="Main navigation">
-            <a class="navbar-brand fw-bold me-auto" href="/">NexoRuta <span class="badge text-bg-dark">Admin</span></a>
-            @if (Context.Items.ContainsKey(NexoRuta.Admin.Core.Security.ApiPermissionAuthorizationHandler.PermissionsCacheKey))
+@{ var mostrarNavegacion = User.Identity?.IsAuthenticated == true && Context.Items.ContainsKey(NexoRuta.Admin.Core.Security.ApiPermissionAuthorizationHandler.PermissionsCacheKey); }
+<body class="nr-admin-shell">
+    <a class="nr-skip-link" href="#main-content">Saltar al contenido principal</a>
+    <div class="nr-app-shell">
+        <header class="nr-topbar">
+            <a class="nr-brand" href="/" aria-label="NexoRuta, administración de plataforma"><span class="nr-brand-mark" aria-hidden="true">N</span><span>NexoRuta <small>Administración</small></span></a>
+            <div class="nr-topbar-actions">
+                @if (User.Identity?.IsAuthenticated == true) { <form method="post" asp-page="/Salir" data-single-submit><button class="btn btn-outline-secondary" type="submit">Cerrar sesión</button></form> }
+                @if (mostrarNavegacion) { <button type="button" class="nr-menu-toggle btn btn-outline-secondary d-lg-none" data-portal-nav-toggle aria-controls="adminNavigation" aria-expanded="false" aria-label="Mostrar u ocultar navegación principal">Menú</button> }
+            </div>
+        </header>
+        <div class="nr-portal-layout @(mostrarNavegacion ? "has-sidebar" : null)">
+            @if (mostrarNavegacion)
             {
-                <a href="/operadores">Operators</a><a href="/comercios">Commerces</a><a href="/solicitudes-baja">Cancellation requests</a><a href="/solicitudes-reactivacion">Solicitudes de reactivación</a>
+                <aside id="adminNavigation" class="nr-sidebar"><nav class="nr-navigation" aria-label="Navegación principal"><div class="nr-nav-group"><p class="nr-nav-heading">Plataforma</p><ul class="nr-nav-list">
+                @foreach (var link in new[] { (Path: "/", Label: "Inicio"), (Path: "/operadores", Label: "Operadores"), (Path: "/comercios", Label: "Comercios"), (Path: "/solicitudes-baja", Label: "Solicitudes de baja"), (Path: "/solicitudes-reactivacion", Label: "Solicitudes de reactivación") })
+                {
+                    var activo = link.Path == "/" ? Context.Request.Path == "/" : Context.Request.Path.StartsWithSegments(link.Path);
+                    <li><a class="nr-nav-link" href="@link.Path" aria-current="@(activo ? "page" : null)">@link.Label</a></li>
+                }
+                </ul></div></nav></aside>
             }
-            @if (User.Identity?.IsAuthenticated == true)
-            {
-                <form method="post" asp-page="/Salir" data-single-submit>
-                    <button class="btn btn-outline-secondary" type="submit">Sign out</button>
-                </form>
-            }
-        </nav>
-    </header>
-    <main id="main" class="container pb-5">@RenderBody()</main>
-    <footer class="container border-top py-3 text-muted small">NexoRuta · Platform administration · Not an operator or commerce workspace</footer>
+            <div class="nr-main-column"><main id="main-content" class="nr-main-content" tabindex="-1"><div class="nr-page">@RenderBody()</div></main><footer class="nr-footer">NexoRuta · Administración de plataforma</footer></div>
+        </div>
+    </div>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/portal-interactions.js" asp-append-version="true"></script>
 </body>
 </html>

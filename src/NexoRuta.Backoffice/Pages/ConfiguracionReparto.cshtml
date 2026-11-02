@@ -6,14 +6,15 @@
 @if (Model.Confirmacion is not null) { <div class="alert alert-success" role="status">@Model.Confirmacion</div> }
 @if (Model.GuardadoBloqueadoPorCarga)
 {
-    <p class="alert alert-warning" role="status">No se intentó guardar porque no pudimos cargar la configuración y los vehículos. Los valores enviados siguen en el formulario; reintentá cuando el servicio esté disponible.</p>
+    <p class="alert alert-warning" role="status">No se intentó guardar porque no pudimos cargar la configuración. Los valores enviados siguen en el formulario; reintentá cuando el servicio esté disponible.</p>
 }
-@if (!Model.CargaCompleta && !Model.MostrarPoliticaEnviada && !Model.MostrarVehiculoEnviado)
+@if (!Model.CargaCompleta && !Model.MostrarPoliticaEnviada)
 {
     <form method="get" asp-page-handler="Reintentar">
         <button class="btn btn-outline-primary" type="submit">Reintentar</button>
     </form>
 }
+<partial name="Reparto/_BaseOperativa" model="Model" />
 @if (Model.CargaCompleta || Model.MostrarPoliticaEnviada)
 {
 <form method="post" asp-page-handler="Politica" class="card card-body mb-4 nr-form-stack" data-single-submit>
@@ -27,33 +28,6 @@
     <button class="btn btn-primary align-self-start">@(Model.CargaCompleta ? "Guardar nueva versión" : "Reintentar guardado")</button>
 </form>
 }
-@if (Model.CargaCompleta || Model.MostrarVehiculoEnviado)
-{
-<section class="nr-content-section" aria-labelledby="vehiculos-heading">
-<h2 id="vehiculos-heading">Vehículos</h2>
-<form method="post" asp-page-handler="Vehiculo" class="card card-body mb-3 nr-form-stack" data-single-submit>
-    <h3 class="h5">@(Model.Vehiculo.Id == Guid.Empty ? "Agregar vehículo" : "Editar vehículo")</h3>
-    <input type="hidden" asp-for="Vehiculo.Id" /><input type="hidden" asp-for="Vehiculo.Version" />
-    <label asp-for="Vehiculo.Matricula">Matrícula</label><input asp-for="Vehiculo.Matricula" class="form-control mb-2" required maxlength="20" />
-    <label asp-for="Vehiculo.PesoMaximoGramos">Capacidad de peso (gramos)</label><input asp-for="Vehiculo.PesoMaximoGramos" type="number" step="0.01" min="0.01" class="form-control mb-2" required />
-    <label asp-for="Vehiculo.VolumenMaximoCm3">Capacidad de volumen (cm³)</label><input asp-for="Vehiculo.VolumenMaximoCm3" type="number" step="0.01" min="0.01" class="form-control mb-2" required />
-    <label class="mb-3"><input asp-for="Vehiculo.Activo" /> Activo</label>
-    <button class="btn btn-primary align-self-start">@(Model.CargaCompleta ? (Model.Vehiculo.Id == Guid.Empty ? "Agregar vehículo" : "Guardar vehículo") : "Reintentar guardado")</button>
-</form>
-@if (Model.CargaCompleta)
-{
-@foreach (var item in Model.Vehiculos)
-{
-    <form method="post" asp-page-handler="Vehiculo" class="card card-body mb-2" data-single-submit>
-        <input type="hidden" name="Vehiculo.Id" value="@item.Id" /><input type="hidden" name="Vehiculo.Version" value="@item.Version" />
-        <div class="row g-2">
-            <div class="col-md-3"><label for="matricula-@item.Id">Matrícula</label><input id="matricula-@item.Id" name="Vehiculo.Matricula" value="@item.Matricula" class="form-control" required maxlength="20" /></div>
-            <div class="col-md-3"><label for="peso-@item.Id">Peso (g)</label><input id="peso-@item.Id" name="Vehiculo.PesoMaximoGramos" value="@item.PesoMaximoGramos.ToString(System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" min="0.01" class="form-control" required /></div>
-            <div class="col-md-3"><label for="volumen-@item.Id">Volumen (cm³)</label><input id="volumen-@item.Id" name="Vehiculo.VolumenMaximoCm3" value="@item.VolumenMaximoCm3.ToString(System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" min="0.01" class="form-control" required /></div>
-            <div class="col-md-3 align-self-end"><label><input type="checkbox" name="Vehiculo.Activo" value="true" checked="@item.Activo" /> Activo</label><input type="hidden" name="Vehiculo.Activo" value="false" /><button class="btn btn-outline-primary">Guardar</button></div>
-        </div>
-    </form>
-}
-}
-</section>
-}
+<p><a asp-page="/Vehiculos">Gestionar vehículos y capacidades</a></p>
+
+<partial name="Reparto/_PerfilesViales" model="Model" />

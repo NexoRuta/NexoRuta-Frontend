@@ -1,6 +1,9 @@
 @page "/envios/crear"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy)]
 
+@using NexoRuta.Commerce.Components.Features.Envios.Shared
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Globalization
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Requests
 @using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
 @using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses
@@ -21,117 +24,115 @@
 @rendermode InteractiveServer
 @implements IDisposable
 
-<PageTitle>Alta de envío | NexoRuta</PageTitle>
+<PageTitle>Crear envío | NexoRuta</PageTitle>
 <header class="nr-page-heading">
-    <div>
-        <p class="nr-eyebrow">ENVÍOS</p>
-        <h1>Crear envío</h1>
-        <p>Completá los datos del destinatario, el operador y el paquete para registrar el envío.</p>
-    </div>
+    <div><p class="nr-eyebrow">Envíos</p><h1>Crear envío</h1><p>Elegí el destino y revisá la tarifa antes de confirmar.</p></div>
+    <div class="nr-page-actions"><a class="btn btn-outline-secondary" href="/envios">Mis envíos</a><a class="btn btn-outline-secondary" href="/envios/importar">Importar CSV</a></div>
 </header>
 @if (usuarioActual is not null)
 {
-    <p class="nr-context-banner">Operás como <strong>@usuarioActual.ComercioNombre</strong> · @usuarioActual.UsuarioEmail · @usuarioActual.RolCodigo</p>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(error))
-    {
-        <p class="alert alert-danger" role="alert">@error</p>
-    }
-    @if (creado is not null)
-    {
-        <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para
-            @creado.ComercioNombre con @(identidad?.Nombre ?? creado.OperadorNombre); bulto @creado.CodigoBulto.</p>
-        <p><a class="btn btn-primary" href="/envios/@creado.Id/destino">Continuar: revisar y confirmar ubicación</a></p>
-        }
-        @if (usuarioActual is not null && operadores.Count == 0 && error is null)
-        {
-            <p class="alert alert-warning" role="status">Todavía no hay operadores registrados para crear un envío.</p>
-        }
-
-        <EditForm class="nr-form-stack nr-creation-form" Model="formulario" OnValidSubmit="CrearAsync" FormName="crear-envio">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-            <fieldset class="nr-form-stack" disabled="@(enviando || cargandoIdentidad || usuarioActual is null || operadores.Count == 0)">
+    <p class="nr-admission-context">Enviás como <strong>@usuarioActual.ComercioNombre</strong>.</p>
+}
+@if (error is not null) { <p class="alert alert-danger" role="alert">@error</p> }
+@if (creado is not null)
+{
+    <section class="nr-state nr-admission-success" aria-label="Envío creado">
+        <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para @creado.ComercioNombre con @(identidad?.Nombre ?? creado.OperadorNombre); @creado.Bultos.Count bultos. Tarifa aplicada: <strong>@creado.Tarifa.TotalFinalUyu.ToString("N2") @creado.Tarifa.Moneda</strong>.</p>
+        <a class="btn btn-primary" href="/envios/@creado.Id/destino">Continuar: revisar y confirmar ubicación</a>
+    </section>
+}
+@if (usuarioActual is not null && operadores.Count == 0 && error is null)
+{ <p class="alert alert-warning" role="status">Todavía no hay operadores registrados para crear un envío.</p> }
+@if (usuarioActual is null && error is null)
+{
+    <div class="nr-detail-skeleton" aria-busy="true" aria-label="Cargando formulario"><p class="visually-hidden" role="status">Consultando tu comercio y operadores disponibles.</p><span aria-hidden="true"></span><span aria-hidden="true"></span></div>
+}
+<EditForm class="nr-form-stack nr-creation-form" EditContext="contextoEdicion" OnValidSubmit="CrearAsync" OnInvalidSubmit="EnfocarValidacionAsync" FormName="crear-envio">
+    <DataAnnotationsValidator />
+    <div class="nr-validation-summary" tabindex="-1" @ref="resumenValidacion" aria-live="polite"><ValidationSummary /></div>
+    <fieldset class="nr-creation-grid" disabled="@(enviando || cargandoIdentidad || usuarioActual is null || operadores.Count == 0 || creado is not null)">
+        <section class="nr-form-section nr-admission-operator" aria-labelledby="alta-operador-titulo">
+            <h2 id="alta-operador-titulo">Operador</h2>
+            <div class="nr-field">
                 <label for="envio-operador">Operador</label>
-                <InputSelect id="envio-operador" @bind-Value="formulario.OperadorId" @bind-Value:after="OperadorSeleccionadoAsync">
-                    <option value="">Seleccioná un operador</option>
-                    @foreach (var operador in operadores)
-                    {
-                        <option value="@operador.OperadorId">@operador.Nombre</option>
-                    }
-                </InputSelect>
+                <InputSelect id="envio-operador" @bind-Value="formulario.OperadorId" @bind-Value:after="OperadorSeleccionadoAsync"><option value="">Seleccioná un operador</option>@foreach (var operador in operadores) { <option value="@operador.OperadorId">@operador.Nombre</option> }</InputSelect>
                 <ValidationMessage For="() => formulario.OperadorId" />
-                @if (cargandoIdentidad)
-                {
-                    <section class="operator-identity-loading" aria-busy="true" aria-label="Cargando identidad del operador">
-                        <p class="visually-hidden" role="status">Cargando la identidad del operador seleccionado.</p>
-                        <div class="operator-identity-skeleton" aria-hidden="true"><span></span><span></span></div>
-                    </section>
-                }
-                else if (errorIdentidad is not null)
-                {
-                    <p class="alert alert-warning" role="alert">@errorIdentidad</p>
-                }
-                else if (identidad is not null)
-                {
-                    <section class="operator-identity-preview" style="--nr-operator-accent: @(ColorMarca.AcentoSobreBlanco(identidad.ColorPrimario) ?? "var(--bs-primary)");" aria-labelledby="identidad-seleccionada">
-                        @if (identidad.LogoContenido is { Length: > 0 } && identidad.LogoTipoContenido is "image/png" or "image/jpeg")
-                        { <img class="operator-identity-logo" src="@LogoDataUri" alt="Logo de @identidad.Nombre" /> }
-                        <h2 id="identidad-seleccionada" class="h5">@identidad.Nombre</h2>
-                        @if (identidad.CorreoPublico is not null) { <p><span class="fw-semibold">Contacto:</span> <a href="mailto:@identidad.CorreoPublico">@identidad.CorreoPublico</a></p> }
-                        @if (identidad.TelefonoPublico is not null) { <p><span class="fw-semibold">Teléfono:</span> <a href="tel:@TelefonoHref">@identidad.TelefonoPublico</a></p> }
-                        @if (ColorMarca.TieneFormatoValido(identidad.ColorPrimario) || ColorMarca.TieneFormatoValido(identidad.ColorSecundario))
-                        {
-                            <ul class="operator-brand-colors" aria-label="Colores de marca del operador">
-                                @if (ColorMarca.TieneFormatoValido(identidad.ColorPrimario)) { <li><span class="operator-brand-swatch" style="background-color:@identidad.ColorPrimario"></span>Color primario</li> }
-                                @if (ColorMarca.TieneFormatoValido(identidad.ColorSecundario)) { <li><span class="operator-brand-swatch" style="background-color:@identidad.ColorSecundario"></span>Color secundario</li> }
-                            </ul>
-                        }
-                    </section>
-                }
-                <h2 class="h4">Destinatario</h2>
-                <label>Nombre
-                    <InputText @bind-Value="formulario.DestinatarioNombre" />
-                </label>
-                <ValidationMessage For="() => formulario.DestinatarioNombre" />
-                <label>Correo del destinatario
-                    <InputText type="email" autocomplete="email" maxlength="254" @bind-Value="formulario.DestinatarioEmail" />
-                </label>
-                <ValidationMessage For="() => formulario.DestinatarioEmail" />
-                <p>Se usará para verificar las solicitudes de cancelación del destinatario.</p>
-                <label>Dirección
-                    <InputText @bind-Value="formulario.Direccion" />
-                </label>
-                <ValidationMessage For="() => formulario.Direccion" />
-                <h2 class="h4">Paquete</h2>
-                <label>Código
-                    <InputText @bind-Value="formulario.CodigoBulto" />
-                </label>
-                <ValidationMessage For="() => formulario.CodigoBulto" />
-                <label>Peso (g)
-                    <InputNumber @bind-Value="formulario.PesoGramos" />
-                </label>
-                <ValidationMessage For="() => formulario.PesoGramos" />
-                <label>Largo (cm)
-                    <InputNumber @bind-Value="formulario.LargoCentimetros" />
-                </label>
-                <ValidationMessage For="() => formulario.LargoCentimetros" />
-                <label>Ancho (cm)
-                    <InputNumber @bind-Value="formulario.AnchoCentimetros" />
-                </label>
-                <ValidationMessage For="() => formulario.AnchoCentimetros" />
-                <label>Alto (cm)
-                    <InputNumber @bind-Value="formulario.AltoCentimetros" />
-                </label>
-                <ValidationMessage For="() => formulario.AltoCentimetros" />
-            <button class="btn btn-primary" type="submit" disabled="@(enviando || cargandoIdentidad)">@(enviando ? "Guardando…" : "Crear envío")</button>
-            </fieldset>
-        </EditForm>
+            </div>
+            @if (cargandoIdentidad) { <p role="status">Consultando operador…</p> }
+            else if (errorIdentidad is not null) { <p class="alert alert-warning" role="alert">@errorIdentidad</p> }
+            else if (identidad is not null)
+            {
+                <details class="nr-disclosure operator-identity-preview" style="--nr-operator-accent: @(ColorMarca.AcentoSobreBlanco(identidad.ColorPrimario) ?? "var(--nr-action)");">
+                    <summary>Contacto de @identidad.Nombre</summary>
+                    @if (identidad.LogoContenido is { Length: > 0 } && identidad.LogoTipoContenido is "image/png" or "image/jpeg") { <img class="operator-identity-logo" src="@LogoDataUri" alt="Logo de @identidad.Nombre" /> }
+                    @if (identidad.CorreoPublico is not null) { <p>Correo: <a href="mailto:@identidad.CorreoPublico">@identidad.CorreoPublico</a></p> }
+                    @if (identidad.TelefonoPublico is not null) { <p>Teléfono: <a href="tel:@TelefonoHref">@identidad.TelefonoPublico</a></p> }
+                    @if (ColorMarca.TieneFormatoValido(identidad.ColorPrimario) || ColorMarca.TieneFormatoValido(identidad.ColorSecundario))
+                    {
+                        <ul class="operator-brand-colors" aria-label="Colores de marca del operador">
+                            @if (ColorMarca.TieneFormatoValido(identidad.ColorPrimario)) { <li><span class="operator-brand-swatch" style="background-color:@identidad.ColorPrimario"></span>Primario</li> }
+                            @if (ColorMarca.TieneFormatoValido(identidad.ColorSecundario)) { <li><span class="operator-brand-swatch" style="background-color:@identidad.ColorSecundario"></span>Secundario</li> }
+                        </ul>
+                    }
+                </details>
+            }
+        </section>
+        <section class="nr-form-section nr-admission-recipient" aria-labelledby="alta-destinatario-titulo">
+            <h2 id="alta-destinatario-titulo">Destinatario</h2>
+            <div class="nr-field"><label>Nombre<InputText @bind-Value="formulario.DestinatarioNombre" autocomplete="name" maxlength="160" /></label><ValidationMessage For="() => formulario.DestinatarioNombre" /></div>
+            <div class="nr-field"><label>Correo del destinatario<InputText type="email" autocomplete="email" maxlength="254" @bind-Value="formulario.DestinatarioEmail" /></label><ValidationMessage For="() => formulario.DestinatarioEmail" /></div>
+            <p class="form-text">Este correo permite verificar sus solicitudes de cancelación.</p>
+        </section>
+        <section class="nr-form-section nr-admission-destination" aria-labelledby="alta-destino-titulo">
+            <h2 id="alta-destino-titulo">Destino y servicio</h2>
+            <SelectorDestino ParaAlta="true" ApiToken="@token" Latitud="formulario.Servicio.Latitud" Longitud="formulario.Servicio.Longitud" Editable="true" Bloqueado="@(enviando || creado is not null)" PuntoCambiado="SeleccionarDestinoAsync" />
+            <div class="nr-field"><label>Dirección<InputText @bind-Value="formulario.Direccion" maxlength="240" /></label><ValidationMessage For="() => formulario.Direccion" /></div>
+            <details class="nr-disclosure"><summary>Ajustar coordenadas manualmente</summary><div class="nr-fields-grid">
+                <label>Latitud<InputNumber @bind-Value="formulario.Servicio.Latitud" @bind-Value:after="PuntoManualAsync" min="-90" max="90" step="any" /></label>
+                <label>Longitud<InputNumber @bind-Value="formulario.Servicio.Longitud" @bind-Value:after="PuntoManualAsync" min="-180" max="180" step="any" /></label>
+            </div></details>
+            @if (consultandoServicios) { <p role="status">Comprobando cobertura…</p> }
+            @if (errorServicio is not null) { <p class="alert alert-warning" role="alert">@errorServicio</p> }
+            <div class="nr-field"><label for="alta-servicio">Zona y modalidad</label><select id="alta-servicio" class="form-select" value="@servicioElegido" @onchange="ElegirServicio" disabled="@(consultandoServicios || servicios.Count == 0)">
+                <option value="">Seleccioná un servicio disponible</option>@foreach (var servicio in servicios) { <option value="@ClaveServicio(servicio)">@servicio.ZonaNombre · @(servicio.Modalidad == "Estandar" ? "Estándar" : servicio.Modalidad)</option> }
+            </select><ValidationMessage For="() => formulario.Servicio.ZonaId" /></div>
+            @if (formulario.OperadorId is not null && formulario.Servicio.Latitud is not null && formulario.Servicio.Longitud is not null)
+            { <button type="button" class="btn btn-outline-secondary" disabled="@consultandoServicios" @onclick="ConsultarServiciosAsync">Volver a comprobar cobertura</button> }
+        </section>
+        <section class="nr-form-section nr-admission-packages" aria-labelledby="alta-bultos-titulo">
+            <h2 id="alta-bultos-titulo">Bultos</h2>
+            @foreach (var bulto in formulario.Bultos)
+            {
+                var numero = formulario.Bultos.IndexOf(bulto) + 1;
+                <fieldset class="nr-parcel-card" @key="bulto"><legend>Bulto @numero</legend><div class="nr-parcel-fields">
+                    <div class="nr-field nr-parcel-code"><label>Código<InputText @bind-Value="bulto.Codigo" maxlength="80" /></label><ValidationMessage For="() => bulto.Codigo" /></div>
+                    <div class="nr-field"><label>Peso (g)<InputNumber @bind-Value="bulto.PesoGramos" min="0.01" max="999999999" step="0.01" /></label><ValidationMessage For="() => bulto.PesoGramos" /></div>
+                    <div class="nr-field"><label>Largo (cm)<InputNumber @bind-Value="bulto.LargoCentimetros" min="0.01" max="999999999" step="0.01" /></label><ValidationMessage For="() => bulto.LargoCentimetros" /></div>
+                    <div class="nr-field"><label>Ancho (cm)<InputNumber @bind-Value="bulto.AnchoCentimetros" min="0.01" max="999999999" step="0.01" /></label><ValidationMessage For="() => bulto.AnchoCentimetros" /></div>
+                    <div class="nr-field"><label>Alto (cm)<InputNumber @bind-Value="bulto.AltoCentimetros" min="0.01" max="999999999" step="0.01" /></label><ValidationMessage For="() => bulto.AltoCentimetros" /></div>
+                </div>@if (formulario.Bultos.Count > 1) { <button type="button" class="btn btn-outline-danger" @onclick="() => QuitarBulto(bulto)">Quitar bulto @numero</button> }</fieldset>
+            }
+            <button type="button" class="btn btn-outline-secondary" @onclick="AgregarBulto">Agregar bulto</button>
+        </section>
+        <section class="nr-admission-confirmation" aria-label="Revisión y confirmación">
+            @if (cotizacion is not null) { <div class="nr-price-review" role="status" aria-live="polite"><span>Tarifa para @formulario.Bultos.Count bultos</span><strong>@cotizacion.TotalFinalUyu.ToString("N2") @cotizacion.Moneda</strong><span>@cotizacion.Modalidad · se aplicará al confirmar el envío.</span></div> }
+            <button class="btn btn-primary" type="submit" disabled="@(enviando || cargandoIdentidad || consultandoServicios || creado is not null)">@(enviando ? "Procesando…" : cotizacion is null ? "Calcular tarifa" : "Confirmar envío")</button>
+        </section>
+    </fieldset>
+</EditForm>
 
 @code {
     private readonly CancellationTokenSource cancelacion = new();
-    private readonly CrearEnvioRequest formulario = new();
+    private readonly CrearEnvioRequest formulario = new() { Bultos = [new()] };
+    private EditContext contextoEdicion = null!;
+    private ElementReference resumenValidacion;
+    private Task EnfocarValidacionAsync(EditContext _) => resumenValidacion.FocusAsync().AsTask();
+    private TarifaEnvioResponse? cotizacion;
+    private IReadOnlyList<ServicioEnvioDisponibleResponse> servicios = [];
+    private string servicioElegido = "";
+    private string? errorServicio;
+    private bool consultandoServicios;
+    private long consultaServicio;
     private UsuarioActualResponse? usuarioActual;
     private IReadOnlyList<OperadorDisponibleResponse> operadores = [];
     private EnvioCreadoResponse? creado;
@@ -150,6 +151,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        contextoEdicion = new EditContext(formulario);
+        contextoEdicion.OnFieldChanged += CampoCambiado;
         var cancellationToken = cancelacion.Token;
         try
         {
@@ -175,7 +178,14 @@
         enviando = true; error = null; creado = null;
         try
         {
-            creado = await ApiClient.CrearEnvioAsync(formulario, token, cancellationToken);
+            if (cotizacion is null)
+            {
+                formulario.Servicio.VersionTarifarioEsperada = null;
+                cotizacion = await ApiClient.CotizarAsync(formulario, token, cancellationToken);
+                formulario.Servicio.VersionTarifarioEsperada = cotizacion.VersionTarifarioId;
+            }
+            else
+                creado = await ApiClient.CrearEnvioAsync(formulario, token, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -183,7 +193,7 @@
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Forbidden)
         { error = "No tenés permiso para crear envíos."; }
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Conflict)
-        { error = "El envío entró en conflicto con el estado actual. Recargá e intentá nuevamente."; }
+        { cotizacion = null; formulario.Servicio.VersionTarifarioEsperada = null; error = exception.Message; }
         catch (NexoRutaApiException exception) { error = exception.Message; }
         catch (HttpRequestException) { error = "No se pudo guardar el envío porque el servicio no está disponible."; }
         finally { enviando = false; }
@@ -191,6 +201,7 @@
 
     private async Task OperadorSeleccionadoAsync()
     {
+        await ConsultarServiciosAsync();
         var solicitud = Interlocked.Increment(ref identidadSolicitud);
         var anterior = identidadCancelacion;
         anterior?.Cancel();
@@ -231,8 +242,49 @@
         }
     }
 
+    private void CampoCambiado(object? sender, FieldChangedEventArgs args) { cotizacion = null; formulario.Servicio.VersionTarifarioEsperada = null; }
+    private void AgregarBulto() { formulario.Bultos.Add(new()); cotizacion = null; }
+    private void QuitarBulto(BultoDeclaradoRequest bulto) { formulario.Bultos.Remove(bulto); cotizacion = null; }
+    private static string ClaveServicio(ServicioEnvioDisponibleResponse servicio) => $"{servicio.ZonaId:D}|{servicio.Modalidad}";
+    private void ElegirServicio(ChangeEventArgs args)
+    {
+        servicioElegido = args.Value?.ToString() ?? "";
+        var elegido = servicios.SingleOrDefault(s => ClaveServicio(s) == servicioElegido);
+        formulario.Servicio.ZonaId = elegido?.ZonaId;
+        formulario.Servicio.Modalidad = elegido?.Modalidad ?? "Estandar";
+        cotizacion = null; formulario.Servicio.VersionTarifarioEsperada = null;
+    }
+    private async Task SeleccionarDestinoAsync((double? Latitud, double? Longitud, string? Descripcion) punto)
+    {
+        formulario.Servicio.Latitud = punto.Latitud; formulario.Servicio.Longitud = punto.Longitud;
+        if (!string.IsNullOrWhiteSpace(punto.Descripcion)) formulario.Direccion = punto.Descripcion;
+        await ConsultarServiciosAsync();
+    }
+    private Task PuntoManualAsync() => ConsultarServiciosAsync();
+    private async Task ConsultarServiciosAsync()
+    {
+        var consulta = ++consultaServicio;
+        cotizacion = null; formulario.Servicio.VersionTarifarioEsperada = null;
+        servicios = []; servicioElegido = ""; formulario.Servicio.ZonaId = null; errorServicio = null; consultandoServicios = false;
+        if (formulario.OperadorId is not { } operador || formulario.Servicio.Latitud is not { } lat || formulario.Servicio.Longitud is not { } lon) return;
+        consultandoServicios = true;
+        try
+        {
+            var resultado = await ApiClient.ServiciosAsync(operador, lat, lon, token, cancelacion.Token);
+            if (consulta != consultaServicio) return;
+            servicios = resultado;
+            if (servicios.Count == 0) errorServicio = "El operador no ofrece cobertura y tarifa para este destino. Elegí otro operador o revisá el punto.";
+            else if (servicios.Count == 1) ElegirServicio(new ChangeEventArgs { Value = ClaveServicio(servicios[0]) });
+        }
+        catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
+        catch (NexoRutaApiException exception) { if (consulta == consultaServicio) errorServicio = exception.Message; }
+        catch (HttpRequestException) { if (consulta == consultaServicio) errorServicio = "No pudimos comprobar cobertura. Conservamos los datos para que puedas reintentar."; }
+        finally { if (consulta == consultaServicio) consultandoServicios = false; }
+    }
+
     public void Dispose()
     {
+        if (contextoEdicion is not null) contextoEdicion.OnFieldChanged -= CampoCambiado;
         Interlocked.Increment(ref identidadSolicitud);
         identidadCancelacion?.Cancel();
         cancelacion.Cancel();

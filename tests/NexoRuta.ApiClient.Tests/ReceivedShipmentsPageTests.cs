@@ -212,7 +212,8 @@ public sealed partial class BackofficeSessionAndPagesTests
             address,
             number % 2 == 0 ? "Entregado" : "EnTransito",
             1,
-            packages);
+            packages,
+            new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero).AddDays(-number));
     }
 }
 

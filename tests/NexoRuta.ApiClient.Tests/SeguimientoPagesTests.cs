@@ -95,6 +95,54 @@ public sealed partial class SeguimientoPagesTests
     }
 
     [Theory]
+    [InlineData("Admitido", false, true, true)]
+    [InlineData("Admitido", true, true, true)]
+    [InlineData("EnDeposito", false, true, true)]
+    [InlineData("EnDeposito", true, true, false)]
+    [InlineData("AsignadoRuta", false, true, false)]
+    [InlineData("EnDeposito", false, false, false)]
+    public async Task Commerce_MuestraAccionDestinoSoloParaPendientesAutorizados(
+        string estado, bool destinoConfirmado, bool permisoCrear, bool esperado)
+    {
+        var page = new MisEnvios();
+        var envioId = Guid.NewGuid();
+        var operadorId = Guid.NewGuid();
+        using var http = new HttpClient(new Handler(request =>
+        {
+            if (request.RequestUri!.AbsolutePath == $"/api/operadores/{operadorId}/identidad-visual") return Respuesta(404, "{}");
+            if (request.RequestUri.AbsolutePath == "/api/usuarios/actual/permisos")
+                return Respuesta(200, permisoCrear ? "[\"envios.crear\"]" : "[]");
+            Assert.Equal("/api/envios", request.RequestUri.AbsolutePath);
+            return Respuesta(200, JsonSerializer.Serialize(new[] { new
+            {
+                id = envioId, operadorId, comercioId = Guid.NewGuid(), creadoPorUsuarioId = Guid.NewGuid(),
+                usuarioEmail = "commerce@example.test", operadorNombre = "Operador de prueba", comercioNombre = "Comercio de prueba",
+                destinatarioNombre = "Destinatario", direccion = "Av. de prueba 123", estado, version = 0,
+                destinoConfirmado, bultos = Array.Empty<object>()
+            } }));
+        })) { BaseAddress = new Uri("http://api.test/") };
+        var services = Servicios(page);
+        services.AddSingleton(new EnviosApiClient(http));
+        services.AddSingleton(new UsuariosApiClient(http));
+        services.AddSingleton(new OperadoresApiClient(http));
+        services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
+        services.AddSingleton<NavigationManager>(new TestNavigation());
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        using var provider = services.BuildServiceProvider();
+        await using var renderer = new TestHtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var root = await renderer.RenderAsync<MisEnvios>();
+            var html = WebUtility.HtmlDecode(root.ToHtmlString());
+            var shouldShow = permisoCrear && (estado == "Admitido"
+                || estado == "EnDeposito" && !destinoConfirmado);
+            var link = $"href=\"/envios/{envioId}/destino\"";
+            Assert.Equal(esperado, shouldShow);
+            if (esperado) Assert.Contains(link, html); else Assert.DoesNotContain(link, html);
+        });
+    }
+
+    [Theory]
     [InlineData(200, "Estado actual")]
     [InlineData(404, "El enlace no existe, venció o fue revocado.")]
     [InlineData(429, "Demasiadas consultas.")]

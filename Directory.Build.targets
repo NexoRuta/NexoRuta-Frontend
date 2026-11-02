@@ -7,6 +7,10 @@
     <Copy SourceFiles="$(MSBuildThisFileDirectory)shared\portal-design.css"
           DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\css\portal-design.css"
           SkipUnchangedFiles="true" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\js" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)shared\portal-interactions.js"
+          DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\js\portal-interactions.js"
+          SkipUnchangedFiles="true" />
   </Target>
 
   <!-- Keep the versioned backend GeoJSON canonical while exposing a generated Backoffice wwwroot file in every host. -->

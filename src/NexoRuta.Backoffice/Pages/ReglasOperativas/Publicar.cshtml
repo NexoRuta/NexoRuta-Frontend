@@ -32,6 +32,7 @@
                 <dt class="col-sm-4">Cuando se agotan los intentos</dt><dd class="col-sm-8">@ReglasOperativasUi.PolicyLabel(draft.PoliticaDevolucionAlAgotarIntentos)</dd>
                 <dt class="col-sm-4">Plazo Estándar</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(draft.PlazoEstandarMinutos)</dd>
                 <dt class="col-sm-4">Plazo Urgente</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(draft.PlazoUrgenteMinutos)</dd>
+                <dt class="col-sm-4">Plazo de validación de prueba</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(draft.PlazoValidacionPruebaMinutos)</dd>
             </dl>
             <h3 class="h5">Motivos de no entrega</h3>
             @if (draft.Motivos.Count == 0) { <p>Sin motivos.</p> }

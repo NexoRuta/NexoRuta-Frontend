@@ -1,0 +1,72 @@
+.import-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+    gap: .5rem 1rem;
+    margin-block: 1rem;
+}
+
+.import-summary div {
+    border-inline-start: .2rem solid var(--bs-border-color);
+    padding-inline-start: .65rem;
+}
+
+.import-summary dt {
+    font-size: .875rem;
+    color: var(--bs-secondary-color);
+}
+
+.import-summary dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+.import-result-scroll {
+    max-block-size: 28rem;
+    overflow: auto;
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    padding: .5rem;
+}
+
+.import-result-scroll:focus-visible {
+    outline: .2rem solid var(--bs-primary);
+    outline-offset: .15rem;
+}
+
+.import-result-list {
+    display: grid;
+    gap: .5rem;
+    margin: 0;
+    padding-inline-start: 2.25rem;
+}
+
+.import-result-list > li {
+    padding: .65rem;
+    border-block-end: var(--bs-border-width) solid var(--bs-border-color);
+    overflow-wrap: anywhere;
+}
+
+.import-result-list p {
+    margin-block: .35rem;
+}
+
+.import-result-row-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+    align-items: baseline;
+}
+
+.result-state {
+    font-weight: 600;
+}
+
+.row-errors {
+    margin-block: .35rem;
+}
+
+@media (max-width: 36rem) {
+    .import-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

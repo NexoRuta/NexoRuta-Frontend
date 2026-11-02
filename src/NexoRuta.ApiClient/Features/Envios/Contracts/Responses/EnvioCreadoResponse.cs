@@ -8,8 +8,5 @@ public sealed record EnvioCreadoResponse(
     string UsuarioEmail,
     string OperadorNombre,
     string ComercioNombre,
-    string CodigoBulto,
-    decimal PesoGramos,
-    decimal LargoCentimetros,
-    decimal AnchoCentimetros,
-    decimal AltoCentimetros);
+    IReadOnlyList<BultoResponse> Bultos,
+    DateTimeOffset CreadoEnUtc, TarifaEnvioResponse Tarifa);
