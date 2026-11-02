@@ -1,7 +1,6 @@
 // Keep the Mapbox GL JS version aligned with the existing Backoffice map editor.
 const version = "3.33.0";
 let sdkLoad;
-const searchControllers = new Map();
 
 function loadSdk() {
     if (globalThis.mapboxgl) return Promise.resolve();
@@ -18,63 +17,19 @@ function loadSdk() {
     });
 }
 
-export async function buscarDirecciones(token, query, key) {
-    searchControllers.get(key)?.abort();
-    const controller = new AbortController();
-    searchControllers.set(key, controller);
-    try {
-        const url = new URL("https://api.mapbox.com/search/geocode/v6/forward");
-        url.searchParams.set("q", query);
-        url.searchParams.set("access_token", token);
-        url.searchParams.set("permanent", "true");
-        url.searchParams.set("autocomplete", "true");
-        url.searchParams.set("limit", "5");
-        url.searchParams.set("language", "es");
-        url.searchParams.set("types", "address,street,place,locality,neighborhood");
-        const response = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
-        if (!response.ok) return { estado: response.status, resultados: [] };
-        const body = await response.json();
-        const resultados = (body.features ?? []).map((feature, index) => {
-            const coordinates = feature.geometry?.coordinates;
-            const properties = feature.properties ?? {};
-            if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
-            const longitude = Number(coordinates[0]);
-            const latitude = Number(coordinates[1]);
-            const description = String(properties.full_address ?? properties.name ?? "").trim();
-            if (!description || !Number.isFinite(latitude) || !Number.isFinite(longitude)
-                || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
-            return {
-                id: String(properties.mapbox_id ?? feature.id ?? `${index}:${longitude},${latitude}`),
-                descripcion: description,
-                latitud: latitude,
-                longitud: longitude
-            };
-        }).filter(Boolean);
-        return { estado: response.status, resultados };
-    } catch (error) {
-        if (error?.name === "AbortError") return { estado: 0, resultados: [] };
-        throw error;
-    } finally {
-        if (searchControllers.get(key) === controller) searchControllers.delete(key);
-    }
-}
-
-export function cancelarBusqueda(key) {
-    searchControllers.get(key)?.abort();
-    searchControllers.delete(key);
-}
-
 export function conectarTeclado(input, receptor) {
+    let pending = Promise.resolve();
+    const invoke = (method, ...args) => { pending = pending.then(() => receptor.invokeMethodAsync(method, ...args)).catch(() => {}); };
     const keydown = event => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
-            receptor.invokeMethodAsync("MoverSugerencia", event.key === "ArrowDown" ? 1 : -1).catch(() => {});
+            invoke("MoverSugerencia", event.key === "ArrowDown" ? 1 : -1);
         } else if (event.key === "Enter" && input.getAttribute("aria-expanded") === "true") {
             event.preventDefault();
-            receptor.invokeMethodAsync("ElegirSugerenciaActiva").catch(() => {});
+            invoke("ElegirSugerenciaActiva");
         } else if (event.key === "Escape" && input.getAttribute("aria-expanded") === "true") {
             event.preventDefault();
-            receptor.invokeMethodAsync("CerrarSugerencias").catch(() => {});
+            invoke("CerrarSugerencias");
         }
     };
     input.addEventListener("keydown", keydown);

@@ -113,19 +113,19 @@
                 </label>
                 <ValidationMessage For="() => formulario.CodigoBulto" />
                 <label>Peso (g)
-                    <InputNumber @bind-Value="formulario.PesoGramos" />
+                    <InputNumber @bind-Value="formulario.PesoGramos" min="0.01" max="999999999" step="0.01" />
                 </label>
                 <ValidationMessage For="() => formulario.PesoGramos" />
                 <label>Largo (cm)
-                    <InputNumber @bind-Value="formulario.LargoCentimetros" />
+                    <InputNumber @bind-Value="formulario.LargoCentimetros" min="0.01" max="999999999" step="0.01" />
                 </label>
                 <ValidationMessage For="() => formulario.LargoCentimetros" />
                 <label>Ancho (cm)
-                    <InputNumber @bind-Value="formulario.AnchoCentimetros" />
+                    <InputNumber @bind-Value="formulario.AnchoCentimetros" min="0.01" max="999999999" step="0.01" />
                 </label>
                 <ValidationMessage For="() => formulario.AnchoCentimetros" />
                 <label>Alto (cm)
-                    <InputNumber @bind-Value="formulario.AltoCentimetros" />
+                    <InputNumber @bind-Value="formulario.AltoCentimetros" min="0.01" max="999999999" step="0.01" />
                 </label>
                 <ValidationMessage For="() => formulario.AltoCentimetros" />
             <button class="btn btn-primary" type="submit" disabled="@(enviando || cargandoIdentidad)">@(enviando ? "Guardando…" : "Crear envío")</button>

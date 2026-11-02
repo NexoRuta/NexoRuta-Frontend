@@ -1,0 +1,39 @@
+@model NexoRuta.Backoffice.Features.Reparto.Pages.RutasModel
+@{var ruta=Model.RutaSeleccionada;var ocupacion=Model.Flota.SelectMany(v=>v.Ocupaciones).SingleOrDefault(o=>o.RutaId==ruta?.Id);var ultimoExito=Model.Estimaciones.FirstOrDefault(e=>e.TipoCalculo=="DuranteRecorrido"&&e.Estado=="Calculada");}
+@if(ruta is not null){
+<section class="nr-depot-panel nr-form-stack nr-estimaciones" aria-labelledby="estimaciones-heading">
+<h2 id="estimaciones-heading" class="h4">Estimaciones viales sin tráfico</h2>
+<p>Las calculadas son orientativas y no incorporan esperas por horarios manuales. Una diferencia no indica retraso real de ejecución. El regreso previsto no confirma retorno, descarga ni disponibilidad.</p>
+@if(Model.ErrorEstimaciones is not null){<p role="alert" class="alert alert-warning">@Model.ErrorEstimaciones</p>}
+@if(Model.PuedeGestionarRutas&&ruta.Estado is "Planificada" or "Despachada"){
+<form method="post" asp-page-handler="Estimar" data-single-submit class="nr-form-stack">
+@await Html.PartialAsync("Shared/_RutasPostContext")
+<input name="EstimacionRuta" type="hidden" value="@ruta.Id"/><input name="EstimacionVersion" type="hidden" value="@(Model.EstimacionEnviada?Model.EstimacionVersion:ruta.Version)"/><input name="EstimacionComando" type="hidden" value="@(Model.EstimacionEnviada?Model.EstimacionComando:Guid.NewGuid())"/>
+<button class="nr-action-secondary" type="submit" data-loading-text="Calculando…">@(Model.Estimaciones.Count==0?"Calcular estimación vial":"Recalcular estimación vial")</button>
+</form>}
+@if(Model.PuedeGestionarRutas&&ruta.Estado is "EnCurso" or "Finalizada"){
+@if(Model.ErrorFlota is not null){<p role="alert">No se pudo verificar la ocupación; no se presume que el vehículo continúe en recorrido.</p>}
+else if(ocupacion is {RetornoEnUtc:null}){
+<form method="post" asp-page-handler="ActualizarEstimacion" data-single-submit class="nr-form-stack">
+@await Html.PartialAsync("Shared/_RutasPostContext")
+<input name="EstimacionRuta" type="hidden" value="@ruta.Id"/><input name="EstimacionVersion" type="hidden" value="@(Model.EstimacionEnviada?Model.EstimacionVersion:ruta.Version)"/><input name="EstimacionComando" type="hidden" value="@(Model.EstimacionEnviada?Model.EstimacionComando:Guid.NewGuid())"/><input name="EstimacionOcupacion" type="hidden" value="@(Model.EstimacionEnviada?Model.EstimacionOcupacion:ocupacion.Id)"/>
+<button class="nr-action-secondary" type="submit" data-loading-text="Actualizando…">Actualizar estimación desde GPS</button>
+<p>Solo posiciones ya recibidas por el servidor. Se conserva el orden y se cuenta el servicio completo de cada visita pendiente: no existe registro de inicio de atención para descontar una parte. Sin entregas pendientes se estima únicamente el regreso a la base del plan.</p>
+</form>}
+else{<p>No se actualiza desde GPS: ocupación resuelta o retorno ya confirmado.</p>}
+}
+@if(ultimoExito is not null){<p>Último éxito durante recorrido: @Model.FechaHora(ultimoExito.CalculadoEnUtc!.Value,ultimoExito.ZonaHoraria). Antigüedad al consultar: @Math.Max(0,(int)(DateTimeOffset.UtcNow-ultimoExito.CalculadoEnUtc.Value).TotalMinutes) min. Un fallo posterior no actualiza este horario.</p>}
+@if(Model.Estimaciones.Count==0&&Model.ErrorEstimaciones is null){<p>Sin cálculos registrados. Esto no implica cero minutos.</p>}
+@foreach(var e in Model.Estimaciones){
+<details class="mb-3" open="@(e==Model.Estimaciones.First())"><summary>Versión @e.NumeroVersion · @(e.TipoCalculo=="DuranteRecorrido"?"Actualización durante recorrido":"Estimación inicial") · @e.Estado · vigencia @e.Vigencia</summary>
+@if(e.CriteriosGps is {} criterios){<p>Admisión de este intento: medición de hasta @criterios.AntiguedadMaximaSegundos s y precisión de hasta @criterios.PrecisionMaximaMetros m. Son umbrales, no garantía de exactitud.</p>}
+@if(e.PosicionFuente is {} gps){<p>Posición utilizada @gps.Id · medida @Model.FechaHora(gps.MedidaEnUtc,e.ZonaHoraria) · precisión @gps.PrecisionMetros.ToString("0.##") m.<br/>Recibida @Model.FechaHora(gps.RecibidaEnUtc,e.ZonaHoraria). Ocupación @e.OcupacionId. Antigüedad GPS y del cálculo no son caducidad del proveedor.</p>}
+@if(e.Motivo!="Calculada"){<p>@Model.MotivoVial(e.Motivo)</p>}<p>Registrado @Model.FechaHora(e.RegistradaEnUtc,e.ZonaHoraria) · acceso @e.ActorId · ruta versión @e.VersionRuta</p>
+<p>Cálculo: @(e.CalculadoEnUtc is {} instante?Model.FechaHora(instante,e.ZonaHoraria):"No disponible") · validez hasta @(e.ValidoHastaUtc is {} hasta?Model.FechaHora(hasta,e.ZonaHoraria):"desconocida")</p>
+@if(e.Vigencia is "Invalidada" or "Vencida"){<p class="alert alert-warning">Cálculo desactualizado: conservar como histórico, no usar como horario vigente. @(e.MotivoInvalidacion is {} causa?Model.MotivoVial(causa):"")</p>}
+@foreach(var p in e.Paradas){<div class="mb-2"><strong>Envío @p.EnvioId</strong><p>Llegada manual: @Model.FechaHora(p.LlegadaManualEnUtc,e.ZonaHoraria)<br/>Llegada calculada: @Model.FechaHora(p.LlegadaCalculadaEnUtc,e.ZonaHoraria)<br/>Salida calculada: @Model.FechaHora(p.SalidaCalculadaEnUtc,e.ZonaHoraria)</p></div>}
+<p>Regreso estimado a base: @(e.RegresoEstimadoBaseEnUtc is {} regreso?Model.FechaHora(regreso,e.ZonaHoraria):"No disponible")<br/>Listo previsto con margen: @(e.ListoPrevistoEnUtc is {} listo?Model.FechaHora(listo,e.ZonaHoraria):"No disponible; no es disponibilidad confirmada")</p>
+@foreach(var fuente in e.Tramos.DistinctBy(t=>new{t.Proveedor,t.Modelo,t.Fuente,t.Atribucion})){<p>@fuente.Proveedor · @fuente.Modelo · @fuente.Fuente · @fuente.Trafico</p><p><a href="https://www.geoapify.com/" rel="noopener noreferrer">Powered by Geoapify</a> · <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer">© OpenStreetMap contributors</a></p>}
+</details>}
+@if(Model.Estimaciones.Count(e=>!e.EsReferencia)>=20){<a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-rutaSeleccionadaId="@ruta.Id" asp-route-antesDeEstimacion="@Model.Estimaciones.Last(e=>!e.EsReferencia).NumeroVersion">Cálculos anteriores</a>}
+</section>}

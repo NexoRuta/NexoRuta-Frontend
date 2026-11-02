@@ -20,6 +20,26 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task StaticRoadEstimationContractsKeepManualAndCalculatedTimesSeparate()
+    {
+        using var d=await LoadOpenApiAsync();var paths=d.RootElement.GetProperty("paths");Assert.True(paths.TryGetProperty("/api/rutas/{id}/estimaciones",out var estimates));Assert.True(estimates.TryGetProperty("post",out _));Assert.True(estimates.TryGetProperty("get",out _));Assert.True(paths.TryGetProperty("/api/reparto/perfiles-viales/{id}",out _));Assert.True(paths.TryGetProperty("/api/rutas/{id}/estimaciones/recorrido",out _));
+        var schemas=d.RootElement.GetProperty("components").GetProperty("schemas");var time=schemas.GetProperty("HorarioVialResponse").GetProperty("properties");Assert.True(time.TryGetProperty("llegadaManualEnUtc",out _));Assert.True(time.TryGetProperty("llegadaCalculadaEnUtc",out _));
+        var result=schemas.GetProperty("EstimacionRutaResponse").GetProperty("properties");foreach(var field in new[]{"estado","vigencia","numeroVersion","calculadoEnUtc","regresoEstimadoBaseEnUtc","listoPrevistoEnUtc","tipoCalculo","ocupacionId","posicionFuente","criteriosGps","esReferencia"})Assert.True(result.TryGetProperty(field,out _));
+    }
+
+    [Fact]
+    public async Task OperationalBaseAndTemporalSnapshotContractsArePublishedWithTheClient()
+    {
+        using var document=await LoadOpenApiAsync();var root=document.RootElement;var paths=root.GetProperty("paths");
+        foreach(var p in new[]{"/api/reparto/base-operativa","/api/reparto/base-operativa/propuestas","/api/reparto/base-operativa/confirmacion"})Assert.True(paths.TryGetProperty(p,out _));
+        var schemas=root.GetProperty("components").GetProperty("schemas");
+        foreach(var name in new[]{"BaseOperativaResponse","PlanTemporalResponse"})Assert.True(schemas.TryGetProperty(name,out _));
+        var sheet=schemas.GetProperty("HojaRutaResponse").GetProperty("properties");
+        foreach(var field in new[]{"planTemporal","estadoEstimacion","motivoSinEstimacion","salidaEnUtc"})Assert.True(sheet.TryGetProperty(field,out _));
+        var plan=schemas.GetProperty("PlanificarRutaRequest").GetProperty("properties");Assert.True(plan.TryGetProperty("salidaPlanificadaEnUtc",out _));
+    }
+
+    [Fact]
     public async Task OperationalRulesContractContainsVersionedDraftPublicationAndValidationSchemas()
     {
         using var document = await LoadOpenApiAsync();

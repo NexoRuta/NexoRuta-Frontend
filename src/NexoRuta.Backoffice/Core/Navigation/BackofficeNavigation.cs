@@ -50,7 +50,8 @@ public static class BackofficeNavigation
         [
             new("Mi operador", "/mi-operador", "/MiOperador", "/MiOperador", null),
             new("Usuarios", "/usuarios", "/Usuarios", "/Usuarios", "usuarios.gestionar"),
-            new("Repartidores", "/repartidores", "/Repartidores", "/Repartidores", "usuarios.gestionar")
+            new("Repartidores", "/repartidores", "/Repartidores", "/Repartidores", "usuarios.gestionar"),
+            new("Vehículos", "/vehiculos", "/Vehiculos", "/Vehiculos", ZonaCoberturaUi.PermisoGestionar)
         ]),
         new("Configuración",
         [

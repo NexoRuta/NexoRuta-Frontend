@@ -1,0 +1,68 @@
+@model NexoRuta.Backoffice.Features.Reparto.Pages.RutasModel
+<section class="nr-depot-panel" aria-labelledby="flota-titulo">
+    <h2 id="flota-titulo">Ocupación y retorno de vehículos</h2>
+    <p>Incluye todas las fechas. El cierre es administrativo; el retorno acredita regreso, la recepción acredita carga en depósito y la liberación habilita otro uso.</p>
+    @if (Model.ErrorFlota is not null) { <p role="alert" class="alert alert-danger">@Model.ErrorFlota</p> }
+    @if (Model.ReintentoFlota)
+    {
+        <form data-single-submit method="post" asp-page-handler="Flota">
+            <input type="hidden" asp-for="Fecha" />
+            <input type="hidden" asp-for="FlotaVehiculo" /><input type="hidden" asp-for="FlotaOcupacion" />
+            <input type="hidden" asp-for="FlotaComando" /><input type="hidden" asp-for="FlotaVersion" />
+            <input type="hidden" asp-for="FlotaAccion" /><input type="hidden" asp-for="FlotaEnvio" /><input type="hidden" asp-for="FlotaVersionEnvio" />
+            <label asp-for="FlotaMotivo">Motivo de la confirmación pendiente</label>
+            <textarea asp-for="FlotaMotivo" readonly maxlength="500" class="form-control"></textarea>
+            <button class="nr-action-secondary" data-loading-text="Registrando confirmación…" type="submit">Reenviar la misma confirmación</button>
+            <a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")">Descartar formulario y consultar estado</a>
+        </form>
+    }
+    @foreach (var v in Model.Flota)
+    {
+        <details class="mb-3" open="@(v.Ocupaciones.Count > 0 || v.CargaPendiente > 0 ? "open" : null)">
+            <summary><strong>@v.Matricula</strong> · @(v.Activo ? "Habilitado" : "Inactivo") · @(v.Ocupaciones.Count > 0 ? "Ocupado" : v.VerificacionInicialEnUtc is null ? "Disponibilidad desconocida: verificación inicial pendiente" : v.Activo ? "Disponibilidad confirmada" : "Sin ocupación; no habilitado para despachar")</summary>
+            @if (v.UltimaLiberacionEnUtc is { } liberacion) { <p>Última liberación confirmada: @liberacion.ToString("u")</p> }
+            @if (v.CargaPendiente > 0) { <p>Descarga o conciliación pendiente: @v.CargaPendiente bulto(s).</p> }
+            @foreach (var o in v.Ocupaciones)
+            {
+                <p><a asp-page="/Rutas" asp-route-fecha="@o.Fecha.ToString("yyyy-MM-dd")" asp-route-rutaSeleccionadaId="@o.RutaId">Ruta @o.RutaId · @o.Fecha.ToString("dd/MM/yyyy")</a> · @o.EstadoRuta</p>
+                <p>Vehículo y repartidor @Model.Repartidor(o.RepartidorAccesoId) (@o.RepartidorAccesoId) continúan ocupados por esta ruta hasta confirmar su liberación.</p>
+                <p>Cierre de jornada: @(o.EstadoRuta == "Finalizada" ? "cerrada" : o.EstadoRuta == "Despachada" ? "sin iniciar" : "pendiente"). No acredita retorno ni descarga.</p>
+                <p>@(o.RetornoEnUtc is null ? "Retorno pendiente" : $"Retorno confirmado: {o.RetornoEnUtc:u}") · @o.CargaPendiente bulto(s) pendientes.</p>
+                var faltantes = new List<string>();
+                if (o.EstadoRuta != "Finalizada") faltantes.Add("Falta cerrar la jornada.");
+                if (o.RetornoEnUtc is null) faltantes.Add("Falta confirmar el retorno físico.");
+                if (o.CargaPendiente > 0) faltantes.Add($"Falta recibir o conciliar {o.CargaPendiente} bulto(s) en depósito.");
+                @if (faltantes.Count > 0)
+                {
+                    <p><strong>Para liberar falta:</strong></p>
+                    <ul>@foreach (var falta in faltantes) { <li>@falta</li> }</ul>
+                }
+                else { <p>Requisitos cumplidos. La ocupación continúa hasta confirmar disponibilidad y liberar.</p> }
+                @if (o.CargaPendiente > 0)
+                {
+                    <a asp-page="/Rutas" asp-route-fecha="@o.Fecha.ToString("yyyy-MM-dd")" asp-route-rutaSeleccionadaId="@o.RutaId" asp-route-pestana="deposito">Revisar recepción de carga</a>
+                }
+                @if (o.PuedeAnular) { <p>Si nunca se inició ni cargó, corresponde anular la autorización; no inventar un retorno.</p> }
+                @if (o.Legada && o.AdquiridaEnUtc is null) { <p>Asignación anterior a B2. Vigencia física sin acreditar.</p> }
+                var acciones = new List<(string Accion, string Texto)>();
+                if (o.Legada && o.AdquiridaEnUtc is null && o.RetornoEnUtc is null) acciones.Add(("conciliar", "Confirmar ocupación vigente tras inspección"));
+                if (o.RetornoEnUtc is null && o.EstadoRuta != "Despachada") acciones.Add(("retorno", "Confirmar retorno físico (sin descarga)"));
+                if (o.RetornoEnUtc is not null && o.EstadoRuta == "Finalizada" && o.CargaPendiente == 0) acciones.Add(("liberar", "Confirmar disponibilidad y liberar"));
+                if (o.PuedeAnular && o.RetornoEnUtc is null) acciones.Add(("anular", "Anular autorización sin inicio ni carga"));
+                @foreach (var a in acciones)
+                {
+                    <partial name="Rutas/_ConfirmacionFlota" model="@(new NexoRuta.Backoffice.Features.Reparto.Pages.AccionFlotaFormulario(v.Id, o.Id, o.Version, a.Accion, a.Texto, Model.Fecha))" />
+                }
+            }
+            @foreach (var c in v.CargasIniciales)
+            {
+                <p>Carga histórica: envío @c.EnvioId · ruta @c.RutaId · @c.Fecha.ToString("dd/MM/yyyy") · @c.BultosPendientes bulto(s).</p>
+                <partial name="Rutas/_ConfirmacionFlota" model="@(new NexoRuta.Backoffice.Features.Reparto.Pages.AccionFlotaFormulario(v.Id, null, v.Version, "recibir-carga-inicial", "Confirmar recepción física de carga histórica", Model.Fecha, c.EnvioId, c.VersionEnvio))" />
+            }
+            @if (v.Ocupaciones.Count == 0 && v.VerificacionInicialEnUtc is null && v.CargaPendiente == 0)
+            {
+                <partial name="Rutas/_ConfirmacionFlota" model="@(new NexoRuta.Backoffice.Features.Reparto.Pages.AccionFlotaFormulario(v.Id, null, v.Version, "verificar-inicial", "Confirmar inspección inicial: vehículo retornado y sin carga", Model.Fecha))" />
+            }
+        </details>
+    }
+</section>

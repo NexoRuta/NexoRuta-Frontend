@@ -15,35 +15,106 @@ public sealed class DestinosEnvioPagesTests
     private static readonly Guid EnvioId = Guid.NewGuid();
     private const string ApiToken = "commerce-session";
 
+    [Fact]
+    public async Task ContratoPublicaBusquedaAutenticadaSinCambiarLaRespuestaDePropuestas()
+    {
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Contracts", "nexoruta.openapi.json")));
+        var address = document.RootElement.GetProperty("components").GetProperty("schemas").GetProperty("ConfirmarDestinoRequest").GetProperty("properties").GetProperty("direccion");
+        Assert.Contains(address.GetProperty("type").EnumerateArray(), x => x.GetString() == "string");
+        var paths = document.RootElement.GetProperty("paths");
+        var search = paths.GetProperty("/api/envios/{id}/destino/busqueda").GetProperty("post");
+        var schema = search.GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
+        var query = schema.GetProperty("properties").GetProperty("consulta");
+        Assert.Equal(3, query.GetProperty("minLength").GetInt32());
+        Assert.Equal(240, query.GetProperty("maxLength").GetInt32());
+        foreach (var status in new[] { "200", "400", "401", "403", "404", "409", "429", "503" })
+            Assert.True(search.GetProperty("responses").TryGetProperty(status, out _));
+        var expected = paths.GetProperty("/api/envios/{id}/destino/propuestas").GetProperty("post").GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString();
+        Assert.Equal(expected, search.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
+    }
+
     [Theory]
     [InlineData(200, null)]
-    [InlineData(401, "Mapbox rechazó la búsqueda. Revisá la configuración del servicio.")]
-    [InlineData(429, "La búsqueda alcanzó el límite temporal. Esperá un momento y volvé a intentar.")]
-    [InlineData(503, "Mapbox no pudo completar la búsqueda. Volvé a intentarlo.")]
+    [InlineData(401, "No tenés acceso")]
+    [InlineData(429, "límite temporal")]
+    [InlineData(503, "no está habilitada")]
     public async Task BusquedaDistingueSinResultadosDeErroresDelProveedor(int status, string? expected)
     {
-        var picker = new SelectorDestino();
-        var type = typeof(SelectorDestino);
-        type.GetProperty("Editable", BindingFlags.Public | BindingFlags.Instance)!.SetValue(picker, true);
-        type.GetField("token", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, "pk-test-public");
-        type.GetField("modulo", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, new ModuloGeocodificacion(status));
-
-        await (Task)type.GetMethod("CambiarBusqueda", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .Invoke(picker, [new ChangeEventArgs { Value = "Montevideo" }])!;
-
-        var message = type.GetField("mensajeBusqueda", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(picker) as string;
-        var noResults = (bool)type.GetProperty("sinResultados", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(picker)!;
-        if (expected is null)
-        {
-            Assert.Null(message);
-            Assert.True(noResults);
-        }
-        else
-        {
-            Assert.Equal(expected, message);
-            Assert.False(noResults);
-        }
+        using var http = new HttpClient(new Handler(_ => Respuesta(status, status == 200
+            ? "{\"envioId\":\"" + EnvioId + "\",\"direccion\":\"Registrada\",\"version\":0,\"atribucion\":\"Geoapify\",\"propuestas\":[]}"
+            : "{}"))) { BaseAddress = new Uri("http://api.test/") };
+        var picker = Picker(http);
+        await Buscar(picker, "Montevideo");
+        var message = Field<string?>(picker, "mensajeBusqueda");
+        var noResults = (bool)typeof(SelectorDestino).GetProperty("sinResultados", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(picker)!;
+        if (expected is null) { Assert.Null(message); Assert.True(noResults); }
+        else { Assert.Contains(expected, message); Assert.False(noResults); }
+        Assert.False(Field<bool>(picker, "buscando"));
     }
+
+    [Fact]
+    public async Task ConsultasCortasYDebounceNoConsumenYLaRespuestaAntiguaNoReemplazaLaNueva()
+    {
+        var pending = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        using var http = new HttpClient(new AsyncHandler(async request =>
+        {
+            Interlocked.Increment(ref calls);
+            var body = await request.Content!.ReadAsStringAsync();
+            if (body.Contains("Anterior")) { started.SetResult(); return await pending.Task; }
+            return Respuesta(200, Propuestas("Nueva"));
+        })) { BaseAddress = new Uri("http://api.test/") };
+        var picker = Picker(http);
+        await Buscar(picker, "ab"); Assert.Equal(0, calls);
+        var cancelledDebounce = Buscar(picker, "Nunca enviada");
+        await Buscar(picker, "a"); await cancelledDebounce; Assert.Equal(0, calls);
+        var old = Buscar(picker, "Anterior"); await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Buscar(picker, "Nueva");
+        pending.SetResult(Respuesta(200, Propuestas("Anterior"))); await old;
+        Assert.Equal("Nueva", Assert.Single(Field<List<SelectorDestino.Sugerencia>>(picker, "sugerencias")).Descripcion);
+        Assert.Equal(2, calls);
+        await picker.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ElegirResultadoSeleccionaCoordenadasYDireccionSinRepetirBusqueda()
+    {
+        var calls = 0;
+        using var http = new HttpClient(new Handler(request =>
+        {
+            calls++;
+            Assert.Equal($"/api/envios/{EnvioId}/destino/busqueda", request.RequestUri!.AbsolutePath);
+            Assert.Equal(ApiToken, request.Headers.Authorization?.Parameter);
+            Assert.Contains("consulta", request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+            return Respuesta(200, Propuestas("Calle sint?tica 123"));
+        })) { BaseAddress = new Uri("http://api.test/") };
+        var picker = Picker(http);
+        (double? Latitud, double? Longitud, string? Descripcion) point = default;
+        picker.PuntoCambiado = EventCallback.Factory.Create<(double?, double?, string?)>(this,
+            (Action<(double?, double?, string?)>)(p => point = p));
+        await Buscar(picker, "Calle");
+        var suggestion = Assert.Single(Field<List<SelectorDestino.Sugerencia>>(picker, "sugerencias"));
+        await (Task)typeof(SelectorDestino).GetMethod("ElegirAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(picker, [suggestion])!;
+        Assert.Equal((-34.9, -56.2, "Calle sint?tica 123"), point);
+        Assert.Equal(1, calls);
+        Assert.Empty(Field<List<SelectorDestino.Sugerencia>>(picker, "sugerencias"));
+        Assert.False((bool)typeof(SelectorDestino).GetProperty("sinResultados", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(picker)!);
+    }
+
+    private static string Propuestas(string description) => JsonSerializer.Serialize(new
+    { envioId = EnvioId, direccion = "Registrada", version = 0, atribucion = "Geoapify", propuestas = new[] { new { descripcion = description, latitud = -34.9, longitud = -56.2 } } });
+    private static SelectorDestino Picker(HttpClient http)
+    {
+        var picker = new SelectorDestino { Editable = true, EnvioId = EnvioId, ApiToken = ApiToken };
+        typeof(SelectorDestino).GetProperty("Destinos", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, new DestinosEnvioApiClient(http));
+        return picker;
+    }
+    private static T Field<T>(object instance, string name) => (T)instance.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(instance)!;
+    private static Task Buscar(SelectorDestino picker, string text) => (Task)typeof(SelectorDestino).GetMethod("CambiarBusqueda", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(picker, [new ChangeEventArgs { Value = text }])!;
+    private sealed class AsyncHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> respond) : HttpMessageHandler
+    { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) => respond(request); }
 
     [Fact]
     public async Task ClienteConservaContratoDeLecturaYConfirmacionConVersion()
@@ -61,7 +132,7 @@ public sealed class DestinosEnvioPagesTests
         var client = new DestinosEnvioApiClient(http);
 
         var current = await client.ObtenerAsync(EnvioId, ApiToken);
-        await client.ConfirmarAsync(EnvioId, current.Version, -34.9, -56.2, ApiToken);
+        await client.ConfirmarAsync(EnvioId, current.Version, -34.9, -56.2, ApiToken, direccion: "Elegida 123");
 
         Assert.Equal("Destinatario", current.DestinatarioNombre);
         Assert.Equal(2, requests.Count);
@@ -73,7 +144,8 @@ public sealed class DestinosEnvioPagesTests
         Assert.Equal(7, body.RootElement.GetProperty("version").GetInt64());
         Assert.Equal(-34.9, body.RootElement.GetProperty("latitud").GetDouble());
         Assert.Equal(-56.2, body.RootElement.GetProperty("longitud").GetDouble());
-        Assert.Equal(3, body.RootElement.EnumerateObject().Count());
+        Assert.Equal("Elegida 123", body.RootElement.GetProperty("direccion").GetString());
+        Assert.Equal(4, body.RootElement.EnumerateObject().Count());
     }
 
     private static HttpResponseMessage Respuesta(int status, string body) => new((HttpStatusCode)status)
@@ -85,21 +157,4 @@ public sealed class DestinosEnvioPagesTests
             Task.FromResult(respond(request));
     }
 
-    private sealed class ModuloGeocodificacion(int status) : IJSObjectReference
-    {
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args)
-        {
-            if (typeof(TValue).FullName == "Microsoft.JSInterop.Infrastructure.IJSVoidResult")
-                return ValueTask.FromResult(default(TValue)!);
-            var type = typeof(SelectorDestino).GetNestedType("RespuestaGeocodificacion", BindingFlags.NonPublic)!;
-            var response = Activator.CreateInstance(type, nonPublic: true)!;
-            type.GetProperty("Estado")!.SetValue(response, status);
-            type.GetProperty("Resultados")!.SetValue(response, Array.Empty<SelectorDestino.Sugerencia>());
-            return ValueTask.FromResult((TValue)response);
-        }
-
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
-            InvokeAsync<TValue>(identifier, args);
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-    }
 }
