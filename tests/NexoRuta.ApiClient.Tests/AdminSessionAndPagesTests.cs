@@ -212,7 +212,7 @@ public sealed class AdminSessionAndPagesTests
             Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"/{kind}?{query}")).StatusCode);
         using var missing = await client.GetAsync($"/{kind}/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Contains("Organization not found", await missing.Content.ReadAsStringAsync());
+        Assert.Contains("No encontramos esta organización", WebUtility.HtmlDecode(await missing.Content.ReadAsStringAsync()));
     }
 
     [Theory]
