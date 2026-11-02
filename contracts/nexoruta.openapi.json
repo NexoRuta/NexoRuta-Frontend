@@ -11331,7 +11331,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ServicioEnvioDisponible"
+                    "$ref": "#/components/schemas/ServicioEnvioDisponibleResponse"
                   }
                 }
               },
@@ -11339,7 +11339,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ServicioEnvioDisponible"
+                    "$ref": "#/components/schemas/ServicioEnvioDisponibleResponse"
                   }
                 }
               },
@@ -11347,7 +11347,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ServicioEnvioDisponible"
+                    "$ref": "#/components/schemas/ServicioEnvioDisponibleResponse"
                   }
                 }
               }
@@ -18108,7 +18108,7 @@
           }
         }
       },
-      "ServicioEnvioDisponible": {
+      "ServicioEnvioDisponibleResponse": {
         "required": [
           "zonaId",
           "zonaNombre",
