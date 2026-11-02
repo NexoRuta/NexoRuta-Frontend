@@ -13,7 +13,7 @@
     var disponibilidadHoja = ruta?.Estado switch { "Planificada" => "planificada para el reparto", "Despachada" or "EnCurso" => "disponible para el repartidor", "Finalizada" => "finalizada", "Cancelada" => "cancelada; sin reserva de recursos", _ => "registrada" };
     var destinoListo = ruta is not null && ruta.Paradas.Where(p => p.Activa).All(p => Model.DestinoConfirmado(p.EnvioId));
     var custodiaLista = ruta is not null && ruta.Paradas.Where(p => p.Activa).All(p => p.Bultos.Count > 0 && p.Bultos.All(b => b.Custodia == "Deposito"));
-    var enviosEnDetalle = ruta?.Paradas.Select(p => p.EnvioId).ToHashSet() ?? new HashSet<Guid>();
+    var enviosEnDetalle = ruta?.Paradas.Where(p => p.Activa).Select(p => p.EnvioId).ToHashSet() ?? new HashSet<Guid>();
     var reasignacionesFueraDeDetalle = Model.Envios.Where(e => e.Estado == "AsignadoRuta" && !enviosEnDetalle.Contains(e.Id)).ToArray();
     var filtroTodas = string.IsNullOrWhiteSpace(Model.FiltroRuta) || Model.FiltroRuta == "Todas";
     var filtroPlanificadas = Model.FiltroRuta == "Planificada";
