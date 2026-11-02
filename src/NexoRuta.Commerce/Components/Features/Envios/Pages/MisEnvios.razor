@@ -22,7 +22,7 @@
 @implements IDisposable
 
 <PageTitle>Mis envíos | NexoRuta</PageTitle>
-<main class="nr-shipments-page" aria-labelledby="shipments-title">
+<section class="nr-shipments-page" aria-labelledby="shipments-title">
     <header class="nr-shipments-heading">
         <div>
             <p class="nr-shipments-eyebrow">COMERCIO</p>
@@ -136,6 +136,7 @@
                                             <div class="nr-shipment-identity">
                                                 <strong class="nr-shipment-reference">@(envio.ReferenciaExterna ?? $"Envío #{IdCorto(envio.Id)}")</strong>
                                                 @if (envio.Bultos.Count > 0) { <span class="nr-shipment-package-summary">@ResumenBultos(envio)</span> }
+                                                @if (envio.Tarifa is { } cargo) { <TarifaAplicada EnvioId="envio.Id" Tarifa="cargo" Token="@token" /> }
                                             </div>
                                         </th>
                                         <td data-label="Destinatario">
@@ -217,7 +218,7 @@
             }
         </section>
     }
-</main>
+</section>
 
 @if (aCancelar is not null)
 {

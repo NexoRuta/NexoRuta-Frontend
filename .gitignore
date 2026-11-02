@@ -494,3 +494,9 @@ odd/
 # Isolated build inputs generated from pinned backend sources.
 .build/
 .ci/
+
+# Generated from the one shared portal interaction source.
+**/wwwroot/js/portal-interactions.js
+
+# Generated shared design asset for every portal, including Admin.
+**/wwwroot/css/portal-design.css

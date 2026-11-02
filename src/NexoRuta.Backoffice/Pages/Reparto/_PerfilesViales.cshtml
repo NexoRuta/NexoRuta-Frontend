@@ -1,0 +1,15 @@
+@model NexoRuta.Backoffice.Features.Reparto.Pages.ConfiguracionRepartoModel
+<section class="card card-body mb-4 nr-form-stack" aria-labelledby="perfiles-heading">
+<h2 id="perfiles-heading" class="h4">Compatibilidad con perfil vial</h2>
+<p>Geoapify drive representa un perfil de automóvil, no cualquier vehículo liviano. Confirmá el tipo y las restricciones reales; ni la capacidad de carga ni la matrícula acreditan compatibilidad.</p>
+@if(Model.ErrorPerfil is not null){<p class="alert alert-danger" role="alert">@Model.ErrorPerfil</p>}
+@foreach(var p in Model.PerfilesViales){var enviado=Model.PerfilEnviado&&Model.PerfilVehiculo==p.VehiculoId;var compat=enviado?Model.Compatibilidad:p.Compatibilidad;
+<details class="mb-3" open="@enviado"><summary>@p.Matricula · @(p.Compatibilidad=="DriveConfirmado"?"drive confirmado":p.Compatibilidad=="NoCompatible"?"No compatible con drive":"Falta determinar perfil")</summary>
+<form method="post" asp-page-handler="Perfil" data-single-submit class="nr-form-stack mt-3">
+<input name="PerfilVehiculo" type="hidden" value="@p.VehiculoId"/><input name="PerfilVersion" type="hidden" value="@(enviado?Model.PerfilVersion:p.Version)"/>
+<label for="compat-@p.VehiculoId">Compatibilidad de @p.Matricula</label><select id="compat-@p.VehiculoId" name="Compatibilidad" class="form-select"><option value="SinDeterminar" selected="@(compat=="SinDeterminar")">Sin determinar</option><option value="DriveConfirmado" selected="@(compat=="DriveConfirmado")">Compatible con drive</option><option value="NoCompatible" selected="@(compat=="NoCompatible")">No compatible con drive</option></select>
+<label class="d-block"><input type="checkbox" name="ConfirmarCompatibilidad" value="true" checked="@(enviado&&Model.ConfirmarCompatibilidad)"/> Confirmo compatibilidad específica con drive si elijo esa opción; no la infiero de la carga.</label>
+<label for="motivo-perfil-@p.VehiculoId">Motivo de configuración del perfil</label><textarea id="motivo-perfil-@p.VehiculoId" name="MotivoPerfil" class="form-control" maxlength="500" required>@(enviado?Model.MotivoPerfil:"")</textarea>
+@if(p.ConfirmadoEnUtc is {} fecha){<p>Configuración registrada: @fecha.ToString("u") · acceso @p.ActorId · versión @p.Version</p>}
+<button type="submit" class="btn btn-primary" data-loading-text="Guardando perfil…">Guardar perfil vial</button></form></details>}
+</section>

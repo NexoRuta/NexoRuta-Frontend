@@ -110,6 +110,7 @@ else if (Model.ConsultaCorrecta && Model.TotalResultados > 0)
                         {
                             <span class="nr-package-weight">@Model.PesoTotal(envio) kg en total</span>
                         }
+                        @if (envio.Tarifa is { } cargo) { <span class="nr-shipment-price">@cargo.TotalFinalUyu.ToString("N2") @cargo.Moneda · @cargo.Modalidad</span> }
                     </td>
                     <td headers="shipments-col-details" data-label="Detalle">
                         <button type="button" class="btn btn-link nr-shipment-detail-trigger"

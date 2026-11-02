@@ -207,12 +207,12 @@ public sealed class AdminSessionAndPagesTests
         Assert.Contains(OrganizationId.ToString(), detail);
         Assert.DoesNotContain("jwt-platform", detail);
         using var empty = await client.GetAsync($"/{kind}?pagina=10");
-        Assert.Contains("No organizations", await empty.Content.ReadAsStringAsync());
+        Assert.Contains("No hay organizaciones", await empty.Content.ReadAsStringAsync());
         foreach (var query in new[] { "pagina=0", "tamanoPagina=0", "tamanoPagina=101", "pagina=invalid" })
             Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"/{kind}?{query}")).StatusCode);
         using var missing = await client.GetAsync($"/{kind}/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Contains("Organization not found", await missing.Content.ReadAsStringAsync());
+        Assert.Contains("No encontramos esta organización", WebUtility.HtmlDecode(await missing.Content.ReadAsStringAsync()));
     }
 
     [Theory]
@@ -264,7 +264,7 @@ public sealed class AdminSessionAndPagesTests
             Assert.DoesNotContain(NewPassword, html);
             Assert.DoesNotContain("Different-secret-2026!", html);
             Assert.DoesNotContain("value=\"short\"", html);
-            if (rule == "confirmation") Assert.Contains("Passwords must match", html);
+            if (rule == "confirmation") Assert.Contains("Las contraseñas no coinciden.", WebUtility.HtmlDecode(html));
             if (rule == "length") Assert.Contains("minimum length", html);
             if (rule != "name") Assert.Contains("Preserved name", html);
         }

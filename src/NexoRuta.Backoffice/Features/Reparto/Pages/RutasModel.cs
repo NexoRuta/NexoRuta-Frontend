@@ -14,11 +14,46 @@ using NexoRuta.Backoffice.Core.Security;
 namespace NexoRuta.Backoffice.Features.Reparto.Pages;
 
 [RequestFormLimits(ValueCountLimit = 4000)]
-public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, UsuariosApiClient usuarios,
+public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envios, UsuariosApiClient usuarios,
     IAuthorizationService authorization) : PageModel
 {
     private const string ZonaHorariaPredeterminada = "America/Montevideo";
+    public IReadOnlyList<VehiculoFlotaResponse> Flota { get; private set; } = [];
+    public string? ErrorFlota { get; private set; }
+    public bool ReintentoFlota { get; private set; }
+    [BindProperty] public Guid FlotaVehiculo { get; set; }
+    [BindProperty] public Guid? FlotaOcupacion { get; set; }
+    [BindProperty] public Guid FlotaComando { get; set; }
+    [BindProperty] public long FlotaVersion { get; set; }
+    [BindProperty] public string? FlotaAccion { get; set; }
+    [BindProperty] public string? FlotaMotivo { get; set; }
+    [BindProperty] public Guid? FlotaEnvio { get; set; }
+    [BindProperty] public long? FlotaVersionEnvio { get; set; }
+    public async Task<IActionResult> OnPostFlotaAsync()
+    {
+        if (!(await authorization.AuthorizeAsync(User, resource: null, "envios.gestionar")).Succeeded
+            || !(await authorization.AuthorizeAsync(User, resource: null, "envios.consultar")).Succeeded) return Forbid();
+        try
+        {
+            if (!ModelState.IsValid) throw new ArgumentException("Revisá los valores de la confirmación.");
+            await api.ConfirmarFlotaAsync(FlotaVehiculo, FlotaAccion ?? "",
+                new(FlotaComando, FlotaOcupacion, FlotaVersion, FlotaMotivo ?? "", FlotaEnvio, FlotaVersionEnvio), Token(), HttpContext.RequestAborted);
+            Confirmacion = "Confirmación de flota registrada. El listado muestra la ocupación y disponibilidad actuales.";
+            return RedirectarDiario();
+        }
+        catch (NexoRutaApiException ex)
+        {
+            var redirect = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redirect is not null) return redirect;
+            ErrorFlota = ex.Message + " No se reintentó con otra versión. Revisá el estado antes de iniciar otra confirmación.";
+            ReintentoFlota = true;
+        }
+        catch (ArgumentException ex) { ErrorFlota = ex.Message; ReintentoFlota = true; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        { ErrorFlota = "Resultado desconocido. Podés reenviar exactamente el mismo comando sin duplicar hechos."; ReintentoFlota = true; }
+        return await Cargar();
+    }
     [BindProperty(SupportsGet = true)] public DateOnly Fecha { get; set; }
+    [BindProperty] public DateTime? SalidaPlanificadaLocal { get; set; }
     [BindProperty] public string? FechaSalida { get; set; }
     [BindProperty(SupportsGet = true)] public Guid? RutaSeleccionadaId { get; set; }
     [BindProperty(SupportsGet = true)] public string? Pestana { get; set; }
@@ -93,8 +128,9 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
             throw new ArgumentException("Seleccioná envíos y completá un orden único y una hora para cada parada.");
         var recursos = await api.RecursosAsync(Token(), HttpContext.RequestAborted);
         var paradas = elegidas.OrderBy(p => p.Orden).Select(p => new ParadaPlanificadaRequest(p.EnvioId,
-            ConvertirLlegada(Fecha, p.Hora!.Value, recursos.Politica.ZonaHoraria))).ToArray();
-        await api.PlanificarAsync(new(RepartidorAccesoId, VehiculoId, Fecha, paradas), Token(), HttpContext.RequestAborted);
+            ConvertirLlegada(p.FechaLlegada ?? Fecha, p.Hora!.Value, recursos.Politica.ZonaHoraria), p.ServicioMinutos)).ToArray();
+        var salidaPlanificada = SalidaPlanificadaLocal is { } local ? ConvertirLlegada(DateOnly.FromDateTime(local), TimeOnly.FromDateTime(local), recursos.Politica.ZonaHoraria) : (DateTimeOffset?)null;
+        await api.PlanificarAsync(new(RepartidorAccesoId, VehiculoId, Fecha, paradas, salidaPlanificada), Token(), HttpContext.RequestAborted);
         Confirmacion = "Ruta planificada. Revisá sus paradas y la recepción física antes de despachar.";
         });
     }
@@ -132,7 +168,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         await api.RecibirAsync(envioId, version, Token(), HttpContext.RequestAborted);
         Confirmacion = "Recepción de los bultos confirmada en depósito.";
     });
-    public Task<IActionResult> OnPostReasignarAsync(Guid envioId, long versionEnvio, string? destino, TimeOnly? hora, string? motivo) => Ejecutar(async () =>
+    public Task<IActionResult> OnPostReasignarAsync(Guid envioId, long versionEnvio, string? destino, TimeOnly? hora, string? motivo, DateOnly? fechaLlegada = null, int? servicioMinutos = null) => Ejecutar(async () =>
     {
         var partes = destino?.Split(':');
         if (partes?.Length != 2 || !Guid.TryParse(partes[0], out var rutaId) || !long.TryParse(partes[1], NumberStyles.None, CultureInfo.InvariantCulture, out var version)
@@ -141,7 +177,7 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         var ruta = (await api.ListarAsync(Fecha, Token(), HttpContext.RequestAborted)).SingleOrDefault(r => r.Id == rutaId);
         if (ruta is null || ruta.Estado != "Planificada") throw new ArgumentException("La ruta destino ya no está disponible. Actualizá la fecha y volvé a elegirla.");
         await api.ReasignarAsync(envioId, new(rutaId, versionEnvio, version,
-            ConvertirLlegada(ruta.Fecha, hora.Value, ruta.Politica.ZonaHoraria), motivo), Token(), HttpContext.RequestAborted);
+            ConvertirLlegada(fechaLlegada ?? ruta.Fecha, hora.Value, ruta.Politica.ZonaHoraria), motivo, servicioMinutos), Token(), HttpContext.RequestAborted);
         Confirmacion = "Ruta reasignada. La custodia física no cambió; el despacho requiere recepción efectiva en depósito.";
     });
     public Task<IActionResult> OnPostReprogramarAsync(Guid envioId, long versionEnvio) => Ejecutar(async () =>
@@ -273,6 +309,13 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         }
         catch (NexoRutaApiException ex) { var redir = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redir is not null) return redir; Error ??= ex.Message; }
         catch (HttpRequestException) { Error ??= "No se pudo consultar el servicio de reparto."; }
+        if (PuedeConsultarEnvios && PuedeGestionarRutas)
+        {
+            try { Flota = await api.FlotaAsync(Token(), HttpContext.RequestAborted); }
+            catch (NexoRutaApiException ex) { ErrorFlota ??= $"Disponibilidad desconocida: falló GET /api/reparto/flota (HTTP {(int?)ex.StatusCode}). Revisá permisos y la API configurada; no se presume una flota vacía ni disponible."; }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { ErrorFlota ??= "No se pudo consultar la ocupación; disponibilidad desconocida. Actualizá la página."; }
+        }
+        await CargarEstimaciones();
         return Page();
     }
     private static DateOnly FechaActual(string zonaHoraria)
@@ -387,5 +430,10 @@ public sealed class RutasModel(RutasApiClient api, EnviosApiClient envios, Usuar
         public bool Incluir { get; set; }
         [Range(1, 500)] public int? Orden { get; set; }
         public TimeOnly? Hora { get; set; }
+        public DateOnly? FechaLlegada { get; set; }
+        [Range(0, int.MaxValue)] public int? ServicioMinutos { get; set; }
     }
 }
+
+public sealed record AccionFlotaFormulario(Guid Vehiculo, Guid? Ocupacion, long Version, string Accion, string Texto,
+    DateOnly Fecha, Guid? Envio = null, long? VersionEnvio = null);

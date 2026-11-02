@@ -56,8 +56,8 @@ public sealed class ImportacionEnviosComponentTests
     [Fact]
     public void TemplateHeaderExactlyMatchesBackendParserContract()
     {
-        var template = File.ReadAllLines(Path.Combine(FindRepositoryRoot(), "frontend", "src", "NexoRuta.Commerce", "wwwroot", "plantillas", "alta-envios.csv"));
-        Assert.Equal("referenciaExterna,nombreDestinatario,emailDestinatario,direccion,codigoBulto,pesoGramos,largoCentimetros,anchoCentimetros,altoCentimetros", template[0]);
+        var template = File.ReadAllLines(Path.Combine(FindRepositoryRoot(), "src", "NexoRuta.Commerce", "wwwroot", "plantillas", "alta-envios.csv"));
+        Assert.Equal("referenciaExterna,nombreDestinatario,emailDestinatario,direccion,codigoBulto,pesoGramos,largoCentimetros,anchoCentimetros,altoCentimetros,zonaId,latitud,longitud,modalidad", template[0]);
         Assert.Contains("\"Av. 18 de Julio 1234, apto 2\"", template[1]);
     }
 
@@ -78,7 +78,7 @@ public sealed class ImportacionEnviosComponentTests
     private static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-            if (File.Exists(Path.Combine(directory.FullName, "frontend", "src", "NexoRuta.Commerce", "NexoRuta.Commerce.csproj")))
+            if (File.Exists(Path.Combine(directory.FullName, "src", "NexoRuta.Commerce", "NexoRuta.Commerce.csproj")))
                 return directory.FullName;
         throw new DirectoryNotFoundException("Could not locate the NexoRuta repository root from the test output directory.");
     }

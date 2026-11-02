@@ -22,6 +22,9 @@ public sealed partial class SeguimientoPagesTests
         using var http = new HttpClient(handler) { BaseAddress = new Uri("http://api.test/") };
         var services = Servicios(page);
         services.AddSingleton(new EnviosApiClient(http));
+        services.AddSingleton(new DestinosEnvioApiClient(http));
+        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+        services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(new AdmissionTestJs());
         services.AddSingleton(new UsuariosApiClient(http));
         services.AddSingleton(new OperadoresApiClient(http));
         services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
@@ -36,12 +39,14 @@ public sealed partial class SeguimientoPagesTests
         request.DestinatarioNombre = "Destinataria sintética";
         request.DestinatarioEmail = "destinatario@example.test";
         request.Direccion = "Calle Sintética 123";
-        request.CodigoBulto = "SYN-001";
-        request.PesoGramos = 1000;
-        request.LargoCentimetros = 20;
-        request.AnchoCentimetros = 15;
-        request.AltoCentimetros = 10;
+        request.Bultos[0].Codigo = "SYN-001";
+        request.Bultos[0].PesoGramos = 1000;
+        request.Bultos[0].LargoCentimetros = 20;
+        request.Bultos[0].AnchoCentimetros = 15;
+        request.Bultos[0].AltoCentimetros = 10;
 
+        typeof(CrearEnvio).GetField("cotizacion", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(page,
+            new NexoRuta.ApiClient.Features.Envios.Contracts.Responses.TarifaEnvioResponse(Guid.NewGuid(),request.OperadorId.Value,"Estandar","UYU",110m,100m,10m,0m,0m,0m));
         var create = typeof(CrearEnvio).GetMethod("CrearAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var firstAttempt = renderer.Dispatcher.InvokeAsync(() => (Task)create.Invoke(page, null)!);
         await handler.FirstPostStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -65,6 +70,11 @@ public sealed partial class SeguimientoPagesTests
         Assert.NotNull(typeof(CrearEnvio).GetField("creado", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page));
     }
 
+    private sealed class AdmissionTestJs : Microsoft.JSInterop.IJSRuntime
+    {
+        public ValueTask<T> InvokeAsync<T>(string identifier, object?[]? args) => throw new NotSupportedException();
+        public ValueTask<T> InvokeAsync<T>(string identifier, CancellationToken ct, object?[]? args) => throw new NotSupportedException();
+    }
     private sealed class CreateShipmentHandler : HttpMessageHandler
     {
         public TaskCompletionSource FirstPostStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -93,7 +103,7 @@ public sealed partial class SeguimientoPagesTests
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
             RetriedName = body.RootElement.GetProperty("destinatarioNombre").GetString();
             RetriedEmail = body.RootElement.GetProperty("destinatarioEmail").GetString();
-            return Respuesta(201, """{"id":"00000000-0000-0000-0000-000000000501","operadorId":"00000000-0000-0000-0000-000000000002","comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004","usuarioEmail":"comercio@example.test","operadorNombre":"Operador sintético","comercioNombre":"Comercio sintético","codigoBulto":"SYN-001","pesoGramos":1000,"largoCentimetros":20,"anchoCentimetros":15,"altoCentimetros":10}""");
+            return Respuesta(201, """{"id":"00000000-0000-0000-0000-000000000501","operadorId":"00000000-0000-0000-0000-000000000002","comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004","usuarioEmail":"comercio@example.test","operadorNombre":"Operador sintético","comercioNombre":"Comercio sintético","tarifa":{"versionTarifarioId":"00000000-0000-0000-0000-000000000010","zonaId":"00000000-0000-0000-0000-000000000002","modalidad":"Estandar","moneda":"UYU","totalFinalUyu":110},"bultos":[{"codigo":"SYN-001","pesoGramos":1000,"largoCentimetros":20,"anchoCentimetros":15,"altoCentimetros":10}]}""");
         }
 
         private int _postCount;

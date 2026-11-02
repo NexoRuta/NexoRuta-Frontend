@@ -20,6 +20,26 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task StaticRoadEstimationContractsKeepManualAndCalculatedTimesSeparate()
+    {
+        using var d=await LoadOpenApiAsync();var paths=d.RootElement.GetProperty("paths");Assert.True(paths.TryGetProperty("/api/rutas/{id}/estimaciones",out var estimates));Assert.True(estimates.TryGetProperty("post",out _));Assert.True(estimates.TryGetProperty("get",out _));Assert.True(paths.TryGetProperty("/api/reparto/perfiles-viales/{id}",out _));Assert.True(paths.TryGetProperty("/api/rutas/{id}/estimaciones/recorrido",out _));
+        var schemas=d.RootElement.GetProperty("components").GetProperty("schemas");var time=schemas.GetProperty("HorarioVialResponse").GetProperty("properties");Assert.True(time.TryGetProperty("llegadaManualEnUtc",out _));Assert.True(time.TryGetProperty("llegadaCalculadaEnUtc",out _));
+        var result=schemas.GetProperty("EstimacionRutaResponse").GetProperty("properties");foreach(var field in new[]{"estado","vigencia","numeroVersion","calculadoEnUtc","regresoEstimadoBaseEnUtc","listoPrevistoEnUtc","tipoCalculo","ocupacionId","posicionFuente","criteriosGps","esReferencia"})Assert.True(result.TryGetProperty(field,out _));
+    }
+
+    [Fact]
+    public async Task OperationalBaseAndTemporalSnapshotContractsArePublishedWithTheClient()
+    {
+        using var document=await LoadOpenApiAsync();var root=document.RootElement;var paths=root.GetProperty("paths");
+        foreach(var p in new[]{"/api/reparto/base-operativa","/api/reparto/base-operativa/propuestas","/api/reparto/base-operativa/confirmacion"})Assert.True(paths.TryGetProperty(p,out _));
+        var schemas=root.GetProperty("components").GetProperty("schemas");
+        foreach(var name in new[]{"BaseOperativaResponse","PlanTemporalResponse"})Assert.True(schemas.TryGetProperty(name,out _));
+        var sheet=schemas.GetProperty("HojaRutaResponse").GetProperty("properties");
+        foreach(var field in new[]{"planTemporal","estadoEstimacion","motivoSinEstimacion","salidaEnUtc"})Assert.True(sheet.TryGetProperty(field,out _));
+        var plan=schemas.GetProperty("PlanificarRutaRequest").GetProperty("properties");Assert.True(plan.TryGetProperty("salidaPlanificadaEnUtc",out _));
+    }
+
+    [Fact]
     public async Task OperationalRulesContractContainsVersionedDraftPublicationAndValidationSchemas()
     {
         using var document = await LoadOpenApiAsync();
@@ -169,7 +189,7 @@ public sealed class OpenApiContractTests
         var multipart = import.GetProperty("requestBody").GetProperty("content").GetProperty("multipart/form-data");
         var form = Resolve(multipart.GetProperty("schema"), root);
         var formFields = form.GetProperty("properties").EnumerateObject().Select(property => property.Name).ToArray();
-        Assert.Equal(new[] { "Archivo", "OperadorId" }, formFields);
+        Assert.Equal(new[] { "VersionFormato", "Archivo", "OperadorId" }, formFields);
         Assert.Contains("multipart/form-data", import.GetProperty("requestBody").GetProperty("content").EnumerateObject()
             .Select(content => content.Name));
         foreach (var status in new[] { "200", "400", "401", "403", "409", "413", "422", "503" })
@@ -675,10 +695,10 @@ public sealed class OpenApiContractTests
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
         schema = Resolve(schema, document);
-        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(bool) || type == typeof(int) || type == typeof(long) ||
+        if (type == typeof(string) || type == typeof(Guid) || type == typeof(decimal) || type == typeof(double) || type == typeof(bool) || type == typeof(int) || type == typeof(long) ||
             type == typeof(DateTime) || type == typeof(DateTimeOffset))
         {
-            var expected = type == typeof(decimal) ? "number" : type == typeof(bool) ? "boolean" : type == typeof(int) || type == typeof(long) ? "integer" : "string";
+            var expected = type == typeof(decimal) || type == typeof(double) ? "number" : type == typeof(bool) ? "boolean" : type == typeof(int) || type == typeof(long) ? "integer" : "string";
             var declared = schema.GetProperty("type");
             IEnumerable<string?> types = declared.ValueKind == JsonValueKind.Array
                 ? declared.EnumerateArray().Select(x => x.GetString())
@@ -700,7 +720,7 @@ public sealed class OpenApiContractTests
             Assert.Contains("string", types);
             Assert.Equal("byte", schema.GetProperty("format").GetString());
         }
-        else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
+        else if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>) || type.GetGenericTypeDefinition() == typeof(List<>)))
         {
             Assert.Equal("array", schema.GetProperty("type").GetString());
             AssertSchema(type.GenericTypeArguments[0], schema.GetProperty("items"), document);
@@ -719,9 +739,17 @@ public sealed class OpenApiContractTests
     }
 
     private static JsonElement Resolve(JsonElement schema, JsonElement document)
-        => schema.TryGetProperty("$ref", out var reference)
-            ? document.GetProperty("components").GetProperty("schemas").GetProperty(reference.GetString()!.Split('/')[^1])
-            : schema;
+    {
+        if (schema.TryGetProperty("$ref", out var reference))
+            return Resolve(document.GetProperty("components").GetProperty("schemas").GetProperty(reference.GetString()!.Split('/')[^1]), document);
+        if (schema.TryGetProperty("oneOf", out var alternatives))
+        {
+            var nonNull = alternatives.EnumerateArray().Where(x => !x.TryGetProperty("type", out var kind) || kind.ValueKind != JsonValueKind.String || kind.GetString() != "null").ToArray();
+            Assert.Single(nonNull);
+            return Resolve(nonNull[0], document);
+        }
+        return schema;
+    }
 
     private static async Task<JsonDocument> LoadOpenApiAsync()
     {

@@ -1,7 +1,7 @@
 .tarifario-card,
 .tariff-rate-card {
     border-color: var(--bs-border-color);
-    box-shadow: 0 .125rem .25rem rgb(0 0 0 / 5%);
+    box-shadow: var(--nr-shadow);
 }
 
 .tarifas-list {

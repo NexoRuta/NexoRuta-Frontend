@@ -716,7 +716,24 @@ public sealed partial class BackofficeSessionAndPagesTests
 
     private sealed partial class FakeApi
     {
+        public object? FleetResponse { get; init; }
+        public bool FleetUnavailable { get; init; }
+        public bool IncludeRoadEstimates { get; init; }
+        public HttpStatusCode? RepartoQueryFailure { get; init; }
+        public bool IncludeRoadUpdates { get; init; }
+        public bool RoadConflictOnce {get;set;}
+        public bool RoadProfileConflictOnce {get;set;}
+        public long RoadProfileVersion {get;set;}
+        public string RoadCompatibility {get;set;}="SinDeterminar";
+        public List<object> RoadHistory {get;}=[];
+        public bool IncludeBaseConfiguration { get; init; }
+        public bool BaseConflictOnce { get; set; }
+        public NexoRuta.ApiClient.Features.Reparto.Contracts.BaseOperativaResponse? BaseFixture { get; set; }
         public bool IncludeReparto { get; init; }
+        public bool IncludeVehicleConfiguration { get; init; }
+        public HttpStatusCode? VehiclesQueryFailure { get; init; }
+        public bool VehicleWriteTimeout { get; init; }
+        public decimal VehicleVolumeCapacity { get; init; } = 10000m;
         public bool IncludeIncidenciaCierre { get; init; }
         public bool IncludeNoEntregado { get; init; }
         public bool IntentosAgotados { get; init; }
@@ -739,9 +756,66 @@ public sealed partial class BackofficeSessionAndPagesTests
         public bool IsCancellationAdmin { get; init; }
         public bool CancellationApplied { get; private set; }
         public System.Collections.Concurrent.ConcurrentQueue<ZonePayloadCall> RepartoPayloads { get; } = new();
+        public static object RoadUpdate(int number,Guid command,string motive="Calculada")=>new {
+            RutaId=RutaPrueba,ComandoId=command,NumeroVersion=number,VersionRuta=2,ActorId=TargetAccessId,RegistradaEnUtc=DateTimeOffset.Parse("2026-10-21T03:59:30Z"),TipoCalculo="DuranteRecorrido",OcupacionId=Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            Estado=motive=="Calculada"?"Calculada":"PosicionNoAdmisible",Motivo=motive,Vigencia="Desconocida",ZonaHoraria="America/Montevideo",CalculadoEnUtc=motive=="Calculada"?(DateTimeOffset?)DateTimeOffset.Parse("2026-10-21T03:59:30Z"):null,ValidoHastaUtc=(DateTimeOffset?)null,
+            RegresoEstimadoBaseEnUtc=motive=="Calculada"?(DateTimeOffset?)DateTimeOffset.Parse("2026-10-21T04:29:30Z"):null,ListoPrevistoEnUtc=motive=="Calculada"?(DateTimeOffset?)DateTimeOffset.Parse("2026-10-21T04:36:30Z"):null,
+            PosicionFuente=motive=="Calculada"?new {Id=Guid.Parse("55555555-5555-5555-5555-555555555555"),MedidaEnUtc=DateTimeOffset.Parse("2026-10-21T03:59:20Z"),RecibidaEnUtc=DateTimeOffset.Parse("2026-10-21T03:59:30Z"),PrecisionMetros=20d}:null,
+            CriteriosGps=new {AntiguedadMaximaSegundos=120,PrecisionMaximaMetros=100d},
+            Paradas=motive=="Calculada"?new[]{new{EnvioId=EnvioPrueba,LlegadaManualEnUtc=DateTimeOffset.Parse("2026-10-21T04:00:00Z"),LlegadaCalculadaEnUtc=DateTimeOffset.Parse("2026-10-21T04:09:30Z"),SalidaCalculadaEnUtc=DateTimeOffset.Parse("2026-10-21T04:19:30Z")}}:[],
+            Tramos=motive=="Calculada"?new[]{new {Indice=0,DuracionSegundos=600d,DistanciaMetros=1000d,Proveedor="Geoapify",Modelo="drive/free_flow",Fuente="RespuestaControlada",Trafico="SinTrafico",Atribucion="Powered by Geoapify · © OpenStreetMap contributors",CalculadoEnUtc=DateTimeOffset.Parse("2026-10-21T03:59:30Z"),ValidoHastaUtc=(DateTimeOffset?)null}}:[]};
+        public static object RoadEstimate(int number,Guid command)=>new {RutaId=RutaPrueba,ComandoId=command,NumeroVersion=number,VersionRuta=2,ActorId=TargetAccessId,RegistradaEnUtc=DateTimeOffset.Parse("2026-10-20T12:00:00Z"),Estado="Calculada",Motivo="Calculada",Vigencia=number==1?"Invalidada":"Desconocida",ZonaHoraria="America/Montevideo",CalculadoEnUtc=(DateTimeOffset?)DateTimeOffset.Parse("2026-10-20T12:00:00Z"),ValidoHastaUtc=(DateTimeOffset?)null,RegresoEstimadoBaseEnUtc=(DateTimeOffset?)DateTimeOffset.Parse("2026-10-21T03:20:00Z"),ListoPrevistoEnUtc=(DateTimeOffset?)DateTimeOffset.Parse("2026-10-21T03:27:00Z"),Paradas=new[]{new{EnvioId=EnvioPrueba,LlegadaManualEnUtc=DateTimeOffset.Parse("2026-10-21T04:00:00Z"),LlegadaCalculadaEnUtc=DateTimeOffset.Parse("2026-10-21T03:00:00Z"),SalidaCalculadaEnUtc=DateTimeOffset.Parse("2026-10-21T03:10:00Z")}},Tramos=new[]{new{Indice=0,DuracionSegundos=600d,DistanciaMetros=1000d,Proveedor="Geoapify",Modelo="drive/free_flow",Fuente="RespuestaControlada",Trafico="SinTrafico",Atribucion="Powered by Geoapify · © OpenStreetMap contributors",CalculadoEnUtc=DateTimeOffset.Parse("2026-10-20T12:00:00Z"),ValidoHastaUtc=(DateTimeOffset?)null}}};
         private async Task<HttpResponseMessage?> Reparto(HttpRequestMessage request, string path, string? token, CancellationToken ct)
         {
+            if(RepartoQueryFailure is {} failed && request.Method==HttpMethod.Get && (path is "/api/reparto/flota" or "/api/reparto/perfiles-viales" || path.EndsWith("/estimaciones",StringComparison.Ordinal)))return Json(failed,new{detail="Controlled integration failure"});
+            if(IncludeRoadEstimates && path.StartsWith("/api/reparto/perfiles-viales",StringComparison.Ordinal))
+            {
+                if(request.Method==HttpMethod.Get)return Json(HttpStatusCode.OK,new[]{new{VehiculoId=VehiculoPrueba,Matricula="AAA 1234",Version=RoadProfileVersion,Compatibilidad=RoadCompatibility,ActorId=(Guid?)TargetAccessId,ConfirmadoEnUtc=(DateTimeOffset?)DateTimeOffset.UtcNow,Motivo="Fixture"}});
+                var body=(await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();RepartoPayloads.Enqueue(new(path,request.Method,token,body));
+                if(RoadProfileConflictOnce||body.GetProperty("version").GetInt64()!=RoadProfileVersion){if(RoadProfileConflictOnce)RoadProfileVersion++;RoadProfileConflictOnce=false;return Json(HttpStatusCode.Conflict,new{detail="El perfil cambió. Conservá los datos y revisá su versión."});}
+                RoadProfileVersion++;RoadCompatibility=body.GetProperty("compatibilidad").GetString()!;return Json(HttpStatusCode.OK,new{VehiculoId=VehiculoPrueba,Matricula="AAA 1234",Version=RoadProfileVersion,Compatibilidad=RoadCompatibility,ActorId=(Guid?)TargetAccessId,ConfirmadoEnUtc=(DateTimeOffset?)DateTimeOffset.UtcNow,Motivo="Fixture"});
+            }
+            if(IncludeRoadUpdates&&path.EndsWith("/estimaciones/recorrido",StringComparison.Ordinal)){
+                var body=(await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();RepartoPayloads.Enqueue(new(path,request.Method,token,body));
+                if(RoadConflictOnce){RoadConflictOnce=false;return Json(HttpStatusCode.Conflict,new{detail="La posición o la ocupación cambiaron durante el cálculo. Se descartó la respuesta obsoleta."});}
+                var updated=RoadUpdate(RoadHistory.Count+1,body.GetProperty("comandoId").GetGuid());RoadHistory.Add(updated);return Json(HttpStatusCode.OK,updated);
+            }
+            if(IncludeRoadEstimates&&path.EndsWith("/estimaciones",StringComparison.Ordinal))
+            {
+                if(request.Method==HttpMethod.Get)return Json(HttpStatusCode.OK,RoadHistory.AsEnumerable().Reverse().ToArray());
+                var body=(await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone();RepartoPayloads.Enqueue(new(path,request.Method,token,body));
+                if(RoadConflictOnce){RoadConflictOnce=false;return Json(HttpStatusCode.Conflict,new{detail="La ruta o su perfil cambiaron durante el cálculo. Se descartó la respuesta obsoleta."});}
+                var record=RoadEstimate(RoadHistory.Count+1,body.GetProperty("comandoId").GetGuid());RoadHistory.Add(record);return Json(HttpStatusCode.OK,record);
+            }
+            if (IncludeBaseConfiguration && path.StartsWith("/api/reparto/base-operativa", StringComparison.Ordinal))
+            {
+                if (request.Method == HttpMethod.Get) return BaseFixture is null ? Json(HttpStatusCode.NotFound,new { }) : Json(HttpStatusCode.OK,BaseFixture);
+                if (path.EndsWith("/propuestas",StringComparison.Ordinal)) return BaseFixture is null ? Json(HttpStatusCode.NotFound,new { }) : Json(HttpStatusCode.OK,new { BaseFixture.Version,BaseFixture.Direccion,Atribucion="Geocodificador de prueba",Propuestas=new[]{new{Descripcion="Punto de prueba",Latitud=-34.9,Longitud=-56.2}} });
+                var body=(await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone(); RepartoPayloads.Enqueue(new(path,request.Method,token,body));
+                var version=body.GetProperty("version").GetInt64();
+                if (BaseConflictOnce || version != (BaseFixture?.Version ?? 0)) { BaseConflictOnce=false; return Json(HttpStatusCode.Conflict,new{detail="La base cambió; revisá la versión antes de guardar."}); }
+                if (path.EndsWith("/confirmacion",StringComparison.Ordinal))
+                {
+                    if (BaseFixture is null)return Json(HttpStatusCode.NotFound,new{});
+                    BaseFixture=BaseFixture with {Version=version+1,Latitud=body.GetProperty("latitud").GetDouble(),Longitud=body.GetProperty("longitud").GetDouble(),ConfirmadaEnUtc=DateTimeOffset.UtcNow,ConfirmadaPorAccesoId=TargetAccessId};
+                }
+                else
+                {
+                    var address=body.GetProperty("direccion").GetString()!; var same=BaseFixture?.Direccion==address;
+                    int? Minutes(string key)=>body.GetProperty(key).ValueKind==JsonValueKind.Null?null:body.GetProperty(key).GetInt32();
+                    BaseFixture=new(BaseFixture is null?1:version+1,address,same?BaseFixture?.Latitud:null,same?BaseFixture?.Longitud:null,same?BaseFixture?.ConfirmadaEnUtc:null,same?BaseFixture?.ConfirmadaPorAccesoId:null,Minutes("servicioPredeterminadoMinutos"),Minutes("margenRetornoMinutos"));
+                }
+                return Json(HttpStatusCode.OK,BaseFixture);
+            }
             var politica = new { version = 1, zonaHoraria = "America/Montevideo", maximoParadas = 100, maximoIntentos = 3, motivos = new[] { "Ausente" } };
+            if (IncludeVehicleConfiguration && path == "/api/reparto/configuracion") return Json(HttpStatusCode.OK, politica);
+            if (IncludeVehicleConfiguration && path == "/api/reparto/vehiculos")
+            {
+                if(request.Method==HttpMethod.Get&&VehiclesQueryFailure is {} failure)return Json(failure,new{detail="Vehicle query unavailable"});
+                if(request.Method==HttpMethod.Put&&VehicleWriteTimeout)throw new TaskCanceledException("Controlled vehicle write timeout");
+                if (request.Method == HttpMethod.Put) return Json(HttpStatusCode.Conflict, new { detail = "El vehículo cambió. Recargalo antes de guardar." });
+                return Json(HttpStatusCode.OK, new[] { new { id = VehiculoPrueba, matricula = "ABC", pesoMaximoGramos = 3000m, volumenMaximoCm3 = 2000m, activo = true, version = 7 } });
+            }
             var bultoId = Guid.Parse("00000000-0000-0000-0000-000000000704");
             var reglasEnvio = new { versionId = Guid.NewGuid(), numeroVersion = 1, maximoIntentos = 3,
                 intervaloEntreIntentosMinutos = 30, politicaDevolucionAlAgotarIntentos = "DecisionOperativa",
@@ -769,9 +843,17 @@ public sealed partial class BackofficeSessionAndPagesTests
                 matricula = "AAA 1234", fecha = RouteDateOverride ?? "2026-10-20", estado = IncludeIncidenciaCierre || ShipmentStateOverride == "AsignadoRuta" && AssignedStopActiveOverride == false ? "Finalizada"
                     : ShipmentStateOverride == "AsignadoRuta" ? "EnCurso" : "Planificada", version = 3, ultimaSecuencia = 0,
                 reservaRecursosActiva = (bool?)true, politica, paradas, incidenciasCierre };
+            if (path.StartsWith("/api/reparto/flota/", StringComparison.Ordinal) && request.Method == HttpMethod.Post)
+            {
+                var payload = (await request.Content!.ReadFromJsonAsync<JsonElement>(ct)).Clone(); RepartoPayloads.Enqueue(new(path, request.Method, token, payload));
+                return Json(HttpStatusCode.Conflict, new { detail = "La ocupación cambió; no se liberó otro trabajo." });
+            }
+            if (path == "/api/reparto/flota" && request.Method == HttpMethod.Get) return FleetUnavailable
+                ? Json(HttpStatusCode.ServiceUnavailable, new { detail = "No se pudo consultar flota." })
+                : Json(HttpStatusCode.OK, FleetResponse ?? Array.Empty<object>());
             if (path == "/api/rutas/recursos") return Json(HttpStatusCode.OK, new { politica,
                 repartidores = new[] { new { accesoId = TargetAccessId, nombre = "Repartidor de prueba" } },
-                vehiculos = new[] { new { id = VehiculoPrueba, matricula = "AAA 1234", pesoMaximoGramos = 10000m, volumenMaximoCm3 = 10000m, activo = true, version = 1 } } });
+                vehiculos = new[] { new { id = VehiculoPrueba, matricula = "AAA 1234", pesoMaximoGramos = 10000m, volumenMaximoCm3 = VehicleVolumeCapacity, activo = true, version = 1 } }, baseOperativa = BaseFixture });
             if (path == "/api/rutas" && request.Method == HttpMethod.Get)
             {
                 if (ShipmentStateOverride != "AsignadoRuta") return Json(HttpStatusCode.OK, new[] { ruta });

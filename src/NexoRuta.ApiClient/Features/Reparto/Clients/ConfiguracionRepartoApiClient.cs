@@ -8,6 +8,18 @@ namespace NexoRuta.ApiClient.Features.Reparto.Clients;
 
 public sealed class ConfiguracionRepartoApiClient(HttpClient http)
 {
+    public async Task<IReadOnlyList<PerfilVialResponse>> PerfilesAsync(string token,CancellationToken ct)
+    {using var request=ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get,"api/reparto/perfiles-viales"),token);return await ApiHttp.SendAsync<PerfilVialResponse[]>(http,request,ct);}
+    public async Task<PerfilVialResponse> PerfilAsync(Guid id,ConfigurarPerfilVialRequest d,string token,CancellationToken ct)
+    {using var request=ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Put,$"api/reparto/perfiles-viales/{id}"){Content=JsonContent.Create(d)},token);return await ApiHttp.SendAsync<PerfilVialResponse>(http,request,ct);}
+    public async Task<BaseOperativaResponse?> BaseAsync(string token, CancellationToken ct)
+    {
+        try { return await Enviar<BaseOperativaResponse>(HttpMethod.Get, "base-operativa", null, token, ct); }
+        catch (NexoRutaApiException e) when (e.StatusCode == HttpStatusCode.NotFound) { return null; }
+    }
+    public Task<BaseOperativaResponse> GuardarBaseAsync(GuardarBaseOperativaRequest datos, string token, CancellationToken ct) => Enviar<BaseOperativaResponse>(HttpMethod.Put, "base-operativa", datos, token, ct);
+    public Task<BaseOperativaResponse> ConfirmarBaseAsync(ConfirmarBaseOperativaRequest datos, string token, CancellationToken ct) => Enviar<BaseOperativaResponse>(HttpMethod.Post, "base-operativa/confirmacion", datos, token, ct);
+    public Task<PropuestasBaseResponse> ProponerBaseAsync(string token, CancellationToken ct) => Enviar<PropuestasBaseResponse>(HttpMethod.Post, "base-operativa/propuestas", null, token, ct);
     public async Task<ConfiguracionRepartoResponse?> ObtenerAsync(string token, CancellationToken ct)
     {
         try { return await Enviar<ConfiguracionRepartoResponse>(HttpMethod.Get, "configuracion", null, token, ct); }

@@ -1,15 +1,15 @@
 /* Scoped to the route and depot workspace. Shared colors and typography come from portal-design.css. */
-.nr-routes-page { width: min(100%, 96rem); min-width: 0; margin-inline: auto; font-family: "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.5; }
+.nr-routes-page { width: min(100%, 96rem); min-width: 0; margin-inline: auto; font-family: inherit; line-height: 1.5; }
 .nr-routes-page :is(button, input, select, textarea) { font-family: inherit; }
 .nr-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; clip-path: inset(50%) !important; white-space: nowrap !important; border: 0 !important; }
 .nr-routes-page h1, .nr-routes-page h2, .nr-routes-page h3, .nr-routes-page h4, .nr-routes-page p { overflow-wrap: anywhere; }
-.nr-routes-page h1 { margin: 0; font-size: clamp(2rem, 1.7rem + .85vw, 2.55rem); letter-spacing: -.035em; }
+.nr-routes-page h1 { margin: 0; font-size: clamp(1.65rem, 1.3rem + 1vw, 2.15rem); letter-spacing: -.035em; }
 .nr-routes-page h2 { font-size: 1.2rem; }
 .nr-routes-page h3 { font-size: 1.02rem; }
 .nr-routes-page .nr-routes-eyebrow { margin: 0 0 .24rem; color: var(--nr-action-strong); font-size: .68rem; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
 .nr-routes-heading { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; margin: .15rem 0 .95rem; }
 .nr-routes-heading > div > p:last-child { margin: .28rem 0 0; color: var(--nr-text-muted); font-size: 1rem; }
-.nr-action-primary, .nr-action-secondary, .nr-action-danger, .nr-quiet-button { display: inline-flex; min-height: 2.55rem; align-items: center; justify-content: center; gap: .5rem; border: 1px solid transparent; border-radius: var(--nr-radius-sm); padding: .5rem .85rem; font-size: .84rem; font-weight: 650; line-height: 1.2; text-align: center; text-decoration: none; cursor: pointer; }
+.nr-action-primary, .nr-action-secondary, .nr-action-danger, .nr-quiet-button { display: inline-flex; min-height: var(--nr-control-height); align-items: center; justify-content: center; gap: .5rem; border: 1px solid transparent; border-radius: var(--nr-radius-sm); padding: .5rem .85rem; font-size: .84rem; font-weight: 650; line-height: 1.2; text-align: center; text-decoration: none; cursor: pointer; }
 .nr-action-primary { border-color: var(--nr-action); background: var(--nr-action); color: var(--nr-action-text); }
 .nr-action-primary:hover { border-color: var(--nr-action-hover); background: var(--nr-action-hover); color: var(--nr-action-text); }
 .nr-action-secondary, .nr-quiet-button { border-color: var(--nr-border); background: var(--nr-surface); color: var(--nr-text); }
@@ -212,7 +212,7 @@
 .nr-shipment-search { width: min(100%, 24rem); }
 .nr-eligibility-filter { display: flex; align-items: end; gap: .45rem; color: var(--nr-text-muted); font-size: .76rem; white-space: nowrap; }
 .nr-eligibility-filter label { display: grid; gap: .24rem; }
-.nr-eligibility-filter select { min-height: 2.55rem; border: 1px solid var(--nr-control-border); border-radius: var(--nr-radius-sm); padding: .4rem .55rem; background: var(--nr-surface); color: var(--nr-text); font-size: .84rem; }
+.nr-eligibility-filter select { min-height: var(--nr-control-height); border: 1px solid var(--nr-control-border); border-radius: var(--nr-radius-sm); padding: .4rem .55rem; background: var(--nr-surface); color: var(--nr-text); font-size: .84rem; }
 .nr-eligibility-filter > span { align-self: center; }
 .nr-eligibility-filter strong { color: var(--nr-text); }
 .nr-planning-list { display: grid; gap: 0; overflow: hidden; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); }
@@ -243,8 +243,8 @@
 .nr-eligibility-list .is-confirmed { color: var(--nr-success); }
 .nr-eligibility-list .is-pending { color: var(--nr-warning); }
 .nr-stop-fields { display: grid; grid-template-columns: minmax(5.2rem, .65fr) minmax(8rem, 1fr); gap: .45rem; }
-.nr-stop-fields > div { display: grid; gap: .18rem; }
-.nr-stop-fields label { color: var(--nr-text-muted); font-size: .8rem; white-space: nowrap; }
+.nr-stop-fields > div { display: grid; min-width: 0; gap: .18rem; }
+.nr-stop-fields label { color: var(--nr-text-muted); font-size: .8rem; white-space: normal; }
 .nr-stop-fields input { width: 100%; min-width: 0; min-height: 2.5rem; border: 1px solid var(--nr-control-border); border-radius: .4rem; padding: .32rem .45rem; background: var(--nr-surface); color: var(--nr-text); font-size: .9rem; }
 .nr-stop-fields input:disabled { border-color: var(--nr-border); background: var(--nr-surface-muted); color: var(--nr-text-muted); }
 .nr-ineligible-reason { margin: .45rem 0 0 2.1rem; color: var(--nr-warning); font-size: .78rem; }
@@ -377,7 +377,7 @@
     .nr-planning-row-main { grid-template-columns: 1.3rem minmax(0, 1fr); gap: .45rem; }
     .nr-eligibility-list, .nr-stop-fields { grid-column: 2; }
     .nr-eligibility-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .nr-stop-fields { grid-template-columns: minmax(5.2rem, .65fr) minmax(8rem, 1fr); }
+    .nr-stop-fields { grid-template-columns: minmax(0, 1fr); }
     .nr-ineligible-reason { margin-inline-start: 1.8rem; }
     .nr-planning-summary { padding: .8rem; }
     .nr-planning-submit { position: static; padding: 0; border: 0; background: transparent; box-shadow: none; }
@@ -385,3 +385,10 @@
 @media (prefers-reduced-motion: reduce) {
     .nr-route-card { transition: none; }
 }
+
+/* Fleet identifiers and confirmations must wrap on narrow screens. */
+.nr-depot-panel details { overflow-wrap: anywhere; min-width: 0; }
+.nr-depot-panel details textarea { width: 100%; max-width: 100%; }
+.nr-depot-panel details button { white-space: normal; max-width: 100%; }
+
+.nr-estimaciones { min-width: 0; overflow-wrap: anywhere; }

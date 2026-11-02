@@ -1,0 +1,10 @@
+namespace NexoRuta.ApiClient.Features.Reparto.Contracts;
+public sealed record PerfilVialResponse(Guid VehiculoId,string Matricula,long Version,string Compatibilidad,Guid? ActorId,DateTimeOffset? ConfirmadoEnUtc,string? Motivo);
+public sealed record ConfigurarPerfilVialRequest(long Version,string Compatibilidad,bool ConfirmarCompatibilidad,string Motivo);
+public sealed record CalcularEstimacionRequest(Guid ComandoId,long VersionRuta);
+public sealed record ActualizarEstimacionRequest(Guid ComandoId,long VersionRuta,Guid OcupacionId);
+public sealed record CriteriosGpsResponse(int AntiguedadMaximaSegundos,double PrecisionMaximaMetros);
+public sealed record PosicionFuenteResponse(Guid Id,DateTimeOffset MedidaEnUtc,DateTimeOffset RecibidaEnUtc,double PrecisionMetros);
+public sealed record HorarioVialResponse(Guid EnvioId,DateTimeOffset LlegadaManualEnUtc,DateTimeOffset LlegadaCalculadaEnUtc,DateTimeOffset SalidaCalculadaEnUtc);
+public sealed record TramoVialResponse(int Indice,double DuracionSegundos,double DistanciaMetros,string Proveedor,string Modelo,string Fuente,string Trafico,string Atribucion,DateTimeOffset CalculadoEnUtc,DateTimeOffset? ValidoHastaUtc);
+public sealed record EstimacionRutaResponse(Guid RutaId,Guid ComandoId,long NumeroVersion,long VersionRuta,Guid ActorId,DateTimeOffset RegistradaEnUtc,string Estado,string Motivo,string Vigencia,string ZonaHoraria,DateTimeOffset? CalculadoEnUtc,DateTimeOffset? ValidoHastaUtc,DateTimeOffset? RegresoEstimadoBaseEnUtc,DateTimeOffset? ListoPrevistoEnUtc,IReadOnlyList<HorarioVialResponse> Paradas,IReadOnlyList<TramoVialResponse> Tramos,string TipoCalculo = "Inicial",Guid? OcupacionId = null,PosicionFuenteResponse? PosicionFuente = null,CriteriosGpsResponse? CriteriosGps = null,bool EsReferencia = false,string? MotivoInvalidacion = null);

@@ -1,0 +1,62 @@
+@model NexoRuta.Backoffice.Features.Reparto.Pages.ConfiguracionRepartoModel
+@using System.Globalization
+<section class="card card-body mb-4 nr-form-stack" aria-labelledby="base-heading">
+    <h2 id="base-heading" class="h4">Base operativa de salida y retorno</h2>
+    <p>Una base por operador. Geocodificar propone un punto; confirmarlo no registra retorno ni libera vehículos.</p>
+    @if (Model.ErrorBase is not null) { <p role="alert" class="alert alert-danger">@Model.ErrorBase</p> }
+    @if (!Model.BaseCargada && !Model.BaseGuardarEnviado && !Model.PuntoEnviado)
+    { <p>Base no disponible. No se presume confirmada.</p> }
+    else
+    {
+        <p role="status">@(Model.BaseActual is null ? "Base no configurada" : Model.BaseActual.ConfirmadaEnUtc is null ? "Punto pendiente de confirmación" : $"Punto confirmado en {Model.BaseActual.ConfirmadaEnUtc:u} · acceso {Model.BaseActual.ConfirmadaPorAccesoId}")</p>
+        <form method="post" asp-page-handler="Base" data-single-submit class="nr-form-stack">
+            <input type="hidden" asp-for="BaseVersion" />
+            <label asp-for="BaseDireccion">Dirección de la base</label>
+            <input asp-for="BaseDireccion" class="form-control" required maxlength="500" aria-describedby="base-help" />
+            <span asp-validation-for="BaseDireccion" class="text-danger"></span>
+            <small id="base-help">Cambiar la dirección invalida el punto confirmado. Las hojas existentes conservan su snapshot.</small>
+            <label asp-for="BaseServicioMinutos">Servicio por parada (minutos)</label>
+            <input asp-for="BaseServicioMinutos" class="form-control" type="number" min="0" max="2147483647" step="1" aria-describedby="base-tiempos" />
+            <span asp-validation-for="BaseServicioMinutos" class="text-danger"></span>
+            <label asp-for="BaseMargenMinutos">Margen de retorno (minutos)</label>
+            <input asp-for="BaseMargenMinutos" class="form-control" type="number" min="0" max="2147483647" step="1" aria-describedby="base-tiempos" />
+            <span asp-validation-for="BaseMargenMinutos" class="text-danger"></span>
+            <small id="base-tiempos">Vacío significa sin configurar; cero solo si lo elegís explícitamente. No se calculan tiempos por carretera en este bloque.</small>
+            <button type="submit" class="btn btn-primary" data-loading-text="Guardando base…">Guardar base y parámetros</button>
+        </form>
+        @if (Model.BaseActual is { } b)
+        {
+            <hr />
+            <p>Dirección guardada: <strong>@b.Direccion</strong> · versión @b.Version</p>
+            <form method="post" asp-page-handler="ProponerBase" data-single-submit>
+                <button type="submit" class="btn btn-outline-primary" data-loading-text="Consultando propuestas…">Proponer punto para la dirección guardada</button>
+            </form>
+            <form method="post" asp-page-handler="PuntoBase" data-single-submit class="nr-form-stack">
+                <input type="hidden" asp-for="PuntoVersion" />
+                <label asp-for="BaseLatitud">Latitud de salida y retorno</label>
+                <input asp-for="BaseLatitud" class="form-control" type="number" step="any" min="-90" max="90" required />
+                <span asp-validation-for="BaseLatitud" class="text-danger"></span>
+                <label asp-for="BaseLongitud">Longitud de salida y retorno</label>
+                <input asp-for="BaseLongitud" class="form-control" type="number" step="any" min="-180" max="180" required />
+                <span asp-validation-for="BaseLongitud" class="text-danger"></span>
+                <small>Revisá el punto antes de confirmar. Usá punto decimal; la falta de coordenadas no se reemplaza por (0,0).</small>
+                <button type="submit" class="btn btn-primary" data-loading-text="Confirmando punto…">Confirmar punto de salida y retorno</button>
+            </form>
+        }
+        @if (Model.PropuestasBase is { } propuestas)
+        {
+            <p>Propuestas para @propuestas.Direccion · versión @propuestas.Version. @propuestas.Atribucion</p>
+            @if (propuestas.Propuestas.Count == 0) { <p>No se encontraron propuestas. Podés corregir la dirección o confirmar coordenadas manualmente.</p> }
+            @foreach (var punto in propuestas.Propuestas)
+            {
+                <form method="post" asp-page-handler="PuntoBase" data-single-submit class="mb-2">
+                    <input type="hidden" name="PuntoVersion" value="@propuestas.Version" />
+                    <input type="hidden" name="BaseLatitud" value="@punto.Latitud.ToString(CultureInfo.InvariantCulture)" />
+                    <input type="hidden" name="BaseLongitud" value="@punto.Longitud.ToString(CultureInfo.InvariantCulture)" />
+                    <p>@punto.Descripcion · @punto.Latitud.ToString(CultureInfo.InvariantCulture), @punto.Longitud.ToString(CultureInfo.InvariantCulture)</p>
+                    <button type="submit" class="btn btn-outline-primary">Confirmar este punto: @punto.Descripcion</button>
+                </form>
+            }
+        }
+    }
+</section>
