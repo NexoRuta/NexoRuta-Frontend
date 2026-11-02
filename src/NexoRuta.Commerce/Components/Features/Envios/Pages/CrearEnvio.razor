@@ -44,7 +44,7 @@
     @if (creado is not null)
     {
         <p class="alert alert-success" role="status">Envío <code>@creado.Id</code> guardado para
-            @creado.ComercioNombre con @(identidad?.Nombre ?? creado.OperadorNombre); bulto @creado.CodigoBulto.</p>
+            @creado.ComercioNombre con @(identidad?.Nombre ?? creado.OperadorNombre); @creado.Bultos.Count bultos.</p>
         <p><a class="btn btn-primary" href="/envios/@creado.Id/destino">Continuar: revisar y confirmar ubicación</a></p>
         }
         @if (usuarioActual is not null && operadores.Count == 0 && error is null)
@@ -107,34 +107,45 @@
                     <InputText @bind-Value="formulario.Direccion" />
                 </label>
                 <ValidationMessage For="() => formulario.Direccion" />
-                <h2 class="h4">Paquete</h2>
+                <h2 class="h4">Bultos</h2>
+                @foreach (var bulto in formulario.Bultos)
+                {
+                <fieldset class="nr-form-stack" @key="bulto">
+                <legend class="h5">Bulto @(formulario.Bultos.IndexOf(bulto) + 1)</legend>
                 <label>Código
-                    <InputText @bind-Value="formulario.CodigoBulto" />
+                    <InputText @bind-Value="bulto.Codigo" />
                 </label>
-                <ValidationMessage For="() => formulario.CodigoBulto" />
+                <ValidationMessage For="() => bulto.Codigo" />
                 <label>Peso (g)
-                    <InputNumber @bind-Value="formulario.PesoGramos" min="0.01" max="999999999" step="0.01" />
+                    <InputNumber @bind-Value="bulto.PesoGramos" min="0.01" max="999999999" step="0.01" />
                 </label>
-                <ValidationMessage For="() => formulario.PesoGramos" />
+                <ValidationMessage For="() => bulto.PesoGramos" />
                 <label>Largo (cm)
-                    <InputNumber @bind-Value="formulario.LargoCentimetros" min="0.01" max="999999999" step="0.01" />
+                    <InputNumber @bind-Value="bulto.LargoCentimetros" min="0.01" max="999999999" step="0.01" />
                 </label>
-                <ValidationMessage For="() => formulario.LargoCentimetros" />
+                <ValidationMessage For="() => bulto.LargoCentimetros" />
                 <label>Ancho (cm)
-                    <InputNumber @bind-Value="formulario.AnchoCentimetros" min="0.01" max="999999999" step="0.01" />
+                    <InputNumber @bind-Value="bulto.AnchoCentimetros" min="0.01" max="999999999" step="0.01" />
                 </label>
-                <ValidationMessage For="() => formulario.AnchoCentimetros" />
+                <ValidationMessage For="() => bulto.AnchoCentimetros" />
                 <label>Alto (cm)
-                    <InputNumber @bind-Value="formulario.AltoCentimetros" min="0.01" max="999999999" step="0.01" />
+                    <InputNumber @bind-Value="bulto.AltoCentimetros" min="0.01" max="999999999" step="0.01" />
                 </label>
-                <ValidationMessage For="() => formulario.AltoCentimetros" />
+                <ValidationMessage For="() => bulto.AltoCentimetros" />
+                @if (formulario.Bultos.Count > 1)
+                {
+                    <button type="button" class="btn btn-outline-danger" @onclick="() => formulario.Bultos.Remove(bulto)">Quitar bulto @(formulario.Bultos.IndexOf(bulto) + 1)</button>
+                }
+                </fieldset>
+                }
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => formulario.Bultos.Add(new())">Agregar bulto</button>
             <button class="btn btn-primary" type="submit" disabled="@(enviando || cargandoIdentidad)">@(enviando ? "Guardando…" : "Crear envío")</button>
             </fieldset>
         </EditForm>
 
 @code {
     private readonly CancellationTokenSource cancelacion = new();
-    private readonly CrearEnvioRequest formulario = new();
+    private readonly CrearEnvioRequest formulario = new() { Bultos = [new()] };
     private UsuarioActualResponse? usuarioActual;
     private IReadOnlyList<OperadorDisponibleResponse> operadores = [];
     private EnvioCreadoResponse? creado;

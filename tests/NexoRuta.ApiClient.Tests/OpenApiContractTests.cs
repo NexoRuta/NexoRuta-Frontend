@@ -720,7 +720,7 @@ public sealed class OpenApiContractTests
             Assert.Contains("string", types);
             Assert.Equal("byte", schema.GetProperty("format").GetString());
         }
-        else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
+        else if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>) || type.GetGenericTypeDefinition() == typeof(List<>)))
         {
             Assert.Equal("array", schema.GetProperty("type").GetString());
             AssertSchema(type.GenericTypeArguments[0], schema.GetProperty("items"), document);

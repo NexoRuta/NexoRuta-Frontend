@@ -37,7 +37,7 @@
     <h2 id="csv-format-title" class="h5">Formato del archivo</h2>
     <p>Usá CSV UTF-8, separado por comas. Los campos que contengan comas deben ir entre comillas dobles; podés incluir BOM.</p>
     <p class="import-csv-header"><strong>Encabezado exacto:</strong> <code>referenciaExterna,nombreDestinatario,emailDestinatario,direccion,codigoBulto,pesoGramos,largoCentimetros,anchoCentimetros,altoCentimetros</code></p>
-    <p>El peso se expresa en gramos y las dimensiones en centímetros. Los decimales usan punto, por ejemplo <code>1250.50</code>. Cada fila representa un envío con un bulto.</p>
+    <p>El peso se expresa en gramos y las dimensiones en centímetros. Los decimales usan punto, por ejemplo <code>1250.50</code>. Cada fila declara un bulto. Repetí la referencia y los mismos datos del destinatario para incluir varios bultos en un envío; usá un código distinto para cada bulto.</p>
     <ul>
         <li>Máximo 5 MiB y 500 registros de datos.</li>
         <li>Una referencia externa estable por envío; distingue mayúsculas y minúsculas.</li>

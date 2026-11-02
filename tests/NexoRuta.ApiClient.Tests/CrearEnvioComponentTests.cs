@@ -36,11 +36,11 @@ public sealed partial class SeguimientoPagesTests
         request.DestinatarioNombre = "Destinataria sintética";
         request.DestinatarioEmail = "destinatario@example.test";
         request.Direccion = "Calle Sintética 123";
-        request.CodigoBulto = "SYN-001";
-        request.PesoGramos = 1000;
-        request.LargoCentimetros = 20;
-        request.AnchoCentimetros = 15;
-        request.AltoCentimetros = 10;
+        request.Bultos[0].Codigo = "SYN-001";
+        request.Bultos[0].PesoGramos = 1000;
+        request.Bultos[0].LargoCentimetros = 20;
+        request.Bultos[0].AnchoCentimetros = 15;
+        request.Bultos[0].AltoCentimetros = 10;
 
         var create = typeof(CrearEnvio).GetMethod("CrearAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var firstAttempt = renderer.Dispatcher.InvokeAsync(() => (Task)create.Invoke(page, null)!);
@@ -93,7 +93,7 @@ public sealed partial class SeguimientoPagesTests
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
             RetriedName = body.RootElement.GetProperty("destinatarioNombre").GetString();
             RetriedEmail = body.RootElement.GetProperty("destinatarioEmail").GetString();
-            return Respuesta(201, """{"id":"00000000-0000-0000-0000-000000000501","operadorId":"00000000-0000-0000-0000-000000000002","comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004","usuarioEmail":"comercio@example.test","operadorNombre":"Operador sintético","comercioNombre":"Comercio sintético","codigoBulto":"SYN-001","pesoGramos":1000,"largoCentimetros":20,"anchoCentimetros":15,"altoCentimetros":10}""");
+            return Respuesta(201, """{"id":"00000000-0000-0000-0000-000000000501","operadorId":"00000000-0000-0000-0000-000000000002","comercioId":"00000000-0000-0000-0000-000000000003","creadoPorUsuarioId":"00000000-0000-0000-0000-000000000004","usuarioEmail":"comercio@example.test","operadorNombre":"Operador sintético","comercioNombre":"Comercio sintético","bultos":[{"codigo":"SYN-001","pesoGramos":1000,"largoCentimetros":20,"anchoCentimetros":15,"altoCentimetros":10}]}""");
         }
 
         private int _postCount;

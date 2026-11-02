@@ -24,6 +24,9 @@ public sealed class DestinosEnvioPagesTests
         var paths = document.RootElement.GetProperty("paths");
         var search = paths.GetProperty("/api/envios/{id}/destino/busqueda").GetProperty("post");
         var schema = search.GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        if (schema.TryGetProperty("$ref", out var reference))
+            schema = document.RootElement.GetProperty("components").GetProperty("schemas")
+                .GetProperty(reference.GetString()!.Split('/')[^1]);
         Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
         var query = schema.GetProperty("properties").GetProperty("consulta");
         Assert.Equal(3, query.GetProperty("minLength").GetInt32());

@@ -10843,7 +10843,7 @@
         }
       }
     },
-    "/api/envios/{id}/destino/busqueda": {
+    "/api/envios/{id}/destino/propuestas": {
       "post": {
         "tags": [
           "DestinosEnvio"
@@ -10962,38 +10962,11 @@
           },
           "503": {
             "description": "Service Unavailable"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "consulta"
-                ],
-                "properties": {
-                  "consulta": {
-                    "type": "string",
-                    "minLength": 3,
-                    "maxLength": 240
-                  }
-                }
-              }
-            }
           }
         }
       }
     },
-    "/api/envios/{id}/destino/propuestas": {
+    "/api/envios/{id}/destino/busqueda": {
       "post": {
         "tags": [
           "DestinosEnvio"
@@ -11009,6 +10982,26 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuscarDestinoRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuscarDestinoRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuscarDestinoRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -11026,6 +11019,46 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PropuestasDestinoDatos"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -13132,6 +13165,67 @@
           }
         }
       },
+      "BultoDeclaradoRequest": {
+        "required": [
+          "codigo",
+          "pesoGramos",
+          "largoCentimetros",
+          "anchoCentimetros",
+          "altoCentimetros"
+        ],
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "maxLength": 80,
+            "minLength": 0,
+            "type": "string"
+          },
+          "pesoGramos": {
+            "multipleOf": 0.01,
+            "maximum": 999999999,
+            "minimum": 0.01,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "largoCentimetros": {
+            "multipleOf": 0.01,
+            "maximum": 999999999,
+            "minimum": 0.01,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "anchoCentimetros": {
+            "multipleOf": 0.01,
+            "maximum": 999999999,
+            "minimum": 0.01,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "altoCentimetros": {
+            "multipleOf": 0.01,
+            "maximum": 999999999,
+            "minimum": 0.01,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          }
+        }
+      },
       "BultoDetalle": {
         "required": [
           "codigo",
@@ -13269,6 +13363,20 @@
               "string"
             ],
             "format": "decimal"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BuscarDestinoRequest": {
+        "required": [
+          "consulta"
+        ],
+        "type": "object",
+        "properties": {
+          "consulta": {
+            "maxLength": 240,
+            "minLength": 3,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -13862,11 +13970,7 @@
           "destinatarioNombre",
           "destinatarioEmail",
           "direccion",
-          "codigoBulto",
-          "pesoGramos",
-          "largoCentimetros",
-          "anchoCentimetros",
-          "altoCentimetros"
+          "bultos"
         ],
         "type": "object",
         "properties": {
@@ -13892,54 +13996,12 @@
             "minLength": 0,
             "type": "string"
           },
-          "codigoBulto": {
-            "maxLength": 80,
-            "minLength": 0,
-            "type": "string"
-          },
-          "pesoGramos": {
-            "multipleOf": 0.01,
-            "maximum": 999999999,
-            "minimum": 0.01,
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
-          },
-          "largoCentimetros": {
-            "multipleOf": 0.01,
-            "maximum": 999999999,
-            "minimum": 0.01,
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
-          },
-          "anchoCentimetros": {
-            "multipleOf": 0.01,
-            "maximum": 999999999,
-            "minimum": 0.01,
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
-          },
-          "altoCentimetros": {
-            "multipleOf": 0.01,
-            "maximum": 999999999,
-            "minimum": 0.01,
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
+          "bultos": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BultoDeclaradoRequest"
+            }
           }
         }
       },
@@ -14420,11 +14482,7 @@
           "usuarioEmail",
           "operadorNombre",
           "comercioNombre",
-          "codigoBulto",
-          "pesoGramos",
-          "largoCentimetros",
-          "anchoCentimetros",
-          "altoCentimetros",
+          "bultos",
           "creadoEnUtc"
         ],
         "type": "object",
@@ -14454,40 +14512,11 @@
           "comercioNombre": {
             "type": "string"
           },
-          "codigoBulto": {
-            "type": "string"
-          },
-          "pesoGramos": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
-          },
-          "largoCentimetros": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
-          },
-          "anchoCentimetros": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
-          },
-          "altoCentimetros": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
+          "bultos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BultoDetalle"
+            }
           },
           "creadoEnUtc": {
             "type": "string",
@@ -14698,7 +14727,8 @@
           "ocupacionId",
           "posicionFuente",
           "criteriosGps",
-          "esReferencia"
+          "esReferencia",
+          "motivoInvalidacion"
         ],
         "type": "object",
         "properties": {
@@ -14818,6 +14848,12 @@
           },
           "esReferencia": {
             "type": "boolean"
+          },
+          "motivoInvalidacion": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
