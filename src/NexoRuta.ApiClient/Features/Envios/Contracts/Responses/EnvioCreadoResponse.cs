@@ -9,4 +9,4 @@ public sealed record EnvioCreadoResponse(
     string OperadorNombre,
     string ComercioNombre,
     IReadOnlyList<BultoResponse> Bultos,
-    DateTimeOffset CreadoEnUtc);
+    DateTimeOffset CreadoEnUtc, TarifaEnvioResponse Tarifa);

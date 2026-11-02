@@ -12,7 +12,7 @@ namespace NexoRuta.Admin.Features.Organizaciones.Pages;
 public sealed class ListarModel(OrganizacionesAdminApiClient organizations) : PageModel
 {
     public string Tipo => (string)RouteData.Values["tipo"]!;
-    public string Titulo => Tipo == "operadores" ? "Operators" : "Commerces";
+    public string Titulo => Tipo == "operadores" ? "Operadores" : "Comercios";
     [BindProperty(SupportsGet = true), Range(1, int.MaxValue)]
     public int Pagina { get; set; } = 1;
     [BindProperty(SupportsGet = true), Range(1, 100)]

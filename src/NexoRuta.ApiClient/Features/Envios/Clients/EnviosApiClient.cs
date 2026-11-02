@@ -60,6 +60,26 @@ public sealed class EnviosApiClient(HttpClient httpClient)
         return await ApiHttp.SendAsync<EnvioResponse[]>(httpClient, request, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<TarifaEnvioHistorialResponse>> HistorialTarifaAsync(Guid envio, string token, CancellationToken ct = default)
+    {
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get, $"api/envios/{envio}/tarifa/historial"), token);
+        return await ApiHttp.SendAsync<TarifaEnvioHistorialResponse[]>(httpClient, request, ct);
+    }
+
+    public async Task<TarifaEnvioResponse> CotizarAsync(CrearEnvioRequest envio, string token, CancellationToken ct = default)
+    {
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Post, "api/envios/cotizacion")
+            { Content = JsonContent.Create(envio) }, token);
+        return await ApiHttp.SendAsync<TarifaEnvioResponse>(httpClient, request, ct);
+    }
+
+    public async Task<IReadOnlyList<ServicioEnvioDisponibleResponse>> ServiciosAsync(Guid operador, double latitud, double longitud, string token, CancellationToken ct = default)
+    {
+        var url = FormattableString.Invariant($"api/operadores/{operador}/servicios-envio?latitud={latitud:R}&longitud={longitud:R}");
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get, url), token);
+        return await ApiHttp.SendAsync<ServicioEnvioDisponibleResponse[]>(httpClient, request, ct);
+    }
+
     public async Task<EnvioCreadoResponse> CrearEnvioAsync(
         CrearEnvioRequest envio,
         string token,
@@ -99,6 +119,7 @@ public sealed class EnviosApiClient(HttpClient httpClient)
         var uploadName = Path.GetFileName(fileName);
         multipart.Add(fileContent, "archivo", string.IsNullOrWhiteSpace(uploadName) ? "envios.csv" : uploadName);
         multipart.Add(new StringContent(operatorId.ToString("D"), Encoding.UTF8), "operadorId");
+        multipart.Add(new StringContent("2", Encoding.UTF8), "versionFormato");
 
         using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Post, "api/envios/importaciones")
         {

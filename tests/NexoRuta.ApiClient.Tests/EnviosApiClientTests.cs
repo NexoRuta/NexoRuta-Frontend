@@ -246,6 +246,7 @@ public sealed class EnviosApiClientTests
 
     private static CrearEnvioRequest ValidRequest() => new()
     {
+        Servicio = new() { ZonaId = Guid.Parse("00000000-0000-0000-0000-000000000002"), Latitud = -34.901, Longitud = -56.201, Modalidad = "Estandar" },
         OperadorId = Guid.Parse("00000000-0000-0000-0000-000000000002"),
         DestinatarioNombre = "Ana", DestinatarioEmail = "destinatario@example.test",
         Direccion = "18 de Julio 123",

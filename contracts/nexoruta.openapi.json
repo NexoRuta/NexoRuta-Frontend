@@ -11149,6 +11149,391 @@
         }
       }
     },
+    "/api/envios/destino/busqueda": {
+      "post": {
+        "tags": [
+          "DestinosEnvio"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuscarDestinoRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuscarDestinoRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuscarDestinoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestasDestinoDatos"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestasDestinoDatos"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestasDestinoDatos"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/operadores/{id}/servicios-envio": {
+      "get": {
+        "tags": [
+          "Envios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "latitud",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          },
+          {
+            "name": "longitud",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServicioEnvioDisponible"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServicioEnvioDisponible"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServicioEnvioDisponible"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/envios/cotizacion": {
+      "post": {
+        "tags": [
+          "Envios"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEnvioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEnvioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEnvioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifaEnvioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifaEnvioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifaEnvioResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/envios/{id}/tarifa": {
+      "get": {
+        "tags": [
+          "Envios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifaEnvioResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifaEnvioResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TarifaEnvioResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/envios/{id}/tarifa/historial": {
+      "get": {
+        "tags": [
+          "Envios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TarifaEnvioHistorialResponse"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TarifaEnvioHistorialResponse"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TarifaEnvioHistorialResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/envios": {
       "post": {
         "tags": [
@@ -11351,6 +11736,16 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "VersionFormato": {
+                    "maximum": 2,
+                    "minimum": 2,
+                    "pattern": "^-?(?:0|[1-9]\\d*)$",
+                    "type": [
+                      "integer",
+                      "string"
+                    ],
+                    "format": "int32"
+                  },
                   "Archivo": {
                     "$ref": "#/components/schemas/IFormFile"
                   },
@@ -13224,7 +13619,8 @@
             ],
             "format": "decimal"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "BultoDetalle": {
         "required": [
@@ -13970,6 +14366,7 @@
           "destinatarioNombre",
           "destinatarioEmail",
           "direccion",
+          "servicio",
           "bultos"
         ],
         "type": "object",
@@ -13996,6 +14393,9 @@
             "minLength": 0,
             "type": "string"
           },
+          "servicio": {
+            "$ref": "#/components/schemas/ServicioEnvioRequest"
+          },
           "bultos": {
             "minItems": 1,
             "type": "array",
@@ -14003,7 +14403,8 @@
               "$ref": "#/components/schemas/BultoDeclaradoRequest"
             }
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CrearFranjaEntregaRequest": {
         "required": [
@@ -14483,7 +14884,8 @@
           "operadorNombre",
           "comercioNombre",
           "bultos",
-          "creadoEnUtc"
+          "creadoEnUtc",
+          "tarifa"
         ],
         "type": "object",
         "properties": {
@@ -14521,6 +14923,9 @@
           "creadoEnUtc": {
             "type": "string",
             "format": "date-time"
+          },
+          "tarifa": {
+            "$ref": "#/components/schemas/TarifaEnvioResponse"
           }
         }
       },
@@ -14593,6 +14998,16 @@
           "creadoEnUtc": {
             "type": "string",
             "format": "date-time"
+          },
+          "tarifa": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TarifaEnvioResponse"
+              }
+            ]
           },
           "destinoConfirmado": {
             "type": "boolean"
@@ -17693,6 +18108,78 @@
           }
         }
       },
+      "ServicioEnvioDisponible": {
+        "required": [
+          "zonaId",
+          "zonaNombre",
+          "modalidad"
+        ],
+        "type": "object",
+        "properties": {
+          "zonaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "zonaNombre": {
+            "type": "string"
+          },
+          "modalidad": {
+            "type": "string"
+          }
+        }
+      },
+      "ServicioEnvioRequest": {
+        "required": [
+          "zonaId",
+          "latitud",
+          "longitud",
+          "modalidad"
+        ],
+        "type": "object",
+        "properties": {
+          "versionTarifarioEsperada": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "zonaId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "latitud": {
+            "maximum": 90,
+            "minimum": -90,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "longitud": {
+            "maximum": 180,
+            "minimum": -180,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "modalidad": {
+            "pattern": "^(Estandar|Urgente)$",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "SesionMovilResponse": {
         "required": [
           "accessToken",
@@ -18099,6 +18586,142 @@
               "string"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "TarifaEnvioHistorialResponse": {
+        "required": [
+          "aplicacionId",
+          "aplicadaEnUtc",
+          "tarifa",
+          "latitud",
+          "longitud",
+          "versionZona",
+          "revisionZona"
+        ],
+        "type": "object",
+        "properties": {
+          "aplicacionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "aplicadaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tarifa": {
+            "$ref": "#/components/schemas/TarifaEnvioResponse"
+          },
+          "latitud": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "longitud": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "versionZona": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "revisionZona": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TarifaEnvioResponse": {
+        "required": [
+          "versionTarifarioId",
+          "zonaId",
+          "modalidad",
+          "moneda",
+          "totalFinalUyu",
+          "importeBaseUyu",
+          "componentePesoUyu",
+          "componenteVolumenUyu",
+          "totalRecargosUyu",
+          "totalBonificacionesUyu"
+        ],
+        "type": "object",
+        "properties": {
+          "versionTarifarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "zonaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modalidad": {
+            "type": "string"
+          },
+          "moneda": {
+            "type": "string"
+          },
+          "totalFinalUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "importeBaseUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "componentePesoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "componenteVolumenUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "totalRecargosUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "totalBonificacionesUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
           }
         }
       },

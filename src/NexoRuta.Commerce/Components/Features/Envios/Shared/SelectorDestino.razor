@@ -53,6 +53,7 @@
 </div>
 
 @code {
+    [Parameter] public bool ParaAlta { get; set; }
     [Parameter] public Guid EnvioId { get; set; }
     [Parameter] public string ApiToken { get; set; } = "";
     [Parameter] public double? Latitud { get; set; }
@@ -146,7 +147,7 @@
             busquedaResuelta = true;
             return;
         }
-        if (EnvioId == Guid.Empty || string.IsNullOrWhiteSpace(ApiToken))
+        if ((!ParaAlta && EnvioId == Guid.Empty) || string.IsNullOrWhiteSpace(ApiToken))
         {
             buscando = false;
             mensajeBusqueda = "No se pudo iniciar la búsqueda. Recargá la página e intentá nuevamente.";
@@ -158,7 +159,9 @@
         try
         {
             await Task.Delay(DemoraBusqueda, cancelacion.Token);
-            var respuesta = await Destinos.BuscarAsync(EnvioId, consulta, ApiToken, cancelacion.Token);
+            var respuesta = ParaAlta
+                ? await Destinos.BuscarParaAltaAsync(consulta, ApiToken, cancelacion.Token)
+                : await Destinos.BuscarAsync(EnvioId, consulta, ApiToken, cancelacion.Token);
             if (cancelacion.IsCancellationRequested || secuencia != secuenciaBusqueda) return;
             sugerencias.Clear();
             sugerencias.AddRange(respuesta.Propuestas.Select((p, i) => new Sugerencia

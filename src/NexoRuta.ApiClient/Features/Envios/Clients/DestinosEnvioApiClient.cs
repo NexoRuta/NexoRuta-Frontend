@@ -5,6 +5,12 @@ namespace NexoRuta.ApiClient.Features.Envios.Clients;
 
 public sealed class DestinosEnvioApiClient(HttpClient http)
 {
+    public async Task<PropuestasDestinoResponse> BuscarParaAltaAsync(string consulta, string token, CancellationToken ct = default)
+    {
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Post, "api/envios/destino/busqueda")
+        { Content = JsonContent.Create(new { consulta }) }, token);
+        return await ApiHttp.SendAsync<PropuestasDestinoResponse>(http, request, ct);
+    }
     public async Task<PropuestasDestinoResponse> BuscarAsync(Guid id, string consulta, string token, CancellationToken ct = default)
     {
         using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Post, $"api/envios/{id}/destino/busqueda")

@@ -17,10 +17,19 @@ public sealed class CrearEnvioRequest : IValidatableObject
     [Required, StringLength(240)]
     public string Direccion { get; set; } = "";
 
+    [Required]
+    public ServicioEnvioRequest Servicio { get; set; } = new();
+
     [Required, MinLength(1)]
     public List<BultoDeclaradoRequest> Bultos { get; set; } = [];
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (Servicio is not null)
+        {
+            var serviceErrors = new List<ValidationResult>();
+            Validator.TryValidateObject(Servicio, new ValidationContext(Servicio), serviceErrors, true);
+            foreach (var error in serviceErrors) yield return error;
+        }
         if (Bultos is null) yield break;
         foreach (var bulto in Bultos)
         {
@@ -50,4 +59,14 @@ public sealed class BultoDeclaradoRequest
 
     [Required, Range(typeof(decimal), "0.01", "999999999", ParseLimitsInInvariantCulture = true)]
     [DosDecimales] public decimal AltoCentimetros { get; set; }
+}
+
+public sealed class ServicioEnvioRequest
+{
+    public Guid? VersionTarifarioEsperada { get; set; }
+    [Required] public Guid? ZonaId { get; set; }
+    [Required, Range(-90d, 90d)] public double? Latitud { get; set; }
+    [Required, Range(-180d, 180d)] public double? Longitud { get; set; }
+    [Required, RegularExpression("^(Estandar|Urgente)$")]
+    public string Modalidad { get; set; } = "Estandar";
 }

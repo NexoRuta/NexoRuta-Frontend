@@ -1,0 +1,27 @@
+.nr-admission-context { margin: 0 0 1rem; color: var(--nr-text-muted); }
+.nr-creation-grid { display: grid; gap: 1.25rem; align-items: start; }
+.nr-admission-operator, .nr-admission-recipient, .nr-admission-destination { display: grid; gap: 1rem; }
+.nr-admission-operator > h2, .nr-admission-recipient > h2, .nr-admission-destination > h2 { margin-bottom: 0; }
+.nr-admission-recipient .form-text { margin: 0; }
+.nr-parcel-card { margin-block: 0 1rem; padding-block: 1rem !important; border-block-end: 1px solid var(--nr-border) !important; }
+.nr-parcel-card legend { float: none; width: auto; margin: 0; font-size: .95rem; }
+.nr-parcel-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin-block: .75rem; }
+.nr-parcel-code { grid-column: 1 / -1; }
+.nr-parcel-card > .btn { width: auto; }
+.nr-admission-confirmation { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1rem; min-width: 0; }
+.nr-admission-confirmation .nr-price-review { flex: 1; }
+.nr-admission-success { margin-block-end: 1.25rem; }
+.nr-admission-success .alert { margin-bottom: 1rem; }
+@media (min-width:1100px) {
+    .nr-creation-grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+    .nr-admission-operator, .nr-admission-recipient { grid-column: 1; }
+    .nr-admission-destination { grid-column: 2; grid-row: 1 / span 2; }
+    .nr-admission-packages, .nr-admission-confirmation { grid-column: 1 / -1; }
+    .nr-parcel-fields { grid-template-columns: minmax(10rem,1.4fr) repeat(4,minmax(0,1fr)); }
+    .nr-parcel-code { grid-column: auto; }
+}
+@media (max-width:575.98px) {
+    .nr-parcel-fields { grid-template-columns: 1fr; }
+    .nr-admission-confirmation { display: grid; grid-template-columns: minmax(0,1fr); }
+    .nr-admission-confirmation > .btn { width: 100%; }
+}

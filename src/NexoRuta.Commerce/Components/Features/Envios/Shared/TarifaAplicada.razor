@@ -1,0 +1,49 @@
+@using NexoRuta.ApiClient.Features.Envios.Clients
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
+@inject EnviosApiClient Envios
+@implements IDisposable
+
+<details class="nr-tariff-details">
+    <summary>@Tarifa.TotalFinalUyu.ToString("N2") @Tarifa.Moneda</summary>
+    <dl class="nr-tariff-breakdown">
+        <dt>Base</dt><dd>@Tarifa.ImporteBaseUyu.ToString("N2")</dd>
+        <dt>Peso</dt><dd>@Tarifa.ComponentePesoUyu.ToString("N2")</dd>
+        <dt>Volumen</dt><dd>@Tarifa.ComponenteVolumenUyu.ToString("N2")</dd>
+        <dt>Recargos</dt><dd>@Tarifa.TotalRecargosUyu.ToString("N2")</dd>
+        <dt>Bonificaciones</dt><dd>@Tarifa.TotalBonificacionesUyu.ToString("N2")</dd>
+    </dl>
+    <button type="button" class="btn btn-outline-secondary" disabled="@cargando" @onclick="ConsultarAsync">@(cargando ? "Consultando…" : "Ver historial de tarifa")</button>
+    @if (error is not null) { <p role="alert" class="text-danger">@error</p> }
+    @if (historial is not null)
+    {
+        <ol class="nr-tariff-history" aria-label="Aplicaciones de tarifa">
+            @foreach (var cargo in historial)
+            {
+                <li><strong>@cargo.Tarifa.TotalFinalUyu.ToString("N2") @cargo.Tarifa.Moneda</strong>
+                    <span>@(cargo == historial[0] ? "Aplicada al crear" : "Ajuste de destino") · @cargo.AplicadaEnUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                    <small>Modalidad: @cargo.Tarifa.Modalidad · Revisión de zona: @cargo.RevisionZona</small>
+                </li>
+            }
+        </ol>
+    }
+</details>
+
+@code {
+    [Parameter, EditorRequired] public Guid EnvioId { get; set; }
+    [Parameter, EditorRequired] public TarifaEnvioResponse Tarifa { get; set; } = null!;
+    [Parameter, EditorRequired] public string Token { get; set; } = "";
+    private readonly CancellationTokenSource cancelacion = new();
+    private IReadOnlyList<TarifaEnvioHistorialResponse>? historial;
+    private bool cargando;
+    private string? error;
+    private async Task ConsultarAsync()
+    {
+        if (cargando) return;
+        cargando = true; error = null;
+        try { historial = await Envios.HistorialTarifaAsync(EnvioId, Token, cancelacion.Token); }
+        catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
+        catch (HttpRequestException) { error = "No pudimos consultar el historial. El cargo guardado se conserva; podés reintentar."; }
+        finally { cargando = false; }
+    }
+    public void Dispose() { cancelacion.Cancel(); cancelacion.Dispose(); }
+}

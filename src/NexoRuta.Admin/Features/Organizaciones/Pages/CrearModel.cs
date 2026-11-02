@@ -13,14 +13,14 @@ namespace NexoRuta.Admin.Features.Organizaciones.Pages;
 public sealed class CrearModel(OrganizacionesAdminApiClient organizations) : PageModel
 {
     public string Tipo => (string)RouteData.Values["tipo"]!;
-    public string Titulo => Tipo == "operadores" ? "operator" : "commerce";
+    public string Titulo => Tipo == "operadores" ? "operador" : "comercio";
     [BindProperty, Required, StringLength(160)]
     public string Nombre { get; set; } = "";
     [BindProperty, Required, EmailAddress, StringLength(254)]
     public string Email { get; set; } = "";
     [BindProperty, Required, MinLength(12)]
     public string Password { get; set; } = "";
-    [BindProperty, Required, Compare(nameof(Password), ErrorMessage = "Passwords must match.")]
+    [BindProperty, Required, Compare(nameof(Password), ErrorMessage = "Las contraseñas no coinciden.")]
     public string ConfirmPassword { get; set; } = "";
     public string? Error { get; private set; }
     [TempData]

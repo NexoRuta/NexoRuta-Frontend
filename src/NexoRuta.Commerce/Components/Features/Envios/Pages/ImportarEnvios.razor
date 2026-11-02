@@ -33,10 +33,12 @@
     </div>
 </header>
 
-<section class="import-guidance" aria-labelledby="csv-format-title">
-    <h2 id="csv-format-title" class="h5">Formato del archivo</h2>
+<details class="import-guidance nr-disclosure" aria-labelledby="csv-format-title">
+    <summary id="csv-format-title">Formato y plantilla CSV · versión 2</summary>
+    <p>Incluí el punto de destino y la modalidad (Estandar o Urgente). Podés dejar zonaId vacío si hay una sola zona compatible; si se superponen zonas, indicá la zona elegida. La tarifa se calcula en el servidor al importar.</p>
+    <p>Los archivos anteriores se rechazan sin crear envíos. Las referencias ya importadas conservan su declaración original y no se reinterpretan con este formato.</p>
     <p>Usá CSV UTF-8, separado por comas. Los campos que contengan comas deben ir entre comillas dobles; podés incluir BOM.</p>
-    <p class="import-csv-header"><strong>Encabezado exacto:</strong> <code>referenciaExterna,nombreDestinatario,emailDestinatario,direccion,codigoBulto,pesoGramos,largoCentimetros,anchoCentimetros,altoCentimetros</code></p>
+    <p class="import-csv-header"><strong>Encabezado exacto:</strong> <code>referenciaExterna,nombreDestinatario,emailDestinatario,direccion,codigoBulto,pesoGramos,largoCentimetros,anchoCentimetros,altoCentimetros,zonaId,latitud,longitud,modalidad</code></p>
     <p>El peso se expresa en gramos y las dimensiones en centímetros. Los decimales usan punto, por ejemplo <code>1250.50</code>. Cada fila declara un bulto. Repetí la referencia y los mismos datos del destinatario para incluir varios bultos en un envío; usá un código distinto para cada bulto.</p>
     <ul>
         <li>Máximo 5 MiB y 500 registros de datos.</li>
@@ -46,7 +48,7 @@
     </ul>
     <p>La plantilla incluye una fila de ejemplo ficticia. No agregues comercio, estado ni operador por fila.</p>
     <a class="btn btn-outline-secondary" href="/plantillas/alta-envios.csv" download>Descargar plantilla CSV</a>
-</section>
+</details>
 
 <section class="import-form" aria-labelledby="import-form-title" aria-busy="@cargandoOperadores">
     <h2 id="import-form-title" class="h5">Archivo y operador</h2>
