@@ -392,3 +392,59 @@
 .nr-depot-panel details button { white-space: normal; max-width: 100%; }
 
 .nr-estimaciones { min-width: 0; overflow-wrap: anywhere; }
+/* Task views keep the day list primary; technical history remains disclosed. */
+.nr-task-page .nr-route-list-panel { width: 100%; min-width: 0; }
+.nr-task-page .nr-route-card-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: .75rem; }
+.nr-task-page .nr-route-detail-panel { margin-top: 1rem; }
+.nr-task-links { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; margin-block: 1rem; }
+.nr-task-links a { color: var(--nr-action-primary, #175cd3); text-underline-offset: .2em; }
+.nr-task-page .nr-routes-metrics { margin-block: 1rem; }
+.nr-task-page .nr-search-form { display: flex; align-items: end; flex-wrap: wrap; gap: .75rem; }
+.nr-task-page .nr-search-form select { min-height: 2.75rem; border: 1px solid var(--nr-border, #b8c5d5); border-radius: .5rem; padding: .5rem; background: var(--nr-surface, #fff); color: inherit; }
+.nr-task-page .nr-depot-panel > details { border: 1px solid var(--nr-border, #d5deea); border-radius: .65rem; padding: 1rem; background: var(--nr-surface, #fff); }
+.nr-task-page .nr-depot-panel > details > summary { cursor: pointer; line-height: 1.7; }
+.nr-task-page .nr-receipt-card { align-items: start; }
+.nr-task-page .nr-receipt-action { display: flex; flex-direction: column; align-items: start; gap: .65rem; }
+.nr-task-page :is(a, button, input, select, textarea, summary):focus-visible { outline: 3px solid var(--nr-focus, #1d4ed8); outline-offset: 3px; }
+.nr-task-page :is(p, small, dd, summary) { overflow-wrap: anywhere; }
+@media(max-width: 767px) {
+ .nr-task-page .nr-routes-heading { align-items: start; gap: .75rem; }
+ .nr-task-page .nr-routes-toolbar, .nr-task-page .nr-date-picker { flex-wrap: wrap; }
+ .nr-task-page .nr-receipt-card { display: flex; flex-direction: column; }
+ .nr-task-page .nr-routes-metrics { display: flex; flex-wrap: wrap; gap: 1rem; }
+}
+
+/* Task worklists stay compact; portal-wide form grid rules do not control these toolbars. */
+.nr-task-page .nr-route-list-panel { min-height: 0; }
+.nr-task-page .nr-date-picker { gap: .5rem; }
+.nr-task-page .nr-date-picker label { margin-right: .25rem; font-size: .85rem; font-weight: 600; }
+.nr-depot-filters { flex-wrap: wrap; align-items: end; gap: .75rem; margin-block: 1rem; }
+.nr-depot-filters .nr-field { flex: 1 1 16rem; max-width: 28rem; min-width: 0; }
+.nr-depot-filters :is(input,select) { width: 100%; min-height: 2.75rem; padding: .5rem .65rem; border: 1px solid var(--nr-control-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); color: var(--nr-text); }
+.nr-task-page .nr-receipt-card { grid-template-columns: 2rem minmax(0, 1fr) auto; padding: .85rem; }
+.nr-task-page .nr-receipt-action { align-items: flex-end; }
+.nr-task-page .nr-receipt-action [data-label-download] { align-items: flex-end !important; }
+.nr-parcels-preview { color: var(--nr-text-muted); font-size: .82rem; }
+.nr-parcels-preview summary { cursor: pointer; padding-block: .2rem; }
+.nr-parcels-preview .nr-package-chips { margin-top: .5rem; }
+.nr-selected-shipment { border: 1px solid var(--nr-border); border-radius: var(--nr-radius-lg); padding: 1.1rem; margin-top: 1rem; background: var(--nr-surface); }
+@media(max-width:767px) {
+ .nr-task-page .nr-date-picker { max-width: 100%; }
+ .nr-task-page .nr-receipt-card { display: grid; grid-template-columns: minmax(0,1fr); gap: .5rem; }
+ .nr-task-page .nr-receipt-icon { display: none; }
+ .nr-task-page .nr-receipt-action { grid-column: 1; align-items: flex-start; flex-direction: row; flex-wrap: wrap; gap: .75rem; }
+ .nr-task-page .nr-receipt-action [data-label-download] { align-items: flex-start !important; }
+ .nr-depot-filters .nr-field { flex-basis: 100%; }
+}
+
+.nr-task-page :is(.nr-quiet-button,.nr-icon-button,.nr-action-primary,.nr-action-secondary,.nr-date-picker input) { min-height: 2.75rem; }
+.nr-task-page :is(.nr-quiet-button,.nr-icon-button) { min-width: 2.75rem; }
+.nr-task-page .nr-route-filters a, .nr-task-page .nr-receipt-action > .nr-small-link { display: inline-flex; align-items: center; min-height: 2.75rem; }
+.nr-task-page .nr-parcels-preview summary { min-height: 1.5rem; }
+
+@media(max-width:767px) {
+ .nr-task-page .nr-package-chips li { grid-template-columns: minmax(0,1fr); }
+ .nr-task-page .nr-package-chips li > :is(strong,span) { grid-column: 1; }
+}
+
+.nr-task-page .nr-package-chips .nr-state-pill { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }

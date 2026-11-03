@@ -1,4 +1,6 @@
 .coverage-map {
+    --coverage-active: var(--nr-success);
+    --coverage-inactive: var(--nr-text-muted);
     width: 100%;
     min-height: 22rem;
     height: min(55vh, 34rem);
@@ -6,6 +8,13 @@
     border-radius: .375rem;
     background: var(--nr-surface-muted);
 }
+
+.coverage-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.coverage-key { display: inline-block; width: 1rem; height: 1rem; border: 2px solid currentColor; }
+.coverage-key-active { color: var(--nr-success); background: var(--nr-success); }
+.coverage-key-inactive { color: var(--nr-text-muted); background: var(--nr-text-muted); }
+.coverage-zone-label { padding: .25rem .5rem; border: 2px solid var(--nr-success); border-radius: .25rem; color: var(--nr-text); background: var(--nr-surface); font-size: .8rem; }
+.coverage-zone-label[data-state="Inactiva"] { border-color: var(--nr-text-muted); border-style: dashed; }
 
 .slot-time-editor {
     display: grid;

@@ -95,10 +95,10 @@ public sealed partial class BackofficeSessionAndPagesTests
         var token = await GetAntiforgeryTokenAsync(client, "/rutas/planificar?fecha=2026-10-20");
         using var consulta = await client.GetAsync("/rutas?fecha=2026-10-20");
         var html = await consulta.Content.ReadAsStringAsync();
-        Assert.Contains("Rutas y dep", html);
+        Assert.Contains("<h1>Rutas</h1>", html);
         Assert.DoesNotContain("name=\"CrearBorrador\"", html);
-        Assert.Contains("Rutas <span class=\"nr-tab-count\">", html);
-        Assert.Contains("Recepción en depósito", html);
+        Assert.Contains("rutas del día", WebUtility.HtmlDecode(html));
+        Assert.Contains("/deposito", html);
         Assert.Contains("Planificar ruta", html);
         Assert.DoesNotContain("<summary class=\"h4\">Planificar una ruta</summary>", html);
         Assert.DoesNotContain("jwt-user", html);
@@ -261,12 +261,12 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var response = await client.GetAsync("/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         Assert.Contains("Reasignar a esa ruta", html);
         Assert.Contains("no registra movimiento físico", html);
-        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+        var token = await GetAntiforgeryTokenAsync(client, "/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
         using var reassigned = await client.PostAsync("/rutas?handler=Reasignar", Form(token,
             ("Fecha", "2026-10-20"), ("envioId", EnvioPrueba.ToString()), ("versionEnvio", "8"),
             ("destino", "00000000-0000-0000-0000-000000000734:3"), ("hora", "14:00"), ("motivo", "Cambio operativo")));
@@ -293,7 +293,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var response = await client.GetAsync("/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         Assert.Contains("Reasignar a esa ruta", html);
@@ -322,7 +322,11 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("Ruta cancelada", html);
         Assert.Contains("Se conservan el historial", html);
-        Assert.Contains("0</strong><span>por despachar</span>", html);
+        using var dayList = await client.GetAsync("/rutas?fecha=2026-10-20&filtroRuta=Cancelada");
+        var dayHtml = WebUtility.HtmlDecode(await dayList.Content.ReadAsStringAsync());
+        Assert.Contains("1 de 3", dayHtml);
+        Assert.Contains("ruta cancelada", dayHtml.ToLowerInvariant());
+        Assert.DoesNotContain("Despachar ruta", dayHtml);
         Assert.DoesNotContain("00000000-0000-0000-0000-000000000735:4", html);
         Assert.DoesNotContain("Despachar ruta", html);
     }
@@ -386,7 +390,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20&pestana=rutas");
+        using var response = await client.GetAsync("/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -419,7 +423,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var response = await client.GetAsync("/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         Assert.Contains("Los envíos en tránsito no se reasignan", html);
@@ -434,7 +438,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var response = await client.GetAsync("/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         Assert.Contains("No se puede reasignar hasta recibir todos sus bultos físicamente en depósito", html);
@@ -449,14 +453,14 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
-        using var response = await client.GetAsync($"/rutas?fecha=2026-10-20&pestana=rutas&buscarRuta=AAA&filtroRuta=Despachada&rutaSeleccionadaId={RutaPrueba:D}");
+        using var response = await client.GetAsync($"/rutas?fecha=2026-10-20&pestana=rutas&buscarRuta=AAA&filtroRuta=Despachada");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
         Assert.Contains("Despachadas", html);
         Assert.Contains("aria-current=\"page\"", html);
         Assert.Contains("1 de 2", html);
         Assert.Contains("value=\"AAA\"", html);
-        Assert.Contains("rutaSeleccionadaId", html);
+        Assert.Contains("/rutas/", html);
         Assert.Contains("AAA 1234", html);
     }
 
@@ -469,7 +473,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         await LoginAsync(client, "user@example.test");
         var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
 
-        using var consulta = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var consulta = await client.GetAsync("/rutas/00000000-0000-0000-0000-000000000701?fecha=2026-10-20");
         var html = WebUtility.HtmlDecode(await consulta.Content.ReadAsStringAsync());
         Assert.Contains("Requiere reprogramación a una ruta nueva", html);
         Assert.Contains("Intentos fallidos: 1 de 3", html);
@@ -493,7 +497,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
-        using var consulta = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var consulta = await client.GetAsync("/rutas/00000000-0000-0000-0000-000000000701?fecha=2026-10-20");
         var html = WebUtility.HtmlDecode(await consulta.Content.ReadAsStringAsync());
         Assert.Contains("No quedan intentos disponibles", html);
         Assert.DoesNotContain("Reprogramar para una ruta nueva", html);
@@ -510,7 +514,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
         var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
-        using var initial = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var initial = await client.GetAsync("/rutas/00000000-0000-0000-0000-000000000701?fecha=2026-10-20");
         var initialHtml = WebUtility.HtmlDecode(await initial.Content.ReadAsStringAsync());
         Assert.Contains("No se puede reprogramar ni realizar otra tentativa", initialHtml);
         Assert.Contains("Iniciar devolución", initialHtml);
@@ -519,11 +523,11 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("data-single-submit", initialHtml);
 
         var commandId = Guid.Parse("00000000-0000-0000-0000-000000000710");
-        var values = Form(token, ("Fecha", "2026-10-20"), ("DevolucionEnvioId", EnvioPrueba.ToString()),
+        var values = Form(token, ("Fecha", "2026-10-20"), ("RutaSeleccionadaId", RutaPrueba.ToString()), ("DevolucionEnvioId", EnvioPrueba.ToString()),
             ("VersionEnvio", "8"), ("ComandoId", commandId.ToString()), ("MotivoDevolucion", " Motivo confirmado "),
             ("ConfirmarDevolucion", "true"));
         using var missingConfirmation = await client.PostAsync("/rutas?handler=IniciarDevolucion", Form(token,
-            ("Fecha", "2026-10-20"), ("DevolucionEnvioId", EnvioPrueba.ToString()), ("VersionEnvio", "8"),
+            ("Fecha", "2026-10-20"), ("RutaSeleccionadaId", RutaPrueba.ToString()), ("DevolucionEnvioId", EnvioPrueba.ToString()), ("VersionEnvio", "8"),
             ("ComandoId", commandId.ToString()), ("MotivoDevolucion", " Motivo confirmado ")));
         Assert.Equal(HttpStatusCode.OK, missingConfirmation.StatusCode);
         Assert.DoesNotContain(api.RepartoPayloads, x => x.Path.EndsWith("/iniciar-devolucion", StringComparison.Ordinal));
@@ -536,7 +540,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("Motivo confirmado", uncertainHtml);
 
         using var retry = await client.PostAsync("/rutas?handler=IniciarDevolucion", Form(token,
-            ("Fecha", "2026-10-20"), ("DevolucionEnvioId", EnvioPrueba.ToString()), ("VersionEnvio", "8"),
+            ("Fecha", "2026-10-20"), ("RutaSeleccionadaId", RutaPrueba.ToString()), ("DevolucionEnvioId", EnvioPrueba.ToString()), ("VersionEnvio", "8"),
             ("ComandoId", commandId.ToString()), ("MotivoDevolucion", " Motivo confirmado "), ("ConfirmarDevolucion", "true")));
         Assert.Equal(HttpStatusCode.Redirect, retry.StatusCode);
         var requests = api.RepartoPayloads.Where(x => x.Path == $"/api/envios/{EnvioPrueba}/iniciar-devolucion").ToArray();
@@ -558,9 +562,9 @@ public sealed partial class BackofficeSessionAndPagesTests
         api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
-        var token = await GetAntiforgeryTokenAsync(client, "/rutas?fecha=2026-10-20");
+        var token = await GetAntiforgeryTokenAsync(client, "/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
 
-        using var initial = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var initial = await client.GetAsync("/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
         var html = WebUtility.HtmlDecode(await initial.Content.ReadAsStringAsync());
         Assert.Contains("Confirmar extravío", html);
         Assert.Contains("esto no acredita dónde está físicamente el bulto", html);
@@ -604,7 +608,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
 
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var response = await client.GetAsync("/deposito?fecha=2026-10-20&envioSeleccionadoId=00000000-0000-0000-0000-000000000702");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         Assert.DoesNotContain("<h2>Confirmar extravío</h2>", html);
@@ -682,7 +686,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var response = await client.GetAsync("/rutas/00000000-0000-0000-0000-000000000701?fecha=2026-10-20");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         Assert.Contains("Cierre con incidencia", html);

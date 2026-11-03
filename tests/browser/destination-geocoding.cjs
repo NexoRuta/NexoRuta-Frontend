@@ -9,37 +9,75 @@ const { chromium } = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
     const fullStack = process.env.DESTINATION_FULLSTACK === 'true';
     assert.match(base, /^http:\/\/(localhost|127\.0\.0\.1):\d+\/$/);
     await fs.mkdir(out, { recursive: true });
-    const browser = await chromium.launch({ headless: true });
+    const version = '3.33.0';
+    const [sdk, css] = await Promise.all(['js', 'css'].map(async ext => {
+        const response = await fetch(`https://api.mapbox.com/mapbox-gl-js/v${version}/mapbox-gl.${ext}`);
+        assert.equal(response.status, 200); return response.text();
+    }));
+    const browser = await chromium.launch({ headless: true, args: ['--enable-webgl', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-    const external = [], errors = [];
+    const external = [], errors = [], markerChecks = [], controlledSdkRequests = [];
+    let finalPoint;
     page.on('pageerror', e => errors.push(e.message));
     await page.route('**/*', route => {
-        if (new URL(route.request().url()).origin !== new URL(base).origin) {
-            external.push(new URL(route.request().url()).hostname);
-            return route.abort();
+        const url = route.request().url();
+        if (url === `https://api.mapbox.com/mapbox-gl-js/v${version}/mapbox-gl.css`)
+            return route.fulfill({ contentType: 'text/css', body: css });
+        const parsed = new URL(url);
+        if (parsed.hostname === 'events.mapbox.com' || (parsed.hostname === 'api.mapbox.com' && parsed.pathname === '/map-sessions/v1')) {
+            controlledSdkRequests.push({host:parsed.hostname,path:parsed.pathname});
+            return route.fulfill({status:200,contentType:'application/json',body:'{}'});
         }
-        return route.continue();
+        if (url.startsWith('blob:') || new URL(url).origin === new URL(base).origin) return route.continue();
+        external.push(new URL(url).hostname); return route.abort();
     });
-    await page.addInitScript(() => {
-        // No real map, tiles, SDK, telemetry or geocoding requests in this test.
-        class Map {
-            constructor(options) {
-                this.handlers = {};
-                const button = document.createElement('button');
-                button.type = 'button'; button.textContent = 'Mapa simulado: seleccionar punto';
-                button.onclick = () => this.handlers.click?.({ lngLat: { lat: -34.91, lng: -56.21 } });
-                options.container.append(button);
-            }
-            on(name, callback) { this.handlers[name] = callback; }
-            once(name, callback) { if (name === 'load') setTimeout(callback, 0); }
-            addControl() {} resize() {} remove() {} jumpTo() {}
-        }
-        class Marker {
-            setLngLat(point) { this.point = point; return this; }
-            addTo() { return this; } on() {} setDraggable() {} remove() {}
-        }
-        globalThis.mapboxgl = { Map, Marker, NavigationControl: class {} };
-    });
+    // Actual SDK/Marker; only the style is replaced with an empty local style to avoid tiles/billing.
+    await page.addInitScript({ content: sdk + `
+const RealMap = mapboxgl.Map;
+        mapboxgl.Map = class extends RealMap {
+            constructor(options) { super({ ...options, style: { version: 8, sources: {}, layers: [] } }); globalThis.__destinationRealMap = this; }
+        };` });
+    const waitMap = () => page.locator('.mapboxgl-canvas').waitFor();
+    async function visibleMarker(label) {
+        await page.locator('.mapboxgl-marker').waitFor();
+        await page.waitForFunction(() => {
+            const e = document.querySelector('.mapboxgl-marker'); const m = document.querySelector('.nr-destination-map');
+            if (!e || !m) return false;
+            const a = e.getBoundingClientRect(), b = m.getBoundingClientRect();
+            return getComputedStyle(e).position === 'absolute' && a.width > 0 && a.height > 0 && a.left >= b.left && a.right <= b.right && a.top >= b.top && a.bottom <= b.bottom;
+        });
+        markerChecks.push({ label, width: await page.evaluate(() => innerWidth), actualSdk: version, visible: true });
+    }
+    async function clickPoint(lat = -34.91, lon = -56.21) {
+        await page.evaluate(({lat,lon}) => globalThis.__destinationRealMap.jumpTo({ center: [lon,lat], zoom: 15 }), {lat,lon});
+        await page.waitForTimeout(100);
+        await page.locator('.mapboxgl-canvas').scrollIntoViewIfNeeded();
+        await page.evaluate(() => globalThis.__destinationRealMap.once('click', event => {
+            globalThis.__expectedClickPoint = { lat: event.lngLat.lat, lon: event.lngLat.lng };
+        }));
+        const box = await page.locator('.mapboxgl-canvas').boundingBox();
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        finalPoint = await page.evaluate(() => globalThis.__expectedClickPoint);
+        assert.ok(Math.abs(finalPoint.lat - lat) < 0.00001 && Math.abs(finalPoint.lon - lon) < 0.00001);
+        await visibleMarker('map click');
+    }
+    async function dragMarker() {
+        await page.locator('.mapboxgl-marker').scrollIntoViewIfNeeded();
+        const box = await page.locator('.mapboxgl-marker').boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + 35, box.y + box.height / 2 + 20, {steps: 8}); await page.mouse.up();
+        await page.waitForFunction(before => {
+            const marker = document.querySelector('.mapboxgl-marker').getBoundingClientRect();
+            return Math.abs(marker.x - before.x) + Math.abs(marker.y - before.y) > 5;
+        }, box);
+        await visibleMarker('marker drag');
+    }
+    async function assertSaved() {
+        await page.getByText('Ubicación confirmada y guardada.', {exact:true}).waitFor();
+        assert.equal(await page.locator('#destino-revisado').count(), 0);
+        assert.equal(await page.getByRole('button', {name:/^Confirmar (nueva )?ubicación$/}).count(), 0);
+        await visibleMarker('saved/reopened');
+    }
     try {
         await page.goto(base + 'ingresar');
         await page.locator('#Email').fill(process.env.DESTINATION_EMAIL || 'commerce@example.test');
@@ -47,7 +85,7 @@ const { chromium } = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
         await Promise.all([page.waitForNavigation(), page.getByRole('button', { name: 'Ingresar', exact: true }).click()]);
         const url = base + 'envios/' + (process.env.DESTINATION_SHIPMENT || '00000000-0000-0000-0000-000000000999') + '/destino';
         await page.goto(url);
-        await page.getByRole('button', { name: 'Mapa simulado: seleccionar punto' }).waitFor();
+        await waitMap();
         const input = page.getByRole('combobox', { name: 'Buscar dirección' });
         await input.fill('ab'); await page.waitForTimeout(400);
         assert.equal(await page.getByRole('option').count(), 0);
@@ -58,33 +96,38 @@ const { chromium } = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
         await input.press('Enter');
         await page.getByText('Sugerencia seleccionada · pendiente de confirmar.',{exact:true}).waitFor();
         assert.equal(await page.getByRole('option').count(),0);
+        await visibleMarker('suggestion selected');
+        await page.screenshot({path:path.join(out,'suggested-real-1440.png'),fullPage:true});
         assert.equal(await page.getByText('Vista previa temporal:',{exact:false}).count(),0);
         assert.equal(await page.getByRole('button',{name:'Descartar vista previa temporal'}).count(),0);
         await page.locator('#destino-revisado').check();
         await page.setViewportSize({width:320,height:1000});
+        await visibleMarker('suggestion selected after 320px resize');
         await page.waitForFunction(() => !document.querySelector('.nr-destination-primary')?.disabled);
         assert.equal(await page.getByRole('button',{name:/^Confirmar (nueva )?ubicación$/}).isEnabled(),true);
         await page.screenshot({path:path.join(out,'selected-320.png'),fullPage:true});
         await page.getByRole('button',{name:/^Confirmar (nueva )?ubicación$/}).click();
         await page.getByText('Ubicación confirmada. El punto quedó listo para su planificación.',{exact:true}).waitFor();
         await page.reload();
-        await page.getByRole('button',{name:'Mapa simulado: seleccionar punto'}).waitFor();
+        await waitMap();
         await page.getByRole('heading',{name:'Primera 123',exact:true}).waitFor();
-        await page.getByText('Punto registrado · pendiente de revisar.',{exact:true}).waitFor();
+        await assertSaved();
         await input.fill('Cambio');await page.getByRole('option',{name:'Cambio 123'}).click();
-        await page.getByRole('button',{name:'Mapa simulado: seleccionar punto'}).click();
+        await visibleMarker('second suggestion');
+        await dragMarker();
         await page.locator('#destino-revisado').check();
         await page.getByRole('button',{name:'Confirmar nueva ubicación',exact:true}).click();
         await page.getByText('Ubicación confirmada. El punto quedó listo para su planificación.',{exact:true}).waitFor();
-        await page.reload();await page.getByRole('button',{name:'Mapa simulado: seleccionar punto'}).waitFor();
+        await page.reload();await waitMap();
         await page.getByRole('heading',{name:'Cambio 123',exact:true}).waitFor();
+        await assertSaved();
         if(fullStack){
             await fs.writeFile(path.join(out,'conflict.ready'),'ready');
             for(let i=0;;i++){
                 try{await fs.access(path.join(out,'conflict.applied'));break;}catch{}
                 assert.ok(i<200,'fixture concurrency handshake timed out');await page.waitForTimeout(50);
             }
-            await page.getByRole('button',{name:'Mapa simulado: seleccionar punto'}).click();
+            await clickPoint(-34.905, -56.205);
             await page.locator('#destino-revisado').check();
             await page.getByRole('button',{name:'Confirmar nueva ubicación',exact:true}).click();
             await page.getByRole('alert').filter({hasText:'El envío cambió mientras revisabas'}).waitFor();
@@ -94,7 +137,7 @@ const { chromium } = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
             await page.locator('#destino-revisado').check();
             await page.getByRole('button',{name:'Confirmar nueva ubicación',exact:true}).click();
             await page.getByText('Ubicación confirmada. El punto quedó listo para su planificación.',{exact:true}).waitFor();
-            await page.reload();await page.getByRole('button',{name:'Mapa simulado: seleccionar punto'}).waitFor();
+            await page.reload();await waitMap();
             await page.getByRole('heading',{name:'Cambio 123',exact:true}).waitFor();
         }
         if (fullStack) {
@@ -103,10 +146,15 @@ const { chromium } = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
         }
         await input.fill('Cuota');
         await page.getByRole('alert').filter({ hasText: 'Se agotó la cuota' }).waitFor();
-        await page.getByRole('button', { name: 'Mapa simulado: seleccionar punto' }).click();
+        await clickPoint();
         await page.locator('#destino-revisado').check();
         await page.getByRole('button', { name: 'Confirmar nueva ubicación', exact: true }).click();
         await page.getByText('Ubicación confirmada. El punto quedó listo para su planificación.', { exact: true }).waitFor();
+        await page.reload(); await waitMap(); await assertSaved();
+        for (const width of [1440, 320]) {
+            await page.setViewportSize({width,height:1000}); await assertSaved();
+            await page.screenshot({path:path.join(out,`saved-real-${width}.png`),fullPage:true});
+        }
         if (!fullStack) {
             await input.fill('Fallo');
             await page.getByRole('alert').filter({ hasText: 'no está habilitada' }).waitFor();
@@ -120,7 +168,8 @@ const { chromium } = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
         }
         assert.deepEqual(errors, []);
         assert.deepEqual(external, []);
-        console.log('PASS: short input, keyboard selection, address/coordinates save and reopen, adjusted marker/edit, real version conflict, manual fallback, quota/error/manual fallback, 1440/320px. Zero external requests.');
+        await fs.writeFile(path.join(out,'real-marker-result.json'),JSON.stringify({actualSdk:version,markerChecks,finalPoint,controlledSdkRequests,unexpectedExternalRequests:external,geocodingTilesTelemetryNetworkCalls:0,staticSdkCssDownloads:2,passed:true},null,2));
+        console.log('PASS: actual SDK/CSS suggestion marker, physical click/drag, save/reopen and confirmed state without duplicate save, keyboard/debounce, quota/error/manual fallback, 1440/320px. SDK/CSS assets downloaded; style and telemetry controlled; zero geocoding/tiles/telemetry network calls.');
     } catch (error) {
         await page.screenshot({ path: path.join(out, 'failure.png'), fullPage: true });
         console.error((await page.locator('body').innerText()).slice(-4000));

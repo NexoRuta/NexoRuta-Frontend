@@ -1,68 +1,121 @@
 @model NexoRuta.Backoffice.Features.Reparto.Pages.RutasModel
-<section class="nr-depot-panel" aria-labelledby="flota-titulo">
-    <h2 id="flota-titulo">Ocupación y retorno de vehículos</h2>
-    <p>Incluye todas las fechas. El cierre es administrativo; el retorno acredita regreso, la recepción acredita carga en depósito y la liberación habilita otro uso.</p>
-    @if (Model.ErrorFlota is not null) { <p role="alert" class="alert alert-danger">@Model.ErrorFlota</p> }
-    @if (Model.ReintentoFlota)
+@using NexoRuta.Backoffice.Features.Reparto.Pages
+<link rel="stylesheet" href="~/css/flota.css" asp-append-version="true" />
+<section class="fleet" aria-label="Disponibilidad de la flota" data-fleet-root>
+    @if (!Model.ConsultaFlotaCompleta)
     {
-        <form data-single-submit method="post" asp-page-handler="Flota">
-            <input type="hidden" asp-for="Fecha" />
-            <input type="hidden" asp-for="FlotaVehiculo" /><input type="hidden" asp-for="FlotaOcupacion" />
-            <input type="hidden" asp-for="FlotaComando" /><input type="hidden" asp-for="FlotaVersion" />
-            <input type="hidden" asp-for="FlotaAccion" /><input type="hidden" asp-for="FlotaEnvio" /><input type="hidden" asp-for="FlotaVersionEnvio" />
-            <label asp-for="FlotaMotivo">Motivo de la confirmación pendiente</label>
-            <textarea asp-for="FlotaMotivo" readonly maxlength="500" class="form-control"></textarea>
-            <button class="nr-action-secondary" data-loading-text="Registrando confirmación…" type="submit">Reenviar la misma confirmación</button>
-            <a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")">Descartar formulario y consultar estado</a>
-        </form>
+        <div class="fleet-unknown-counts" aria-label="Conteos no disponibles">Total — · Disponibles — · Ocupados — · Verificación —</div><div class="fleet-message" role="alert"><h2>Disponibilidad desconocida</h2><p>@Model.ErrorFlota</p><a class="nr-action-secondary" asp-page="/Flota">Volver a consultar</a></div>
     }
-    @foreach (var v in Model.Flota)
+    else
     {
-        <details class="mb-3" open="@(v.Ocupaciones.Count > 0 || v.CargaPendiente > 0 ? "open" : null)">
-            <summary><strong>@v.Matricula</strong> · @(v.Activo ? "Habilitado" : "Inactivo") · @(v.Ocupaciones.Count > 0 ? "Ocupado" : v.VerificacionInicialEnUtc is null ? "Disponibilidad desconocida: verificación inicial pendiente" : v.Activo ? "Disponibilidad confirmada" : "Sin ocupación; no habilitado para despachar")</summary>
-            @if (v.UltimaLiberacionEnUtc is { } liberacion) { <p>Última liberación confirmada: @liberacion.ToString("u")</p> }
-            @if (v.CargaPendiente > 0) { <p>Descarga o conciliación pendiente: @v.CargaPendiente bulto(s).</p> }
-            @foreach (var o in v.Ocupaciones)
-            {
-                <p><a asp-page="/Rutas" asp-route-fecha="@o.Fecha.ToString("yyyy-MM-dd")" asp-route-rutaSeleccionadaId="@o.RutaId">Ruta @o.RutaId · @o.Fecha.ToString("dd/MM/yyyy")</a> · @o.EstadoRuta</p>
-                <p>Vehículo y repartidor @Model.Repartidor(o.RepartidorAccesoId) (@o.RepartidorAccesoId) continúan ocupados por esta ruta hasta confirmar su liberación.</p>
-                <p>Cierre de jornada: @(o.EstadoRuta == "Finalizada" ? "cerrada" : o.EstadoRuta == "Despachada" ? "sin iniciar" : "pendiente"). No acredita retorno ni descarga.</p>
-                <p>@(o.RetornoEnUtc is null ? "Retorno pendiente" : $"Retorno confirmado: {o.RetornoEnUtc:u}") · @o.CargaPendiente bulto(s) pendientes.</p>
-                var faltantes = new List<string>();
-                if (o.EstadoRuta != "Finalizada") faltantes.Add("Falta cerrar la jornada.");
-                if (o.RetornoEnUtc is null) faltantes.Add("Falta confirmar el retorno físico.");
-                if (o.CargaPendiente > 0) faltantes.Add($"Falta recibir o conciliar {o.CargaPendiente} bulto(s) en depósito.");
-                @if (faltantes.Count > 0)
+        <dl class="fleet-counts" aria-label="Toda la flota autorizada, sin aplicar filtros">
+            <div><dt>Total</dt><dd data-fleet-count="total">@Model.Flota.Count</dd></div>
+            <div><dt>Disponibles físicamente</dt><dd data-fleet-count="available">@Model.Flota.Count(v => RutasModel.DisponibilidadFlota(v) == "Disponible")</dd></div>
+            <div><dt>Ocupados</dt><dd data-fleet-count="occupied">@Model.Flota.Count(v => v.Ocupaciones.Count > 0)</dd></div>
+            <div><dt>Verificación pendiente</dt><dd data-fleet-count="verification">@Model.Flota.Count(v => v.Ocupaciones.Count == 0 && v.VerificacionInicialEnUtc is null)</dd></div>
+        </dl>
+        <form method="get" asp-page="/Flota" class="fleet-filter d-flex flex-wrap" data-fleet-filter>
+            <div><label for="fleet-search">Buscar vehículo</label><input id="fleet-search" type="search" name="buscarVehiculo" value="@Model.BuscarVehiculo" placeholder="Matrícula o identificador" autocomplete="off" /></div>
+            <div><label for="fleet-filter">Mostrar</label><select id="fleet-filter" name="disponibilidad">
+                @foreach (var filtro in new[] { (Valor:"Todas", Texto:"Toda la flota"), (Valor:"Disponible", Texto:"Disponibles físicamente"), (Valor:"Ocupado", Texto:"Ocupados"), (Valor:"Pendiente", Texto:"Verificación o custodia pendiente"), (Valor:"NoHabilitado", Texto:"No habilitados (administración)") })
+                { <option value="@filtro.Valor" selected="@(Model.FiltroFlota == filtro.Valor)">@filtro.Texto</option> }
+            </select></div>
+            <button class="nr-action-secondary" type="submit">Buscar</button>
+            <a class="nr-action-secondary" asp-page="/Flota" data-fleet-refresh>Actualizar</a>
+        </form>
+        <p class="fleet-results" role="status" aria-live="polite" data-fleet-results>@Model.Flota.Count(Model.CoincideFlota) de @Model.Flota.Count vehículos</p>
+        <div class="fleet-grid" data-fleet-grid>
+        @foreach (var v in Model.Flota)
+        {
+            var estado = RutasModel.DisponibilidadFlota(v);
+            var operacion = v.Ocupaciones.FirstOrDefault();
+            var verificar = v.Ocupaciones.Count == 0 && v.VerificacionInicialEnUtc is null && v.CargaPendiente == 0;
+            var texto = estado == "Pendiente" ? (v.VerificacionInicialEnUtc is null ? "Verificación pendiente" : "Custodia por resolver") : estado;
+            var principal = verificar ? "Verificar disponibilidad" : estado == "Ocupado" || v.CargaPendiente > 0 ? "Ver operación" : "Ver detalle";
+            var accionInicial = verificar ? new AccionFlotaFormulario(v.Id, null, v.Version, "verificar-inicial", "Confirmar inspección inicial: vehículo retornado y sin carga", Model.Fecha) : null;
+            <article class="fleet-card" data-fleet-card data-name="@v.Matricula" data-status="@estado" data-active="@v.Activo.ToString().ToLowerInvariant()" hidden="@(!Model.CoincideFlota(v))">
+                <div class="fleet-card-heading"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h11v12H3zM14 10h4l3 4v4h-7M7 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4m10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4" /></svg><h2>@v.Matricula</h2></div>
+                <span class="fleet-status fleet-status--@estado.ToLowerInvariant()"><span aria-hidden="true">●</span>@texto</span>
+                <span class="fleet-admin">Habilitación: @(v.Activo ? "Habilitado" : "No habilitado para despachar")</span>
+                <div class="fleet-card-info">
+                @if (operacion is not null)
                 {
-                    <p><strong>Para liberar falta:</strong></p>
-                    <ul>@foreach (var falta in faltantes) { <li>@falta</li> }</ul>
+                    <p>@Model.Repartidor(operacion.RepartidorAccesoId)</p>
+                    <p>@operacion.Fecha.ToString("dd/MM/yyyy") · <a asp-page="/Rutas/Detalle" asp-route-rutaId="@operacion.RutaId" asp-route-fecha="@operacion.Fecha.ToString("yyyy-MM-dd")">Ruta @operacion.RutaId.ToString("N")[..6].ToUpperInvariant()</a></p>
+                    @if (v.Ocupaciones.Count > 1) { <p>@v.Ocupaciones.Count ocupaciones vigentes</p> }
                 }
-                else { <p>Requisitos cumplidos. La ocupación continúa hasta confirmar disponibilidad y liberar.</p> }
-                @if (o.CargaPendiente > 0)
-                {
-                    <a asp-page="/Rutas" asp-route-fecha="@o.Fecha.ToString("yyyy-MM-dd")" asp-route-rutaSeleccionadaId="@o.RutaId" asp-route-pestana="deposito">Revisar recepción de carga</a>
-                }
+                else if (v.VerificacionInicialEnUtc is null) { <p>Inspeccioná que haya retornado y no conserve carga.</p> }
+                else if (v.UltimaLiberacionEnUtc is { } liberada) { <p>Última liberación<br/><time datetime="@liberada.ToString("O")">@Model.FechaFlota(liberada)</time></p> }
+                else { <p>Sin ocupaciones vigentes.</p> }
+                @if (v.CargaPendiente > 0) { <p>@v.CargaPendiente @(v.CargaPendiente == 1 ? "bulto" : "bultos") bajo custodia</p> }
+                </div>
+                <button type="button" class="@(estado == "Disponible" ? "nr-action-secondary" : "nr-action-primary")" data-bs-target="#flota-operacion" aria-controls="flota-operacion" aria-haspopup="dialog" data-fleet-template="flota-detalle-@v.Id" data-fleet-title="@v.Matricula" data-fleet-initial-action="@(accionInicial is null ? null : RutasModel.IdAccionFlota(accionInicial))">@principal</button>
+            </article>
+        }
+        </div>
+        <div class="fleet-empty" data-fleet-empty hidden="@(Model.Flota.Any(Model.CoincideFlota))"><h2>@(Model.Flota.Count == 0 ? "No hay vehículos registrados" : "No hay coincidencias")</h2><p>Probá otra búsqueda o consultá toda la flota.</p><a asp-page="/Flota" class="nr-action-secondary">Mostrar toda la flota</a></div>
+    }
+    <p class="fleet-scope">Todas las fechas · @Model.ZonaFlota. Disponibilidad física; habilitación administrativa independiente.</p>
+</section>
+@foreach (var v in Model.Flota)
+{
+    <template id="flota-detalle-@v.Id">
+        <p class="fleet-admin">Habilitación administrativa: @(v.Activo ? "Habilitado" : "No habilitado")</p>
+        <p>@v.CargaPendiente @(v.CargaPendiente == 1 ? "bulto" : "bultos") bajo custodia. Incluye reparto en curso; no significa descarga atrasada.</p>
+        @foreach (var o in v.Ocupaciones)
+        {
+            <section class="fleet-occupation" aria-label="Ocupación de @o.Fecha.ToString("dd/MM/yyyy")">
+                <h3><a asp-page="/Rutas/Detalle" asp-route-rutaId="@o.RutaId" asp-route-fecha="@o.Fecha.ToString("yyyy-MM-dd")">Ruta @o.RutaId.ToString("N")[..6].ToUpperInvariant()</a> · @o.Fecha.ToString("dd/MM/yyyy")</h3>
+                <p>@Model.Repartidor(o.RepartidorAccesoId) · @Model.EstadoRuta(o.EstadoRuta)</p>
+                <ul class="fleet-requirements">
+                    <li><span>@(o.EstadoRuta == "Finalizada" ? "✓" : "○")</span><div>Cierre de jornada: @(o.EstadoRuta == "Finalizada" ? "cerrada" : o.EstadoRuta == "Despachada" ? "sin iniciar" : "pendiente")<small>No acredita retorno ni recepción.</small></div></li>
+                    <li><span>@(o.RetornoEnUtc is null ? "○" : "✓")</span><div>@(o.RetornoEnUtc is { } retorno ? $"Retorno confirmado: {Model.FechaFlota(retorno)}" : "Retorno pendiente")<small>@(o.RetornoEnUtc is null ? "Falta confirmar el retorno físico." : "Regreso físico acreditado; no libera la ocupación.")</small></div></li>
+                    <li><span>@(o.CargaPendiente == 0 ? "✓" : "○")</span><div>@o.CargaPendiente @(o.CargaPendiente == 1 ? "bulto" : "bultos") bajo custodia<small>@(o.CargaPendiente == 0 ? "Sin carga pendiente de recepción o conciliación." : o.EstadoRuta == "Finalizada" || o.RetornoEnUtc is not null ? $"Falta recibir o conciliar {o.CargaPendiente} bulto(s) en depósito." : "Recepción/conciliación al resolver la ocupación. Solo se confirma cuando esté físicamente en depósito.")</small></div></li>
+                </ul>
+                @if (o.EstadoRuta == "Finalizada" && o.RetornoEnUtc is not null && o.CargaPendiente == 0) { <p>Requisitos cumplidos. La ocupación continúa hasta confirmar disponibilidad y liberar.</p> }
+                @if (o.CargaPendiente > 0 && (o.EstadoRuta == "Finalizada" || o.RetornoEnUtc is not null)) { <a asp-page="/Deposito">Revisar recepción de carga</a> }
                 @if (o.PuedeAnular) { <p>Si nunca se inició ni cargó, corresponde anular la autorización; no inventar un retorno.</p> }
                 @if (o.Legada && o.AdquiridaEnUtc is null) { <p>Asignación anterior a B2. Vigencia física sin acreditar.</p> }
-                var acciones = new List<(string Accion, string Texto)>();
-                if (o.Legada && o.AdquiridaEnUtc is null && o.RetornoEnUtc is null) acciones.Add(("conciliar", "Confirmar ocupación vigente tras inspección"));
-                if (o.RetornoEnUtc is null && o.EstadoRuta != "Despachada") acciones.Add(("retorno", "Confirmar retorno físico (sin descarga)"));
-                if (o.RetornoEnUtc is not null && o.EstadoRuta == "Finalizada" && o.CargaPendiente == 0) acciones.Add(("liberar", "Confirmar disponibilidad y liberar"));
-                if (o.PuedeAnular && o.RetornoEnUtc is null) acciones.Add(("anular", "Anular autorización sin inicio ni carga"));
-                @foreach (var a in acciones)
-                {
-                    <partial name="Rutas/_ConfirmacionFlota" model="@(new NexoRuta.Backoffice.Features.Reparto.Pages.AccionFlotaFormulario(v.Id, o.Id, o.Version, a.Accion, a.Texto, Model.Fecha))" />
-                }
-            }
-            @foreach (var c in v.CargasIniciales)
-            {
-                <p>Carga histórica: envío @c.EnvioId · ruta @c.RutaId · @c.Fecha.ToString("dd/MM/yyyy") · @c.BultosPendientes bulto(s).</p>
-                <partial name="Rutas/_ConfirmacionFlota" model="@(new NexoRuta.Backoffice.Features.Reparto.Pages.AccionFlotaFormulario(v.Id, null, v.Version, "recibir-carga-inicial", "Confirmar recepción física de carga histórica", Model.Fecha, c.EnvioId, c.VersionEnvio))" />
-            }
-            @if (v.Ocupaciones.Count == 0 && v.VerificacionInicialEnUtc is null && v.CargaPendiente == 0)
-            {
-                <partial name="Rutas/_ConfirmacionFlota" model="@(new NexoRuta.Backoffice.Features.Reparto.Pages.AccionFlotaFormulario(v.Id, null, v.Version, "verificar-inicial", "Confirmar inspección inicial: vehículo retornado y sin carga", Model.Fecha))" />
-            }
-        </details>
+                <div class="fleet-actions">@foreach (var a in Model.AccionesFlota(v, o)) { <button class="nr-action-secondary" type="button" data-fleet-action-template="@RutasModel.IdAccionFlota(a)">@a.Texto</button> }</div>
+                <section class="fleet-technical"><button type="button" class="nr-action-secondary" data-bs-toggle="collapse" data-bs-target="#tecnico-@o.Id" aria-expanded="false" aria-controls="tecnico-@o.Id">Identificadores de la operación</button><div class="collapse" id="tecnico-@o.Id">
+                    @foreach (var dato in new[] { (Nombre:"Ruta", Id:o.RutaId), (Nombre:"Ocupación", Id:o.Id), (Nombre:"Repartidor", Id:o.RepartidorAccesoId) })
+                    { <label>@dato.Nombre<input readonly value="@dato.Id" aria-label="Identificador completo de @dato.Nombre" /></label><button type="button" class="nr-action-secondary" data-fleet-copy="@dato.Id">Copiar @dato.Nombre.ToLowerInvariant()</button> }
+                </div></section>
+            </section>
+        }
+        @foreach (var c in v.CargasIniciales)
+        {
+            var a = new AccionFlotaFormulario(v.Id, null, v.Version, "recibir-carga-inicial", "Confirmar recepción física de carga histórica", Model.Fecha, c.EnvioId, c.VersionEnvio);
+            <section class="fleet-occupation"><h3>Carga histórica · @c.Fecha.ToString("dd/MM/yyyy")</h3><p>@c.BultosPendientes @(c.BultosPendientes == 1 ? "bulto" : "bultos") bajo custodia.</p><a asp-page="/Rutas/Detalle" asp-route-rutaId="@c.RutaId" asp-route-fecha="@c.Fecha.ToString("yyyy-MM-dd")">Abrir ruta @c.RutaId.ToString("N")[..6].ToUpperInvariant()</a><button type="button" class="nr-action-secondary" data-fleet-action-template="@RutasModel.IdAccionFlota(a)">@a.Texto</button></section>
+        }
+        @if (v.Ocupaciones.Count == 0 && v.VerificacionInicialEnUtc is null && v.CargaPendiente == 0)
+        {
+            var a = new AccionFlotaFormulario(v.Id, null, v.Version, "verificar-inicial", "Confirmar inspección inicial: vehículo retornado y sin carga", Model.Fecha);
+            <p>Disponibilidad desconocida: verificación inicial pendiente.</p><button class="nr-action-secondary" type="button" data-fleet-action-template="@RutasModel.IdAccionFlota(a)">@a.Texto</button>
+        }
+        <section class="fleet-technical"><button type="button" class="nr-action-secondary" data-bs-toggle="collapse" data-bs-target="#tecnico-vehiculo-@v.Id" aria-expanded="false" aria-controls="tecnico-vehiculo-@v.Id">Identificador del vehículo</button><div class="collapse" id="tecnico-vehiculo-@v.Id"><label>Vehículo<input readonly value="@v.Id" aria-label="Identificador completo del vehículo" /></label><button type="button" class="nr-action-secondary" data-fleet-copy="@v.Id">Copiar identificador</button></div></section>
+        <div data-fleet-action-slot></div>
+        <p role="status" aria-live="polite" data-fleet-copy-status></p>
+    </template>
+    @foreach (var o in v.Ocupaciones) { @foreach (var a in Model.AccionesFlota(v, o)) { <partial name="Rutas/_ConfirmacionFlota" model="a" /> } }
+    @foreach (var c in v.CargasIniciales) { <partial name="Rutas/_ConfirmacionFlota" model="@(new AccionFlotaFormulario(v.Id, null, v.Version, "recibir-carga-inicial", "Confirmar recepción física de carga histórica", Model.Fecha, c.EnvioId, c.VersionEnvio))" /> }
+    @if (v.Ocupaciones.Count == 0 && v.VerificacionInicialEnUtc is null && v.CargaPendiente == 0) { <partial name="Rutas/_ConfirmacionFlota" model="@(new AccionFlotaFormulario(v.Id, null, v.Version, "verificar-inicial", "Confirmar inspección inicial: vehículo retornado y sin carga", Model.Fecha))" /> }
+}
+<div class="offcanvas offcanvas-end fleet-panel" tabindex="-1" id="flota-operacion" aria-labelledby="fleet-panel-title" data-fleet-retry="@Model.ReintentoFlota.ToString().ToLowerInvariant()">
+    <div class="offcanvas-header"><h2 id="fleet-panel-title" tabindex="-1">@(Model.ReintentoFlota ? $"Operación de {Model.Flota.FirstOrDefault(v => v.Id == Model.FlotaVehiculo)?.Matricula ?? Model.FlotaVehiculo.ToString("N")[..6].ToUpperInvariant()}" : "Operación del vehículo")</h2><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar operación del vehículo"></button></div>
+    <div class="offcanvas-body" data-fleet-panel-body>
+    @if (Model.ReintentoFlota)
+    {
+        <div class="fleet-message" role="alert">@Model.ErrorFlota</div><h3>Confirmación pendiente: @Model.FlotaAccion</h3>
+        <p>La respuesta no confirmó la operación. Conservá el comando, la versión y el motivo para recuperar el resultado exacto.</p>
+        <p>@RutasModel.ConsecuenciaFlota(Model.FlotaAccion ?? "")</p>
+        <form class="d-flex flex-column gap-3" data-single-submit method="post" asp-page="/Flota" asp-page-handler="Flota">
+            <input type="hidden" name="Vista" value="flota" /><input type="hidden" asp-for="Fecha" /><input type="hidden" asp-for="BuscarVehiculo" /><input type="hidden" asp-for="Disponibilidad" />
+            <input type="hidden" asp-for="FlotaVehiculo" /><input type="hidden" asp-for="FlotaOcupacion" /><input type="hidden" asp-for="FlotaComando" /><input type="hidden" asp-for="FlotaVersion" /><input type="hidden" asp-for="FlotaAccion" /><input type="hidden" asp-for="FlotaEnvio" /><input type="hidden" asp-for="FlotaVersionEnvio" />
+            <label asp-for="FlotaMotivo">Motivo de la confirmación pendiente</label><textarea asp-for="FlotaMotivo" readonly maxlength="500" class="form-control" rows="3"></textarea>
+            <button class="nr-action-primary" data-loading-text="Registrando confirmación…" type="submit">Reenviar la misma confirmación</button><a asp-page="/Flota">Descartar formulario y consultar estado</a>
+        </form>
     }
-</section>
+    </div>
+</div>
+<script src="~/js/flota.js" asp-append-version="true" defer></script>

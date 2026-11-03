@@ -1,0 +1,89 @@
+@page "/envios/{EnvioId:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)]
+@rendermode InteractiveServer
+@using System.Net
+@using Microsoft.AspNetCore.Components.Authorization
+@using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Core.Exceptions
+@using NexoRuta.ApiClient.Features.Envios.Clients
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
+@using NexoRuta.Commerce.Components.Features.Envios.Shared
+@inject EnviosApiClient Envios
+@inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Detalle del envío | NexoRuta</PageTitle>
+<header class="nr-page-heading">
+    <h1>Detalle del envío</h1>
+    <a class="btn btn-outline-secondary" href="/envios">Mis envíos</a>
+</header>
+@if (cargando)
+{
+    <div class="nr-detail-skeleton" aria-busy="true" aria-label="Cargando envío">
+        <p class="visually-hidden" role="status">Consultando el envío guardado.</p><span aria-hidden="true"></span><span aria-hidden="true"></span>
+    </div>
+}
+else if (error is not null)
+{
+    <p class="alert alert-danger" role="alert">@error</p>
+}
+else if (envio is { } actual)
+{
+    @if (Creado) { <p class="alert alert-success" role="status">Envío creado correctamente. El destino quedó guardado y confirmado.</p> }
+    <section class="nr-form-section" aria-labelledby="envio-resumen">
+        <h2 id="envio-resumen">Resumen</h2>
+        <dl class="nr-summary-list">
+            <dt>Envío</dt><dd><code>@actual.Id</code></dd>
+            <dt>Destinatario</dt><dd>@actual.DestinatarioNombre</dd>
+            <dt>Dirección</dt><dd>@actual.Direccion</dd>
+            <dt>Operador</dt><dd>@actual.OperadorNombre</dd>
+            <dt>Estado</dt><dd>@actual.Estado</dd>
+            <dt>Ubicación</dt><dd>@(actual.DestinoConfirmado ? "Ubicación confirmada" : "Ubicación pendiente")</dd>
+        </dl>
+        <a href="/envios/@actual.Id/destino">Consultar o modificar ubicación</a>
+        <div class="mt-3"><a class="btn btn-outline-primary" href="/envios/@actual.Id/etiquetas" data-enhance-nav="false">Descargar etiquetas</a></div>
+    </section>
+    <section class="nr-form-section" aria-labelledby="envio-bultos">
+        <h2 id="envio-bultos">Bultos (@actual.Bultos.Count)</h2>
+        <ul class="text-break">@foreach (var bulto in actual.Bultos)
+        {
+            <li><strong>@bulto.Codigo</strong>: @bulto.PesoGramos.ToString("N2") g · @bulto.LargoCentimetros × @bulto.AnchoCentimetros × @bulto.AltoCentimetros cm</li>
+        }</ul>
+    </section>
+    <section class="nr-form-section" aria-labelledby="envio-tarifa">
+        <h2 id="envio-tarifa">Tarifa aplicada</h2>
+        @if (actual.Tarifa is { } tarifa) { <DesgloseTarifa Tarifa="tarifa" /> }
+        else { <p>No hay una tarifa aplicada verificable para este envío.</p> }
+    </section>
+}
+
+@code {
+    [Parameter] public Guid EnvioId { get; set; }
+    [SupplyParameterFromQuery(Name = "creado")] public bool Creado { get; set; }
+    private readonly CancellationTokenSource cancelacion = new();
+    private EnvioResponse? envio;
+    private bool cargando;
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        cargando = true; error = null; envio = null;
+        var id = EnvioId;
+        try
+        {
+            var token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
+            // ponytail: the existing authorized, unpaged list is the read contract; use a detail endpoint if it becomes paged.
+            var visibles = await Envios.ListarEnviosAsync(token, cancelacion.Token);
+            if (id != EnvioId || cancelacion.IsCancellationRequested) return;
+            envio = visibles.SingleOrDefault(x => x.Id == id);
+            if (envio is null) error = "No encontramos un envío disponible con ese identificador.";
+        }
+        catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (HttpRequestException) { error = "No pudimos consultar el envío. Volvé a intentarlo desde Mis envíos."; }
+        finally { if (id == EnvioId) cargando = false; }
+    }
+    public void Dispose() { cancelacion.Cancel(); cancelacion.Dispose(); }
+}

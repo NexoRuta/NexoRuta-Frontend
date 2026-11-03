@@ -138,3 +138,31 @@ Commerce hosts the public entry at `/registrarse`, `/ingresar` and `/organizacio
 Commerce public entry: `/` (Blazor welcome) → `/registrarse` → `/ingresar` → `/organizacion`. Commerce accounts land at `/envios`; shipment creation remains protected at `/envios/crear`. Backoffice/Admin links come from `Portales:BackofficeLoginUrl` and `Portales:AdminLoginUrl`. Logout returns to the public home.
 
 Commerce administrative navigation: `/usuarios` and `/roles` share permission-aware links to home, shipments, users and roles. Existing role/permission CRUD and assignment are reused; own/protected roles remain read-only and the permission catalog remains centralized. See `../docs/registro-alta-propia.md` for the diagnosis and verification.
+
+
+## Backoffice operational navigation
+
+The usual local Backoffice remains at `http://localhost:5101`.
+
+| Task | Address | Scope and actions |
+| --- | --- | --- |
+| Daily routes | `/rutas?fecha=yyyy-MM-dd` | Date, search, state filters and planning. The list does not load global depot/fleet panels. |
+| Route detail | `/rutas/{routeId}?fecha=yyyy-MM-dd` | Exact route, stops, physical custody/departure, labels, planning/base/manual times, road estimates and history. Back links retain search/date/filter. |
+| Depot | `/deposito` | All dates; search, custody/receipt filters and 20-row pages. Open the shipment actions before confirming physical receipt, reassignment or loss; the target route date remains editable in that context. |
+| Fleet availability | `/flota` | All dates; compact vehicles, pending requirements and existing inspection/return/release actions. Vehicle CRUD remains at `/vehiculos`. |
+
+Legacy `/rutas` selection/tab query links remain accepted. Route identifiers and historical metadata are secondary details, not substitutes for physical facts: `EnCurso` does not prove departure, dispatch does not transfer custody, and a road estimate does not confirm availability.
+
+Operator shipment details and depot/route contexts expose **Descargar etiquetas**. The protected server proxy uses the same PDF generator as Commerce: persisted parcel UUID-D QR, one 100 x 150 mm page per parcel. Downloads are read-only, have progress/duplicate protection and a retryable error with a 30-second browser timeout. Print at actual size; exceptional long text can extend label height rather than clip it.
+
+Verification for this local change: isolated API/PostgreSQL label ownership/RLS and no-write checks; focused frontend route/fleet/context/label tests (55 passed); downloader Node checks (4 passed) and planning Node check (1 passed). Real read-only browser journeys and visual captures are recorded in the combined checkout under `.local/backoffice-operations/`; the local task log records exact widths, observed outcomes and any unavailable native review. These checks do not register physical operations in the habitual database and do not certify a physical printer/camera scan.
+
+
+### Fleet cards and operator shipments (local visual refinement)
+
+- `/flota`: compact cards, global counters and URL-preserving `buscarVehiculo`/`disponibilidad` filters. Physical availability and administrative enablement remain distinct. The Bootstrap operation panel is fullscreen on mobile; select an action before its original confirmation form appears. A custody count during an active route is not evidence of late unloading. Dates use the operator policy time zone.
+- `/`: six-column operator list with compact tablet/mobile cards. `Buscar`, exact `Estado`, authorized `ComercioId`, `Pagina` and optional `Seleccion` preserve context. Quick counts use search plus commerce scope before state filtering or pagination. Sender, recipient, destination, persisted price and package data are read-only; operator creation/import actions are not added.
+- Both panels share visible Tab-boundary handling, retaining Bootstrap Escape/focus lifecycle. Copy and PDF download do not open shipment details. Download menus retain progress/errors and same-widget retry; the synthetic PDF anchor does not close the menu or lose keyboard context.
+- Location limitation: the operator list exposes address and confirmation only, not coordinates. Commerce's destination link is a commerce-only confirmation flow, not an operator viewer; it is deliberately not reused or exposed without a separate authorized read contract.
+
+Observed checks:42 focused .NET cases,13 Node checks, isolated Razor/Chromium fleet and shipment flows, plus the habitual5101 at1440/768/390/320. Real clipboard, filters, page/selection history, refresh progress,503 download error/retry and foreign-scope rejection passed. Six rendered PDF pages from download/retry decoded to the same three persisted parcel UUIDs.14 sampled text/state contrast pairs were at least6.24:1; this is targeted checking, not a WCAG certification. Before/after screenshots and exact reports are in the combined checkout `.local/backoffice-visual/`. Only Backoffice was restarted, retaining the same container/key files; no physical operations or manual-state changes were made.

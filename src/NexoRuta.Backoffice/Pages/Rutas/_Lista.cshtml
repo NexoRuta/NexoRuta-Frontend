@@ -1,0 +1,62 @@
+@model NexoRuta.Backoffice.Features.Reparto.Pages.RutasModel
+@{
+    var ruta = Model.RutaSeleccionada;
+    var filtroTodas = string.IsNullOrWhiteSpace(Model.FiltroRuta) || Model.FiltroRuta == "Todas";
+    var filtroPlanificadas = Model.FiltroRuta == "Planificada";
+    var filtroDespachadas = Model.FiltroRuta is "Despachada" or "EnCurso";
+}
+                <aside class="nr-route-list-panel">
+                    <header><div><h2>Rutas del día</h2><span>@Model.RutasVisibles.Count de @Model.Rutas.Count</span></div><a asp-page="/Rutas/Planificar" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" class="nr-small-link">Nueva ruta</a></header>
+                    <form method="get" asp-page="/Rutas" class="nr-route-search">
+                        <input type="hidden" name="fecha" value="@Model.Fecha.ToString("yyyy-MM-dd")" /><input type="hidden" name="pestana" value="rutas" /><input type="hidden" name="filtroRuta" value="@Model.FiltroRuta" />
+                        <label class="visually-hidden" for="buscar-ruta">Buscar ruta o repartidor</label><input id="buscar-ruta" name="buscarRuta" type="search" value="@Model.BuscarRuta" placeholder="Buscar ruta o repartidor" />
+                        <button class="nr-icon-button" type="submit" aria-label="Aplicar búsqueda y filtros"><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg></button>
+                    </form>
+                    <nav class="nr-route-filters" aria-label="Filtrar rutas">
+                        <a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-pestana="rutas" asp-route-buscarRuta="@Model.BuscarRuta" asp-route-filtroRuta="Todas" class="@(filtroTodas ? "is-active" : null)" aria-current="@(filtroTodas ? "page" : null)">Todas</a>
+                        <a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-pestana="rutas" asp-route-buscarRuta="@Model.BuscarRuta" asp-route-filtroRuta="Planificada" class="@(filtroPlanificadas ? "is-active" : null)" aria-current="@(filtroPlanificadas ? "page" : null)">Planificadas</a>
+                        <a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-pestana="rutas" asp-route-buscarRuta="@Model.BuscarRuta" asp-route-filtroRuta="Despachada" class="@(filtroDespachadas ? "is-active" : null)" aria-current="@(filtroDespachadas ? "page" : null)">Despachadas</a>
+                        @foreach (var estado in new[] { (Valor: "Finalizada", Texto: "Finalizadas"), (Valor: "Cancelada", Texto: "Canceladas") })
+                        {
+                            <a asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-buscarRuta="@Model.BuscarRuta" asp-route-filtroRuta="@estado.Valor" class="@(Model.FiltroRuta == estado.Valor ? "is-active" : null)" aria-current="@(Model.FiltroRuta == estado.Valor ? "page" : null)">@estado.Texto</a>
+                        }
+                    </nav>
+                    @if (Model.RutasVisibles.Count == 0)
+                    {
+                        <div class="nr-routes-empty is-compact"><h3>@(Model.Rutas.Count == 0 ? "Sin rutas para esta fecha" : "No hay coincidencias")</h3><p>@(Model.Rutas.Count == 0 ? "No se planificaron hojas de ruta para esta fecha." : "Probá con otro texto o estado.")</p></div>
+                    }
+                    else
+                    {
+                        <div class="nr-route-card-list">
+                            @foreach (var item in Model.RutasVisibles)
+                            {
+                                var seleccionada = ruta?.Id == item.Id;
+                                var totalBultos = item.Paradas.Where(p => p.Activa).Sum(p => p.Bultos.Count);
+                                var primerHora = item.Paradas.Where(p => p.Activa).OrderBy(p => p.Orden).Select(p => (DateTimeOffset?)p.LlegadaEstimadaUtc).FirstOrDefault();
+                                var nombreRepartidor = Model.Repartidor(item.RepartidorAccesoId);
+                                <a class="nr-route-card @(seleccionada ? "is-selected" : null)" asp-page="/Rutas/Detalle" asp-route-rutaId="@item.Id" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-buscarRuta="@Model.BuscarRuta" asp-route-filtroRuta="@Model.FiltroRuta" aria-current="@(seleccionada ? "true" : null)">
+                                    <div class="nr-route-card-row">
+                                        <span class="nr-route-avatar" aria-hidden="true">@Model.InicialesRepartidor(item.RepartidorAccesoId)</span>
+                                        <div class="nr-route-card-content">
+                                            <div class="nr-route-card-top"><h3>@nombreRepartidor</h3><span class="nr-route-status status-@item.Estado.ToLowerInvariant()">@Model.EstadoRuta(item.Estado)</span></div>
+                                            <p class="nr-route-vehicle"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M2 5h10v9H2zM12 8h3l3 3v3h-6zM5 16a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg><span>@item.Matricula · @item.Paradas.Count(p => p.Activa) @(item.Paradas.Count(p => p.Activa) == 1 ? "parada" : "paradas")</span></p>
+                                        </div>
+                                    </div>
+                                    <div class="nr-route-card-bottom"><span>@totalBultos @(totalBultos == 1 ? "bulto" : "bultos") · Ruta @item.Id.ToString("N")[..6].ToUpperInvariant()</span><span class="nr-route-card-time"><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 5.5V10l3 2"/></svg>@(primerHora is { } h ? Model.Hora(h, item.Politica.ZonaHoraria) : "Sin horario")</span></div>
+                                    @if (item.Estado == "Planificada" && item.ReservaRecursosActiva == false)
+                                    {
+                                        <small class="nr-route-card-reservation is-released">Recursos liberados</small>
+                                    }
+                                    else if (item.Estado == "Cancelada")
+                                    {
+                                        <small class="nr-route-card-reservation is-released">Ruta cancelada · historial conservado</small>
+                                    }
+                                    else if (item.Estado == "Planificada" && item.ReservaRecursosActiva == true && !item.Paradas.Any(p => p.Activa))
+                                    {
+                                        <small class="nr-route-card-reservation">@(item.Paradas.Count == 0 ? "Ruta vacía intencional · reserva activa" : "Sin paradas activas · reserva aún activa")</small>
+                                    }
+                                </a>
+                            }
+                        </div>
+                    }
+                </aside>

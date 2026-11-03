@@ -17,6 +17,35 @@ namespace NexoRuta.Backoffice.Features.Reparto.Pages;
 public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envios, UsuariosApiClient usuarios,
     IAuthorizationService authorization) : PageModel
 {
+    [BindProperty(SupportsGet = true)] public Guid? RutaId { get; set; }
+    [BindProperty(SupportsGet = true)] public string? Vista { get; set; }
+    [BindProperty(SupportsGet = true)] public string? FiltroRecepcion { get; set; }
+    [BindProperty(SupportsGet = true)] public int Pagina { get; set; } = 1;
+    [BindProperty(SupportsGet = true)] public Guid? EnvioSeleccionadoId { get; set; }
+    public bool EsFlota => Vista == "flota" || RouteData.Values["page"]?.ToString() == "/Flota" || ReintentoFlota;
+    public bool EsDeposito => !EsFlota && (Vista == "deposito" || Pestana == "deposito" || RouteData.Values["page"]?.ToString() == "/Deposito");
+    public bool EsDetalle => !EsFlota && !EsDeposito && (RutaId.HasValue || RutaSeleccionadaId.HasValue);
+    private bool EsPlanificacion => RouteData.Values["page"]?.ToString() == "/Rutas/Planificar";
+    public string VistaActual => EsFlota ? "flota" : EsDeposito ? "deposito" : EsDetalle ? "detalle" : "rutas";
+    public string TituloVista => EsFlota ? "Flota" : EsDeposito ? "Depósito" : EsDetalle ? "Detalle de ruta" : "Rutas";
+    public IReadOnlyList<EnvioResponse> EnviosContextuales => EnvioSeleccionadoId is { } id
+        ? Envios.Where(e => e.Id == id).ToArray() : Array.Empty<EnvioResponse>();
+    private bool CoincideBusqueda(EnvioResponse e) => string.IsNullOrWhiteSpace(BuscarRecepcion)
+        || e.DestinatarioNombre.Contains(BuscarRecepcion, StringComparison.CurrentCultureIgnoreCase)
+        || e.Direccion.Contains(BuscarRecepcion, StringComparison.CurrentCultureIgnoreCase)
+        || e.Bultos.Any(b => b.Codigo.Contains(BuscarRecepcion, StringComparison.CurrentCultureIgnoreCase));
+    private IEnumerable<EnvioResponse> InventarioDeposito => Envios.Where(e => AdmiteRecepcion(e)
+        || e.Estado is "EnTransito" or "EnDevolucion"
+        || e.Bultos.Any(b => b.Custodia == "Deposito"))
+        .Where(CoincideBusqueda).Where(e => FiltroRecepcion switch
+        {
+            "Primera recepción" => EsRecepcionInicial(e), "Devoluciones" => EsRecepcionDevolucion(e),
+            "En depósito" => e.Bultos.Any(b => b.Custodia == "Deposito"),
+            "Otras confirmaciones" => AdmiteRecepcion(e) && !EsRecepcionInicial(e) && !EsRecepcionDevolucion(e), _ => true
+        }).OrderBy(e => e.DestinatarioNombre);
+    public int TotalDeposito => InventarioDeposito.Count();
+    public int PaginasDeposito => Math.Max(1, (TotalDeposito + 19) / 20);
+    public IReadOnlyList<EnvioResponse> EnviosDepositoPagina => InventarioDeposito.Skip((Pagina - 1) * 20).Take(20).ToArray();
     private const string ZonaHorariaPredeterminada = "America/Montevideo";
     public IReadOnlyList<VehiculoFlotaResponse> Flota { get; private set; } = [];
     public string? ErrorFlota { get; private set; }
@@ -96,8 +125,7 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
             (FiltroRuta == "Activas" && r.Estado is "Planificada" or "EnCurso") ||
             (FiltroRuta == "Despachada" && r.Estado is "Despachada" or "EnCurso") || r.Estado == FiltroRuta)
         .OrderBy(r => r.Estado == "EnCurso" ? 0 : 1).ThenBy(r => r.Matricula, StringComparer.CurrentCultureIgnoreCase).ToArray();
-    public HojaRutaResponse? RutaSeleccionada => RutasVisibles.FirstOrDefault(r => r.Id == RutaSeleccionadaId)
-        ?? RutasVisibles.FirstOrDefault();
+    public HojaRutaResponse? RutaSeleccionada => Rutas.FirstOrDefault(r => r.Id == (RutaId ?? RutaSeleccionadaId));
     public IReadOnlyList<EnvioResponse> RecepcionesPendientes => Envios
         .Where(AdmiteRecepcion)
         .Where(e => string.IsNullOrWhiteSpace(BuscarRecepcion) ||
@@ -280,6 +308,13 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
     private async Task<IActionResult> Cargar()
     {
         CargaCompleta = false;
+        RutaSeleccionadaId = RutaId ?? RutaSeleccionadaId;
+        if (ExtravioEnvioId != Guid.Empty && !EsDetalle)
+        {
+            Vista = "deposito";
+            EnvioSeleccionadoId = ExtravioEnvioId;
+        }
+
         var fechaInvalida = ModelState.TryGetValue(nameof(FechaSalida), out var fechaSalidaModelState) && fechaSalidaModelState.Errors.Count > 0
             || ModelState.TryGetValue(nameof(Fecha), out var fechaModelState) && fechaModelState.Errors.Count > 0;
         var inicializarFecha = Fecha == default && !fechaInvalida;
@@ -289,33 +324,35 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
         {
             var recursos = await api.RecursosAsync(Token(), HttpContext.RequestAborted);
             if (inicializarFecha) Fecha = FechaActual(recursos.Politica.ZonaHoraria);
-            var rutas = fechaInvalida ? Array.Empty<HojaRutaResponse>() : await api.ListarAsync(Fecha, Token(), HttpContext.RequestAborted);
+            var rutas = fechaInvalida || EsFlota ? Array.Empty<HojaRutaResponse>() : await api.ListarAsync(Fecha, Token(), HttpContext.RequestAborted);
             PuedeConsultarEnvios = (await authorization.AuthorizeAsync(User, resource: null, "envios.consultar")).Succeeded;
             PuedeGestionarRutas = (await authorization.AuthorizeAsync(User, resource: null, "envios.gestionar")).Succeeded;
-            var enviosActuales = PuedeConsultarEnvios
+            var enviosActuales = PuedeConsultarEnvios && (EsDeposito || EsDetalle || EsPlanificacion)
                 ? await envios.ListarEnviosAsync(Token(), HttpContext.RequestAborted)
                 : Array.Empty<EnvioResponse>();
-            var usuarioActual = await usuarios.ObtenerUsuarioActualAsync(Token(), HttpContext.RequestAborted);
+            var usuarioActual = EsDeposito || EsDetalle || EsPlanificacion
+                ? await usuarios.ObtenerUsuarioActualAsync(Token(), HttpContext.RequestAborted) : null;
             var anteriores = Plan.GroupBy(p => p.EnvioId).ToDictionary(g => g.Key, g => g.First());
             var plan = enviosActuales.Where(e => e.Estado is "EnDeposito" or "Reprogramado").Select(e => anteriores.GetValueOrDefault(e.Id) ?? new() { EnvioId = e.Id }).ToList();
             Recursos = recursos;
             Rutas = rutas;
             Envios = enviosActuales;
             HoyOperativo = FechaActual(recursos.Politica.ZonaHoraria);
-            PuedeGestionarDecisionesOperativasEnvio = usuarioActual.PuedeGestionarDecisionesOperativasEnvio;
+            PuedeGestionarDecisionesOperativasEnvio = usuarioActual?.PuedeGestionarDecisionesOperativasEnvio ?? false;
+            Pagina = Math.Clamp(Pagina, 1, PaginasDeposito);
             Plan = plan;
             FechaSalida ??= fechaInvalida ? string.Empty : Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             CargaCompleta = true;
         }
         catch (NexoRutaApiException ex) { var redir = await ApiSession.RedirectIfExpiredAsync(this, ex); if (redir is not null) return redir; Error ??= ex.Message; }
         catch (HttpRequestException) { Error ??= "No se pudo consultar el servicio de reparto."; }
-        if (PuedeConsultarEnvios && PuedeGestionarRutas)
+        if (PuedeConsultarEnvios && PuedeGestionarRutas && (EsFlota || EsDetalle))
         {
-            try { Flota = await api.FlotaAsync(Token(), HttpContext.RequestAborted); }
+            try { Flota = await api.FlotaAsync(Token(), HttpContext.RequestAborted); ConsultaFlotaCompleta = true; }
             catch (NexoRutaApiException ex) { ErrorFlota ??= $"Disponibilidad desconocida: falló GET /api/reparto/flota (HTTP {(int?)ex.StatusCode}). Revisá permisos y la API configurada; no se presume una flota vacía ni disponible."; }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { ErrorFlota ??= "No se pudo consultar la ocupación; disponibilidad desconocida. Actualizá la página."; }
         }
-        await CargarEstimaciones();
+        if (EsDetalle) await CargarEstimaciones();
         return Page();
     }
     private static DateOnly FechaActual(string zonaHoraria)
@@ -415,14 +452,16 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
     public string FechaHora(DateTimeOffset utc, string zona) => TimeZoneInfo.ConvertTime(utc,
         TimeZoneInfo.FindSystemTimeZoneById(zona)).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
     private string Token() => SesionUsuario.ObtenerToken(User);
-    private IActionResult RedirectarDiario() => RedirectToPage("/Rutas", new
+    private IActionResult RedirectarDiario() => RedirectToPage(EsFlota ? "/Flota" : EsDeposito ? "/Deposito" : RutaId.HasValue ? "/Rutas/Detalle" : "/Rutas", new
     {
         fecha = Fecha.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         pestana = string.IsNullOrWhiteSpace(Pestana) ? "rutas" : Pestana,
         rutaSeleccionadaId = RutaSeleccionadaId,
         buscarRuta = BuscarRuta,
         filtroRuta = FiltroRuta,
-        buscarRecepcion = BuscarRecepcion
+        buscarRecepcion = BuscarRecepcion,
+        buscarVehiculo = EsFlota ? BuscarVehiculo : null, disponibilidad = EsFlota ? Disponibilidad : null,
+        rutaId = RutaId, filtroRecepcion = FiltroRecepcion, pagina = Pagina, envioSeleccionadoId = EnvioSeleccionadoId
     });
     public sealed class ParadaFormulario
     {

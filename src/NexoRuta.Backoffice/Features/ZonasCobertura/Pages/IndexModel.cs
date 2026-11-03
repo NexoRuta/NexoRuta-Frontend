@@ -8,8 +8,13 @@ using NexoRuta.Backoffice.Core.Security;
 
 namespace NexoRuta.Backoffice.Features.ZonasCobertura.Pages;
 
-public sealed class IndexModel(ZonasCoberturaApiClient api) : PageModel
+public sealed class IndexModel(ZonasCoberturaApiClient api, IConfiguration configuration) : PageModel
 {
+    public string? MapboxPublicToken => configuration[ZonaCoberturaUi.MapboxTokenKey];
+    public bool MapboxConfigured => MapboxPublicToken?.StartsWith("pk.", StringComparison.Ordinal) == true;
+    public string MapboxStyleUrl => configuration[ZonaCoberturaUi.MapboxStyleKey] ?? ZonaCoberturaUi.MapboxDefaultStyle;
+    public string MapaJson { get; private set; } = "[]";
+    public string? ErrorMapa { get; private set; }
     public IReadOnlyList<ZonaCoberturaResumenResponse> Activas { get; private set; } = [];
     public IReadOnlyList<ZonaCoberturaResumenResponse> Inactivas { get; private set; } = [];
     public int Total { get; private set; }
@@ -45,6 +50,34 @@ public sealed class IndexModel(ZonasCoberturaApiClient api) : PageModel
             Total = (active?.Total ?? 0) + (inactive?.Total ?? 0);
             var largestGroupTotal = Math.Max(active?.Total ?? 0, inactive?.Total ?? 0);
             Paginas = Math.Max(1, (int)Math.Ceiling(largestGroupTotal / (double)TamanoPagina));
+            if (MapboxConfigured)
+            {
+                try
+                {
+                    var zones = new List<ZonaCoberturaDetalleResponse>();
+                    // ponytail: one detail request per zone reuses authorized APIs; a map projection can replace this if the catalog grows.
+                    foreach (var state in new[] { ZonaCoberturaUi.EstadoActiva, ZonaCoberturaUi.EstadoInactiva })
+                    for (var page = 1; ; page++)
+                    {
+                        var batch = await api.ListarAsync(token, state, page, 50, HttpContext.RequestAborted);
+                        foreach (var zone in batch.Items)
+                            zones.Add(await api.ObtenerAsync(zone.Id, token, HttpContext.RequestAborted));
+                        if (page * 50 >= batch.Total || batch.Items.Count == 0) break;
+                    }
+                    MapaJson = System.Text.Json.JsonSerializer.Serialize(zones.Select(z => new
+                    {
+                        id = z.Id, nombre = z.Nombre, estado = z.Estado,
+                        geometria = new { type = z.Geometria.Type, coordinates = z.Geometria.Coordinates }
+                    }));
+                }
+                catch (NexoRutaApiException exception)
+                {
+                    var expired = await ApiSession.RedirectIfExpiredAsync(this, exception);
+                    if (expired is not null) return expired;
+                    ErrorMapa = ZonaCoberturaUi.ErrorMessage(exception);
+                }
+                catch (HttpRequestException) { ErrorMapa = "No se pudo cargar el mapa de zonas. El listado sigue disponible."; }
+            }
         }
         catch (NexoRutaApiException exception)
         {

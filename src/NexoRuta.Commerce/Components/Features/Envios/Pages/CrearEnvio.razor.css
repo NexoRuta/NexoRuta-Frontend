@@ -12,6 +12,12 @@
 .nr-admission-confirmation .nr-price-review { flex: 1; }
 .nr-admission-success { margin-block-end: 1.25rem; }
 .nr-admission-success .alert { margin-bottom: 1rem; }
+.nr-operator-alternatives { min-width: 0; padding: 1rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); }
+.nr-operator-alternatives h3 { margin: 0 0 .75rem; font-size: 1rem; }
+.nr-operator-alternatives ul { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; }
+.nr-operator-alternatives li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.nr-operator-alternatives li > div { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.nr-operator-alternatives li span { font-size: .875rem; color: var(--nr-text-muted); }
 @media (min-width:1100px) {
     .nr-creation-grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
     .nr-admission-operator, .nr-admission-recipient { grid-column: 1; }

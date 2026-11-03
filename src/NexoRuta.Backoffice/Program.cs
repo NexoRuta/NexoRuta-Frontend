@@ -35,6 +35,9 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Usuarios", "usuarios.gestionar");
     options.Conventions.AuthorizePage("/Rutas", "envios.gestionar");
     options.Conventions.AuthorizePage("/Rutas/Planificar", "envios.gestionar");
+    options.Conventions.AuthorizePage("/Rutas/Detalle", "envios.gestionar");
+    options.Conventions.AuthorizePage("/Deposito", "envios.gestionar");
+    options.Conventions.AuthorizePage("/Flota", "envios.gestionar");
     options.Conventions.AuthorizePage("/ConfiguracionReparto", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AuthorizePage("/Vehiculos", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AuthorizePage("/Roles", ZonaCoberturaUi.PermisoGestionar);

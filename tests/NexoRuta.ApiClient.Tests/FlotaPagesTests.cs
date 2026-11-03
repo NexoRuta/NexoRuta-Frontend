@@ -10,7 +10,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var response = await client.GetAsync("/flota?fecha=2026-10-20");
         var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         Assert.Contains("Disponibilidad desconocida", html);
         Assert.DoesNotContain("Disponibilidad confirmada", html);
@@ -30,7 +30,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
-        using var response = await client.GetAsync("/rutas?fecha=2026-10-20");
+        using var response = await client.GetAsync("/flota?fecha=2026-10-20");
         var html = await response.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("FLEET-320", html); Assert.Contains("2020-01-02", html);

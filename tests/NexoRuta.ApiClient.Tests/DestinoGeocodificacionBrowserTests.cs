@@ -24,7 +24,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         factory.UseKestrel(0);
         using var client = factory.CreateClient();
         var start = new ProcessStartInfo("node") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-        start.ArgumentList.Add(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../tests/browser/destination-geocoding.cjs")));
+        start.ArgumentList.Add(DestinationBrowserScript());
         start.Environment["DESTINATION_BASE_URL"] = client.BaseAddress!.ToString();
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
@@ -35,16 +35,24 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.True(process.ExitCode == 0, await output + "\n" + await error);
         Assert.Equal(new[] { "Primera", "Cambio", "Cuota", "Fallo" }, state.Searches.ToArray());
         Assert.Equal(3, state.Version);
-        Assert.Equal((-34.91, -56.21), (state.Lat, state.Lon));
+        using var marker = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(Environment.GetEnvironmentVariable("NEXORUTA_DESTINATION_BROWSER_DIR")!, "real-marker-result.json")));
+        var selected = marker.RootElement.GetProperty("finalPoint");
+        Assert.InRange(Math.Abs(selected.GetProperty("lat").GetDouble() + 34.91), 0, 0.00001);
+        Assert.InRange(Math.Abs(selected.GetProperty("lon").GetDouble() + 56.21), 0, 0.00001);
+        Assert.Equal(selected.GetProperty("lat").GetDouble(), state.Lat!.Value);
+        Assert.Equal(selected.GetProperty("lon").GetDouble(), state.Lon!.Value);
         Assert.Equal("Cambio 123",state.Address);
     }
+
+    private static string DestinationBrowserScript([System.Runtime.CompilerServices.CallerFilePath] string source = "")
+        => Path.GetFullPath(Path.Combine(Path.GetDirectoryName(source)!, "../browser/destination-geocoding.cjs"));
 
     private sealed class DestinationBrowserFactAttribute : FactAttribute
     {
         public DestinationBrowserFactAttribute()
         {
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NEXORUTA_DESTINATION_BROWSER_DIR")))
-                Skip = "Opt-in Chromium with fake API and map SDK; external requests blocked.";
+                Skip = "Opt-in Chromium with controlled API/style and actual Mapbox SDK/CSS; provider requests blocked.";
         }
     }
 
@@ -73,6 +81,10 @@ public sealed partial class BackofficeSessionAndPagesTests
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             var path = request.RequestUri!.AbsolutePath;
+            if (path == "/api/envios" && request.Method == HttpMethod.Get)
+                return Json(HttpStatusCode.OK, new[] { new { id = Guid.Parse("00000000-0000-0000-0000-000000000999"), operadorId = Guid.Parse("00000000-0000-0000-0000-000000000202"), bultos = Array.Empty<object>() } });
+            if (path == "/api/operadores/00000000-0000-0000-0000-000000000202/cobertura-envios")
+                return Json(HttpStatusCode.OK, new[] { new { zonaId = Guid.NewGuid(), nombre = "Controlled active coverage", geometria = new { type = "Polygon", coordinates = new[] { new[] { new[] {-56.4,-35.0}, new[] {-56.0,-35.0}, new[] {-56.0,-34.7}, new[] {-56.4,-35.0} } } } } });
             if (!path.StartsWith("/api/envios/", StringComparison.Ordinal) || !path.Contains("/destino"))
                 return await base.SendAsync(request, ct);
             Assert.Equal("jwt-commerce", request.Headers.Authorization?.Parameter);

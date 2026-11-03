@@ -1,0 +1,14 @@
+@using NexoRuta.ApiClient.Features.Envios.Contracts.Responses
+
+<dl class="nr-tariff-breakdown" aria-label="Desglose de tarifa calculada por el servidor">
+    <dt>Base</dt><dd>@Tarifa.ImporteBaseUyu.ToString("N2") @Tarifa.Moneda</dd>
+    <dt>Peso</dt><dd>@Tarifa.ComponentePesoUyu.ToString("N2") @Tarifa.Moneda</dd>
+    <dt>Volumen</dt><dd>@Tarifa.ComponenteVolumenUyu.ToString("N2") @Tarifa.Moneda</dd>
+    <dt>Recargos</dt><dd>@Tarifa.TotalRecargosUyu.ToString("N2") @Tarifa.Moneda</dd>
+    <dt>Bonificaciones</dt><dd>@Tarifa.TotalBonificacionesUyu.ToString("N2") @Tarifa.Moneda</dd>
+    <dt>Total</dt><dd><strong>@Tarifa.TotalFinalUyu.ToString("N2") @Tarifa.Moneda</strong></dd>
+</dl>
+
+@code {
+    [Parameter, EditorRequired] public TarifaEnvioResponse Tarifa { get; set; } = null!;
+}

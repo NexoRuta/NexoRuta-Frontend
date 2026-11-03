@@ -1,0 +1,6 @@
+@model Guid
+<div data-label-download class="d-flex flex-column align-items-start gap-1">
+    <a class="btn btn-outline-secondary" href="/envios/@Model.ToString("D")/etiquetas" data-label-link>Descargar etiquetas</a>
+    <span data-label-status class="small text-body-secondary" role="status" aria-live="polite"></span>
+</div>
+<script type="module" src="~/js/etiquetas-envio.js" asp-append-version="true"></script>

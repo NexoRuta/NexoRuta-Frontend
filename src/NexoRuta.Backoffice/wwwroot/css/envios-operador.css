@@ -1,0 +1,99 @@
+/* Operator scope: reuse Commerce hierarchy and shared semantic tokens without changing other portals. */
+.nr-operator-shipments { min-width: 0; color: var(--nr-text); }
+.nr-op-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-block-end: 1.35rem; }
+.nr-op-heading h1 { margin: 0; font-size: clamp(1.8rem,3vw,2.35rem); font-weight: 750; letter-spacing: -.035em; }
+.nr-op-heading p:last-child { margin: .35rem 0 0; color: var(--nr-text-muted); font-size: .9rem; }
+.nr-op-heading .nr-op-eyebrow { margin: 0 0 .2rem; color: var(--nr-action); font-size: .75rem; font-weight: 750; letter-spacing: .06em; }
+.nr-operator-shipments form.nr-op-refresh { margin: 0; flex: 0 0 auto; padding: 0; border: 0; background: transparent; }
+.nr-op-refresh .btn { white-space: nowrap; }
+.nr-op-refresh .btn span { margin-inline-end: .3rem; }
+.nr-operator-shipments form.nr-op-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin: 0 0 .8rem; padding: 0; border: 0; background: transparent; }
+.nr-op-toolbar > div { min-width: 0; flex: 1 1 10rem; }
+.nr-op-toolbar .nr-op-search { position: relative; flex: 3 1 17rem; }
+.nr-op-search > span { position: absolute; inset: .6rem auto auto .85rem; color: var(--nr-text-muted); font-size: 1.25rem; }
+.nr-op-toolbar .nr-op-search input { padding-inline-start: 2.4rem; }
+.nr-op-toolbar :is(input,select) { min-height: 3rem; }
+.nr-op-toolbar > .btn { min-height: 3rem; white-space: nowrap; }
+.nr-op-toolbar .nr-op-clear { padding-inline: .4rem; text-decoration: none; }
+.nr-op-state-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-block-end: .55rem; }
+.nr-op-state-tab { display: inline-flex; align-items: center; gap: .5rem; min-height: 2.75rem; padding: .35rem .75rem; border: 1px solid transparent; border-radius: var(--nr-radius-sm); background: var(--nr-surface-muted); color: var(--nr-text); text-decoration: none; font-size: .86rem; font-weight: 650; }
+.nr-op-state-tab:hover { border-color: var(--nr-border); color: var(--nr-text); }
+.nr-op-state-tab.is-selected { background: var(--nr-action); color: var(--nr-action-text); border-color: var(--nr-action); }
+.nr-op-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.45rem; min-height: 1.45rem; padding-inline: .25rem; border-radius: 999px; background: var(--nr-surface); color: var(--nr-text); font-size: .75rem; }
+.nr-op-count-scope { margin: 0 0 .8rem; color: var(--nr-text-muted); font-size: .75rem; }
+.nr-op-table-shell { min-width: 0; background: var(--nr-surface); border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); box-shadow: var(--nr-shadow); }
+.nr-operator-shipments .nr-op-table { margin: 0; width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--nr-surface); }
+.nr-operator-shipments .nr-op-table thead th:nth-child(1) { width: 18%; }
+.nr-operator-shipments .nr-op-table thead th:nth-child(2) { width: 15%; }
+.nr-operator-shipments .nr-op-table thead th:nth-child(3) { width: 19%; }
+.nr-operator-shipments .nr-op-table thead th:nth-child(4) { width: 22%; }
+.nr-operator-shipments .nr-op-table thead th:nth-child(5) { width: 13%; }
+.nr-operator-shipments .nr-op-table thead th:nth-child(6) { width: 13%; }
+.nr-operator-shipments .nr-op-table :is(th,td) { min-width: 0; padding: .85rem .65rem; vertical-align: middle; overflow-wrap: anywhere; border-block-end: 1px solid var(--nr-border); font-size: .88rem; }
+.nr-operator-shipments .nr-op-table thead th { padding-block: .75rem; font-size: .78rem; font-weight: 700; color: var(--nr-text); background: var(--nr-surface-muted); }
+.nr-operator-shipments .nr-op-table tbody tr:last-child > * { border-block-end: 0; }
+.nr-op-identity,.nr-op-recipient,.nr-op-destination { display: grid; min-width: 0; gap: .25rem; line-height: 1.4; }
+.nr-op-identity > strong { font-size: .9rem; font-weight: 750; }
+.nr-op-identity > span,.nr-op-recipient > a,.nr-op-destination > small { font-size: .78rem; font-weight: 400; color: var(--nr-text-muted); }
+.nr-op-recipient > a { text-decoration: none; overflow-wrap: anywhere; }
+.nr-op-recipient > a:hover { text-decoration: underline; }
+.nr-op-primary,.nr-op-recipient > strong { font-weight: 650; }
+.nr-op-tariff { min-width: 0; font-size: .8rem; font-weight: 400; }
+.nr-op-tariff > summary { color: var(--nr-action-strong); cursor: pointer; }
+.nr-op-tariff > summary > span { color: var(--nr-text-muted); }
+.nr-op-tariff .nr-tariff-breakdown { gap: .25rem .4rem; font-size: .75rem; margin-block-end: 0; }
+.nr-op-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: .2rem; }
+.nr-operator-shipments .nr-shipment-detail-trigger { padding: .35rem .2rem; font-size: .82rem; font-weight: 650; text-decoration: none; white-space: nowrap; }
+.nr-op-more { position: relative; flex: 0 0 auto; }
+.nr-op-more > summary { display: flex; align-items: center; justify-content: center; width: 2.25rem; min-height: 2.75rem; border-radius: var(--nr-radius-sm); list-style: none; cursor: pointer; color: var(--nr-text-muted); font-size: 1.5rem; }
+.nr-op-more > summary::-webkit-details-marker { display: none; }
+.nr-op-more > summary:hover,.nr-op-more[open] > summary { color: var(--nr-action); background: var(--nr-action-soft); }
+.nr-op-more-panel { position: absolute; z-index: 20; inset: calc(100% + .2rem) 0 auto auto; display: grid; gap: .5rem; width: min(16rem,calc(100vw - 3rem)); padding: .65rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); box-shadow: var(--nr-shadow); }
+.nr-op-more-panel > .btn,.nr-op-more-panel [data-label-link] { width: auto; max-width: 100%; justify-self: start; text-align: start; min-height: 2.75rem; font-size: .85rem; }
+.nr-op-more-panel [data-label-status] { max-width: 100%; font-size: .75rem; }
+.nr-operator-shipments .nr-op-table tbody tr:nth-last-child(-n+2) .nr-op-more-panel { inset-block-start: auto; inset-block-end: calc(100% + .2rem); }
+.nr-op-footer { display: flex; justify-content: space-between; align-items: center; gap: .75rem; min-height: 3.75rem; padding: .75rem; border-block-start: 1px solid var(--nr-border); }
+.nr-op-footer .nr-shipments-range { margin: 0; color: var(--nr-text-muted); font-size: .82rem; }
+.nr-op-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; font-size: .8rem; }
+.nr-op-pagination > div { display: flex; gap: .35rem; }
+.nr-op-pagination .btn { min-height: 2.5rem; font-size: .8rem; }
+.nr-op-empty { display: grid; justify-items: center; gap: .5rem; padding: 2rem 1rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); text-align: center; }
+.nr-op-empty h2 { margin: 0; font-size: 1.1rem; }
+.nr-op-empty p { margin: 0; color: var(--nr-text-muted); }
+.nr-op-error { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .75rem; }
+.nr-operator-shipments :is(a,button,input,select,summary):focus-visible { outline: 3px solid var(--nr-focus); outline-offset: 2px; }
+@media (min-width:901px) and (max-width:1100px) {
+    .nr-operator-shipments .nr-op-table :is(th,td) { padding-inline: .4rem; font-size: .8rem; }
+    .nr-op-row-actions { flex-direction: column; align-items: flex-end; }
+}
+@media (max-width:900px) {
+    .nr-op-heading { align-items: flex-start; }
+    .nr-op-heading p:last-child { font-size: .8rem; }
+    .nr-op-refresh .btn { padding-inline: .65rem; font-size: .8rem; }
+    .nr-op-toolbar > div,.nr-op-toolbar .nr-op-search { flex: 1 1 100%; }
+    .nr-op-toolbar > .btn { flex: 0 1 auto; }
+    .nr-op-state-tab { font-size: .78rem; padding-inline: .55rem; }
+    .nr-op-table-shell { border: 0; background: transparent; box-shadow: none; }
+    .nr-operator-shipments .nr-op-table,.nr-operator-shipments .nr-op-table tbody { display: block; width: 100%; }
+    .nr-operator-shipments .nr-op-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+    .nr-operator-shipments .nr-op-table tbody { display: grid; gap: .7rem; }
+    .nr-operator-shipments .nr-op-table tbody tr { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .5rem .65rem; padding: .85rem; border: 1px solid var(--nr-border); border-radius: var(--nr-radius-sm); background: var(--nr-surface); box-shadow: var(--nr-shadow); }
+    .nr-operator-shipments .nr-op-table tbody tr > :is(th,td) { display: block; width: auto; padding: 0; border: 0; text-align: start; }
+    .nr-operator-shipments .nr-op-table tbody tr > :is(th,td)::before { content: none; }
+    .nr-operator-shipments .nr-op-table tbody tr > th { grid-column: 1; grid-row: 1; }
+    .nr-operator-shipments .nr-op-table tbody tr > td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-size: .78rem; }
+    .nr-operator-shipments .nr-op-table tbody tr > td:nth-child(2)::before { content: 'Comercio: '; color: var(--nr-text-muted); font-weight: 400; }
+    .nr-operator-shipments .nr-op-table tbody tr > td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; }
+    .nr-operator-shipments .nr-op-table tbody tr > td:nth-child(4) { grid-column: 1 / -1; grid-row: 4; }
+    .nr-op-destination > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .nr-operator-shipments .nr-op-table tbody tr > td:nth-child(5) { grid-column: 2; grid-row: 1; max-width: 8rem; }
+    .nr-operator-shipments .nr-op-table tbody tr > td:nth-child(6) { grid-column: 1 / -1; grid-row: 5; margin-block-start: .2rem; border-block-start: 1px solid var(--nr-border); padding-block-start: .35rem; }
+    .nr-op-row-actions { justify-content: space-between; }
+    .nr-op-footer { align-items: flex-start; flex-direction: column; border: 0; padding-inline: 0; }
+    .nr-op-pagination { width: 100%; justify-content: space-between; }
+    .nr-op-more-panel { width: min(16rem,calc(100vw - 4rem)); }
+}
+@media (min-width:650px) and (max-width:900px) {
+    .nr-operator-shipments .nr-op-table tbody { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (prefers-reduced-motion:reduce) { .nr-operator-shipments * { scroll-behavior: auto; } }

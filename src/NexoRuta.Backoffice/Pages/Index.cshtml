@@ -2,125 +2,133 @@
 @using System.Globalization
 @model NexoRuta.Backoffice.Features.Envios.Pages.IndexModel
 @{
-    ViewData["Title"] = "Envíos recibidos | Backoffice NexoRuta";
+    ViewData["Title"] = "Envíos";
 }
-
-<header class="nr-page-header nr-shipments-header">
-    <div>
-        <h1>Envíos recibidos</h1>
-        @if (Model.ConsultaCorrecta)
-        {
-            <p class="nr-shipments-result-count">@Model.TotalResultados @(Model.TotalResultados == 1 ? "resultado" : "resultados")</p>
-        }
+@section Head {
+    <link rel="stylesheet" href="~/css/envios-operador.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script type="module" src="~/js/envios-operador.js" asp-append-version="true"></script>
+}
+<script type="module" src="~/js/etiquetas-envio.js" asp-append-version="true"></script>
+<section class="nr-operator-shipments" aria-labelledby="shipments-title">
+<header class="nr-op-heading">
+    <div><p class="nr-op-eyebrow">OPERADOR</p><h1 id="shipments-title">Envíos</h1>
+        <p>@if (Model.ConsultaCorrecta) { <strong>@Model.TotalResultados @(Model.TotalResultados == 1 ? "resultado" : "resultados")</strong><span> · </span> }Consultá los envíos de tu operador y su estado comercial.</p>
     </div>
-    <form method="get" asp-page="/Index" class="nr-shipments-refresh" data-single-submit data-preserve-scroll>
-        <input type="hidden" name="Buscar" value="@Model.Buscar" />
-        <input type="hidden" name="Estado" value="@Model.Estado" />
-        <input type="hidden" name="Pagina" value="@Model.Pagina" />
-        <button type="submit" class="btn btn-outline-secondary" data-loading-text="Actualizando…">Actualizar</button>
+    <form method="get" asp-page="/Index" class="d-flex nr-op-refresh" data-single-submit data-preserve-scroll data-operator-refresh>
+        <input type="hidden" name="Buscar" value="@Model.Buscar" /><input type="hidden" name="Estado" value="@Model.Estado" />
+        <input type="hidden" name="ComercioId" value="@Model.ComercioId" /><input type="hidden" name="Pagina" value="@Model.Pagina" />
+        <input type="hidden" name="Seleccion" value="@Model.Seleccion" />
+        <button type="submit" class="btn btn-outline-secondary" data-loading-text="Actualizando…" aria-label="Actualizar envíos"><span aria-hidden="true">↻</span> Actualizar</button>
     </form>
 </header>
-
-@if (Model.Confirmacion is not null)
-{
-    <p class="alert alert-success" role="status">@Model.Confirmacion</p>
-}
-@if (Model.Error is not null)
-{
-    <div class="alert alert-danger nr-shipments-error" role="alert">
-        <span>@Model.Error</span>
-        <a class="btn btn-outline-danger" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, Pagina = Model.Pagina })">Reintentar</a>
+@if (Model.Confirmacion is not null) { <p class="alert alert-success" role="status">@Model.Confirmacion</p> }
+@if (Model.Error is not null) {
+    <div class="alert alert-danger nr-op-error" role="alert"><span>@Model.Error</span>
+        <a class="btn btn-outline-danger" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, ComercioId = Model.ComercioId, Pagina = Model.Pagina, Seleccion = Model.Seleccion })">Reintentar</a>
     </div>
 }
-
-<form method="get" asp-page="/Index" class="nr-shipments-filters" data-single-submit>
-    <div class="nr-shipments-search">
-        <label for="shipment-search" class="form-label">Buscar envíos</label>
-        <input id="shipment-search" name="Buscar" type="search" class="form-control" value="@Model.Buscar" placeholder="Código, comercio o destinatario" autocomplete="off" />
-    </div>
-    <div class="nr-shipments-state-filter">
-        <label for="shipment-state" class="form-label">Estado</label>
-        <select id="shipment-state" name="Estado" class="form-select">
-            <option value="">Todos los estados</option>
-            @foreach (var state in Model.EstadosDisponibles)
-            {
-                <option value="@state" selected="@(Model.Estado == state)">@Model.EtiquetaEstado(state)</option>
-            }
-        </select>
-    </div>
+<form method="get" asp-page="/Index" class="d-flex nr-op-toolbar" data-single-submit>
+    <div class="nr-op-search"><label class="visually-hidden" for="shipment-search">Buscar envíos</label>
+        <span aria-hidden="true">⌕</span><input id="shipment-search" name="Buscar" type="search" class="form-control" value="@Model.Buscar" placeholder="Código, comercio o destinatario" autocomplete="off" /></div>
+    <div><label class="visually-hidden" for="shipment-commerce">Filtrar por comercio</label>
+        <select id="shipment-commerce" name="ComercioId" class="form-select"><option value="">Todos los comercios</option>
+            @foreach (var comercio in Model.ComerciosDisponibles) { <option value="@comercio.Id" selected="@(Model.ComercioId == comercio.Id)">@comercio.Nombre</option> }
+            @if (Model.ComercioId is { } id && !Model.ComerciosDisponibles.Any(c => c.Id == id)) { <option value="@id" selected>Comercio sin envíos disponibles</option> }
+        </select></div>
+    <div><label class="visually-hidden" for="shipment-state">Estado</label>
+        <select id="shipment-state" name="Estado" class="form-select"><option value="">Todos los estados</option>
+            @foreach (var state in Model.EstadosDisponibles) { <option value="@state" selected="@(Model.Estado == state)">@Model.EtiquetaEstado(state)</option> }
+        </select></div>
     <input type="hidden" name="Pagina" value="1" />
-    <button type="submit" class="btn btn-primary" data-loading-text="Aplicando…">Aplicar filtros</button>
-    @if (Model.TieneFiltros)
-    {
-        <a class="btn btn-link nr-shipments-clear" asp-page="/Index">Limpiar filtros</a>
-    }
+    <button type="submit" class="btn btn-outline-primary" data-loading-text="Aplicando…">Aplicar filtros</button>
+    @if (Model.TieneFiltros) { <a class="btn btn-link nr-op-clear" asp-page="/Index">Limpiar filtros</a> }
 </form>
-
-@if (Model.ConsultaCorrecta && Model.TotalResultados == 0)
-{
-    <section class="nr-shipments-empty" role="status">
-        @if (Model.TieneFiltros)
-        {
-            <h2>No encontramos envíos con esos filtros</h2>
+@if (Model.ConsultaCorrecta) {
+    <nav class="nr-op-state-tabs" aria-label="Filtrar envíos por estado">
+        @foreach (var state in Model.EstadosRapidos) {
+            <a class="nr-op-state-tab @(Model.Estado == state ? "is-selected" : null)" aria-current="@(Model.Estado == state ? "true" : null)"
+               data-state-filter="@state" href="@Url.Page("/Index", new { Buscar = Model.Buscar, ComercioId = Model.ComercioId, Estado = state, Pagina = 1 })">
+                <span>@(state.Length == 0 ? "Todos" : Model.EtiquetaEstado(state))</span><span class="nr-op-tab-count" data-state-count="@state">@Model.ContarEstado(state)</span>
+            </a>
         }
-        else
-        {
-            <h2>Todavía no hay envíos</h2>
-        }
+    </nav>
+    <p class="nr-op-count-scope">Contadores según búsqueda y comercio, antes del filtro de estado y la paginación.</p>
+}
+@if (Model.ConsultaCorrecta && Model.Seleccion is not null && Model.EnvioSeleccionado is null) {
+    <p class="alert alert-warning" role="status">El envío seleccionado no está disponible.
+        <a href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, ComercioId = Model.ComercioId, Pagina = Model.Pagina })">Volver al listado</a></p>
+}
+@if (Model.ConsultaCorrecta && Model.TotalResultados == 0) {
+    <section class="nr-op-empty" role="status">
+        @if (Model.TieneFiltros) { <h2>No encontramos envíos con esos filtros</h2><p>Revisá la búsqueda y los filtros seleccionados.</p> }
+        else { <h2>Todavía no hay envíos</h2><p>Los nuevos envíos aparecerán en este listado.</p> }
     </section>
 }
-else if (Model.ConsultaCorrecta && Model.TotalResultados > 0)
-{
-    <table class="table nr-shipments-table">
-        <caption class="visually-hidden">Envíos recibidos. Buscar filtra por identificador, comercio o destinatario.</caption>
-        <thead>
-            <tr>
-                <th id="shipments-col-shipment" scope="col">Envío</th>
-                <th id="shipments-col-commerce" scope="col">Comercio</th>
-                <th id="shipments-col-recipient" scope="col">Destinatario</th>
-                <th id="shipments-col-destination" scope="col">Destino</th>
-                <th id="shipments-col-state" scope="col">Estado</th>
-                <th id="shipments-col-packages" scope="col">Bultos</th>
-                <th id="shipments-col-details" scope="col">Acción</th>
+else if (Model.ConsultaCorrecta && Model.TotalResultados > 0) {
+    <div class="nr-op-table-shell">
+    <table class="nr-shipments-table nr-op-table">
+        <caption class="visually-hidden">Envíos del operador. Buscar filtra por identificador, código de bulto, comercio o destinatario.</caption>
+        <thead><tr><th scope="col">Envío</th><th scope="col">Comercio</th><th scope="col">Destinatario</th><th scope="col">Destino</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead>
+        <tbody>@foreach (var envio in Model.Envios) {
+            var shortId = Model.AbreviarId(envio.Id);
+            <tr class="nr-shipment-row">
+                <th scope="row" data-label="Envío"><div class="nr-op-identity">
+                    <strong>@(envio.ReferenciaExterna ?? $"Envío #{shortId}")</strong>
+                    <span>@envio.Bultos.Count @(envio.Bultos.Count == 1 ? "bulto" : "bultos") · @Model.PesoTotal(envio) kg</span>
+                    @if (envio.Tarifa is { } cargo) {
+                        <details class="nr-op-tariff"><summary>@cargo.TotalFinalUyu.ToString("N2") @cargo.Moneda <span>· @cargo.Modalidad</span></summary>
+                            <dl class="nr-tariff-breakdown"><dt>Base</dt><dd>@cargo.ImporteBaseUyu.ToString("N2")</dd><dt>Peso</dt><dd>@cargo.ComponentePesoUyu.ToString("N2")</dd><dt>Volumen</dt><dd>@cargo.ComponenteVolumenUyu.ToString("N2")</dd><dt>Recargos</dt><dd>@cargo.TotalRecargosUyu.ToString("N2")</dd><dt>Bonificaciones</dt><dd>@cargo.TotalBonificacionesUyu.ToString("N2")</dd></dl>
+                        </details>
+                    }
+                </div></th>
+                <td data-label="Comercio"><strong class="nr-op-primary">@Model.ValorInformado(envio.ComercioNombre)</strong></td>
+                <td data-label="Destinatario"><div class="nr-op-recipient"><strong>@Model.ValorInformado(envio.DestinatarioNombre)</strong>
+                    @if (!string.IsNullOrWhiteSpace(envio.DestinatarioEmail)) { <a href="mailto:@envio.DestinatarioEmail">@envio.DestinatarioEmail</a> }</div></td>
+                <td data-label="Destino"><div class="nr-op-destination"><span>@Model.ValorInformado(envio.Direccion)</span>
+                    @if (envio.DestinoConfirmado) { <small>Ubicación confirmada</small> }</div></td>
+                <td data-label="Estado"><span class="nr-shipment-status nr-shipment-status--@Model.ClaseEstado(envio.Estado)">@Model.EtiquetaEstado(envio.Estado)</span></td>
+                <td data-label="Acciones"><div class="nr-op-row-actions">
+                    <button type="button" class="btn btn-link nr-shipment-detail-trigger"
+                            data-bs-toggle="offcanvas" data-bs-target="#shipment-detail-dialog" data-shipment-template="shipment-detail-template-@envio.Id"
+                            data-shipment-id="@envio.Id.ToString("D")" data-shipment-short-id="@shortId" data-shipment-status-label="@Model.EtiquetaEstado(envio.Estado)" data-shipment-status-class="@Model.ClaseEstado(envio.Estado)"
+                            data-open-on-load="@((Model.Error is not null && Model.EnvioId == envio.Id || Model.Seleccion == envio.Id) ? "true" : "false")"
+                            data-focus-cancel="@(Model.Error is not null && Model.EnvioId == envio.Id ? "true" : "false")" aria-label="Ver detalle del envío @shortId">Ver detalle</button>
+                    <details class="nr-op-more" data-shipment-menu><summary aria-label="Más acciones del envío @shortId"><span aria-hidden="true">⋯</span></summary>
+                        <div class="nr-op-more-panel">
+                            <partial name="_DescargarEtiquetas" model="envio.Id" />
+                            <button type="button" class="btn btn-outline-secondary" data-copy-shipment-id="@envio.Id.ToString("D")" data-copy-status="copy-status-@envio.Id" aria-label="Copiar identificador completo del envío @shortId">Copiar identificador</button>
+                            @if (Model.PuedeCancelar && envio.AdmiteCancelacion()) {
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="offcanvas" data-bs-target="#shipment-detail-dialog"
+                                        data-shipment-template="shipment-detail-template-@envio.Id" data-shipment-id="@envio.Id.ToString("D")" data-shipment-short-id="@shortId"
+                                        data-shipment-status-label="@Model.EtiquetaEstado(envio.Estado)" data-shipment-status-class="@Model.ClaseEstado(envio.Estado)" data-focus-cancel="true">Cancelar envío</button>
+                            }
+                        </div>
+                    </details>
+                    <span class="visually-hidden" id="copy-status-@envio.Id" role="status" aria-live="polite"></span>
+                </div></td>
             </tr>
-        </thead>
-        <tbody>
-            @foreach (var envio in Model.Envios)
-            {
-                var shortId = Model.AbreviarId(envio.Id);
-                <tr class="nr-shipment-row">
-                    <th scope="row" headers="shipments-col-shipment" data-label="Envío">
-                        <span class="nr-shipment-id">@shortId</span>
-                        <time class="nr-shipment-created" datetime="@envio.CreadoEnUtc.ToString("O")">@Model.FechaLocal(envio.CreadoEnUtc)</time>
-                        <button type="button" class="nr-copy-shipment" data-copy-shipment-id="@envio.Id.ToString("D")" data-copy-status="copy-status-@envio.Id" aria-label="Copiar identificador completo del envío @shortId">Copiar</button>
-                        <span class="visually-hidden" id="copy-status-@envio.Id" role="status" aria-live="polite"></span>
-                    </th>
-                    <td headers="shipments-col-commerce" data-label="Comercio"><span class="nr-shipments-primary-text">@envio.ComercioNombre</span></td>
-                    <td headers="shipments-col-recipient" data-label="Destinatario"><span class="nr-shipments-primary-text">@envio.DestinatarioNombre</span></td>
-                    <td headers="shipments-col-destination" data-label="Destino"><span class="nr-shipment-address">@envio.Direccion</span></td>
-                    <td headers="shipments-col-state" data-label="Estado">
-                        <span class="nr-shipment-status nr-shipment-status--@Model.ClaseEstado(envio.Estado)">
-                            <span aria-hidden="true">@(Model.ClaseEstado(envio.Estado) switch { "success" => "✓", "warning" => "!", "danger" => "×", _ => "•" })</span>
-                            @Model.EtiquetaEstado(envio.Estado)
-                        </span>
-                    </td>
-                    <td headers="shipments-col-packages" data-label="Bultos">
-                        <span class="nr-package-count">@envio.Bultos.Count @(envio.Bultos.Count == 1 ? "bulto" : "bultos")</span>
-                        @if (envio.Bultos.Count > 0)
-                        {
-                            <span class="nr-package-weight">@Model.PesoTotal(envio) kg en total</span>
-                        }
-                        @if (envio.Tarifa is { } cargo) { <span class="nr-shipment-price">@cargo.TotalFinalUyu.ToString("N2") @cargo.Moneda · @cargo.Modalidad</span> }
-                    </td>
-                    <td headers="shipments-col-details" data-label="Detalle">
-                        <button type="button" class="btn btn-link nr-shipment-detail-trigger"
-                                data-bs-toggle="offcanvas" data-bs-target="#shipment-detail-dialog"
-                                data-shipment-template="shipment-detail-template-@envio.Id"
-                                data-shipment-id="@envio.Id.ToString("D")" data-shipment-short-id="@shortId"
-                                data-shipment-status-label="@Model.EtiquetaEstado(envio.Estado)"
-                                data-shipment-status-class="@Model.ClaseEstado(envio.Estado)"
-                                data-open-on-load="@(Model.Error is not null && Model.EnvioId == envio.Id ? "true" : "false")"
-                                aria-label="Ver detalle del envío @shortId">Ver detalle</button>
+        }</tbody>
+    </table>
+    <footer class="nr-op-footer">
+        <p class="nr-shipments-range" aria-live="polite">Mostrando @Model.PrimerResultado–@Model.UltimoResultado de @Model.TotalResultados envíos</p>
+        @if (Model.TotalPaginas > 1) {
+            <nav class="nr-op-pagination" aria-label="Paginación de envíos"><span>Página @Model.Pagina de @Model.TotalPaginas</span>
+                <div>@if (Model.Pagina > 1) { <a class="btn btn-outline-secondary" rel="prev" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, ComercioId = Model.ComercioId, Pagina = Model.Pagina - 1 })">Anterior</a> }
+                else { <span class="btn btn-outline-secondary" aria-disabled="true">Anterior</span> }
+                @if (Model.Pagina < Model.TotalPaginas) { <a class="btn btn-outline-secondary" rel="next" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, ComercioId = Model.ComercioId, Pagina = Model.Pagina + 1 })">Siguiente</a> }
+                else { <span class="btn btn-outline-secondary" aria-disabled="true">Siguiente</span> }</div>
+            </nav>
+        }
+    </footer>
+    </div>
+}
+</section>
+
+@foreach (var envio in Model.EnviosDetalle)
+{
+    var shortId = Model.AbreviarId(envio.Id);
                         <template id="shipment-detail-template-@envio.Id">
                             <div class="nr-shipment-detail-content">
                                 <section class="nr-shipment-detail-section" aria-labelledby="shipment-recipient-@envio.Id">
@@ -158,8 +166,11 @@ else if (Model.ConsultaCorrecta && Model.TotalResultados > 0)
                                         <p>No hay bultos registrados.</p>
                                     }
                                 </section>
+                                <section class="nr-shipment-detail-section" aria-label="Etiquetas del envío">
+                                    <partial name="_DescargarEtiquetas" model="envio.Id" />
+                                </section>
                                 <details class="nr-detail-technical">
-                                    <summary><span>Información técnica</span><span class="nr-detail-technical-hint">Identificadores y versión</span></summary>
+                                    <summary tabindex="0"><span>Información técnica</span><span class="nr-detail-technical-hint">Identificadores y versión</span></summary>
                                     <dl class="nr-shipment-detail-list">
                                         <dt>Identificador completo</dt><dd><code>@envio.Id</code></dd>
                                         <dt>Fecha de creación</dt><dd><time datetime="@envio.CreadoEnUtc.ToString("O")">@Model.FechaLocal(envio.CreadoEnUtc)</time></dd>
@@ -179,12 +190,13 @@ else if (Model.ConsultaCorrecta && Model.TotalResultados > 0)
                                             <p class="alert alert-danger" role="alert">@Model.Error</p>
                                         }
                                         <details class="nr-cancel-shipment">
-                                            <summary>Cancelar envío</summary>
+                                            <summary tabindex="0">Cancelar envío</summary>
                                             <form method="post" asp-page-handler="Cancelar" data-single-submit>
                                                 <input type="hidden" name="EnvioId" value="@envio.Id" />
                                                 <input type="hidden" name="Version" value="@envio.Version" />
                                                 <input type="hidden" name="Buscar" value="@Model.Buscar" />
                                                 <input type="hidden" name="Estado" value="@Model.Estado" />
+                                                <input type="hidden" name="ComercioId" value="@Model.ComercioId" />
                                                 <input type="hidden" name="Pagina" value="@Model.Pagina" />
                                                 <label for="motivo-@envio.Id">Motivo de cancelación</label>
                                                 <textarea id="motivo-@envio.Id" name="Motivo" required maxlength="500" class="form-control">@Model.Motivo</textarea>
@@ -196,40 +208,11 @@ else if (Model.ConsultaCorrecta && Model.TotalResultados > 0)
                                 }
                             </div>
                         </template>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    <footer class="nr-shipments-footer">
-        <p class="nr-shipments-range" aria-live="polite">Mostrando @Model.PrimerResultado–@Model.UltimoResultado de @Model.TotalResultados envíos</p>
-        @if (Model.TotalPaginas > 1)
-        {
-            <nav class="nr-shipments-pagination" aria-label="Paginación de envíos">
-                <span>Página @Model.Pagina de @Model.TotalPaginas</span>
-                <div>
-                    @if (Model.Pagina > 1)
-                    {
-                        <a class="btn btn-outline-secondary" rel="prev" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, Pagina = Model.Pagina - 1 })">Anterior</a>
-                    }
-                    else
-                    {
-                        <span class="btn btn-outline-secondary" aria-disabled="true">Anterior</span>
-                    }
-                    @if (Model.Pagina < Model.TotalPaginas)
-                    {
-                        <a class="btn btn-outline-secondary" rel="next" href="@Url.Page("/Index", new { Buscar = Model.Buscar, Estado = Model.Estado, Pagina = Model.Pagina + 1 })">Siguiente</a>
-                    }
-                    else
-                    {
-                        <span class="btn btn-outline-secondary" aria-disabled="true">Siguiente</span>
-                    }
-                </div>
-            </nav>
-        }
-    </footer>
 }
-
+@if (Model.EnvioSeleccionado is { } selected && !Model.Envios.Any(e => e.Id == selected.Id))
+{
+    <button hidden type="button" data-bs-toggle="offcanvas" data-bs-target="#shipment-detail-dialog" data-shipment-template="shipment-detail-template-@selected.Id" data-shipment-id="@selected.Id" data-shipment-short-id="@Model.AbreviarId(selected.Id)" data-shipment-status-label="@Model.EtiquetaEstado(selected.Estado)" data-shipment-status-class="@Model.ClaseEstado(selected.Estado)" data-open-on-load="true" data-focus-cancel="@(Model.Error is not null && Model.EnvioId == selected.Id ? "true" : "false")" aria-label="Ver detalle del env&#237;o seleccionado">Detalle seleccionado</button>
+}
 @section PageDialogs {
     <div class="offcanvas offcanvas-end nr-shipment-detail-dialog" tabindex="-1" id="shipment-detail-dialog"
          aria-labelledby="shipment-detail-title" data-bs-backdrop="true" data-bs-keyboard="true">

@@ -4,6 +4,7 @@
 @inject IJSRuntime Js
 @inject IConfiguration Configuration
 @inject DestinosEnvioApiClient Destinos
+@inject EnviosApiClient Envios
 @implements IAsyncDisposable
 
 <div class="nr-destination-picker">
@@ -49,12 +50,37 @@
              aria-label="Mapa de la ubicación del destino" aria-busy="@mapaCargando"></div>
         @if (mapaCargando) { <p class="nr-destination-status" role="status">Cargando el mapa…</p> }
         @if (mensajeMapa is not null) { <p class="nr-destination-map-message" role="status">@mensajeMapa</p> }
+        @if (OperadorId is not null)
+        {
+            <div class="nr-coverage-status" aria-busy="@cargandoCobertura">
+                @if (cargandoCobertura)
+                {
+                    <p class="nr-destination-status" role="status">Cargando cobertura del operador...</p>
+                }
+                else if (errorCobertura || errorDibujoCobertura is not null)
+                {
+                    <p class="nr-destination-feedback" role="alert">@(errorCobertura ? mensajeCobertura : errorDibujoCobertura)</p>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ReintentarCoberturaAsync">Reintentar cobertura</button>
+                }
+                else if (cobertura.Count == 0)
+                {
+                    <p class="nr-destination-help" role="status">Este operador no tiene zonas activas para mostrar.</p>
+                }
+                else
+                {
+                    <p class="nr-coverage-key"><span class="nr-coverage-swatch" aria-hidden="true"></span> Cobertura activa: @string.Join(", ", cobertura.Select(z => z.Nombre)). Marcador: destino.</p>
+                    <button type="button" class="btn btn-outline-secondary" disabled="@(mapa is null || mapaCargando)" @onclick="VerCoberturaAsync">Ver cobertura</button>
+                }
+                <p class="nr-destination-help">La cobertura es orientativa. El servidor confirma el servicio y la tarifa.</p>
+            </div>
+        }
     }
 </div>
 
 @code {
     [Parameter] public bool ParaAlta { get; set; }
     [Parameter] public Guid EnvioId { get; set; }
+    [Parameter] public Guid? OperadorId { get; set; }
     [Parameter] public string ApiToken { get; set; } = "";
     [Parameter] public double? Latitud { get; set; }
     [Parameter] public double? Longitud { get; set; }
@@ -77,6 +103,13 @@
     private bool sinResultados => busquedaResuelta && !buscando && sugerencias.Count == 0 && mensajeBusqueda is null;
     private bool PuedeEditar => Editable && !Bloqueado;
     private readonly List<Sugerencia> sugerencias = [];
+    private Guid? operadorCobertura;
+    private CancellationTokenSource? coberturaCancelacion;
+    private long secuenciaCobertura;
+    private bool cargandoCobertura, errorCobertura;
+    private string? mensajeCobertura;
+    private string? errorDibujoCobertura;
+    private IReadOnlyList<NexoRuta.ApiClient.Features.Envios.Contracts.Responses.CoberturaEnvioResponse> cobertura = [];
 
     protected override void OnInitialized()
     {
@@ -88,8 +121,43 @@
         mapaCargando = token is not null;
     }
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
+        if (OperadorId != operadorCobertura)
+        {
+            var operadorActual = OperadorId;
+            operadorCobertura = operadorActual;
+            coberturaCancelacion?.Cancel(); coberturaCancelacion?.Dispose();
+            var cancelacion = coberturaCancelacion = new();
+            var ct = cancelacion.Token;
+            var secuencia = ++secuenciaCobertura;
+            cobertura = []; mensajeCobertura = null; cargandoCobertura = false; errorCobertura = false;
+            if (mapa is not null) await MostrarCoberturaAsync();
+            if (ct.IsCancellationRequested || secuencia != secuenciaCobertura) return;
+            if (operadorActual is { } operador)
+            {
+                cargandoCobertura = true;
+                try
+                {
+                    var resultado = await Envios.CoberturaAsync(operador, ApiToken, ct);
+                    if (secuencia == secuenciaCobertura && !ct.IsCancellationRequested)
+                    {
+                        cobertura = resultado; errorCobertura = false;
+                        if (resultado.Count == 0) mensajeCobertura = "Este operador no tiene zonas activas para mostrar. El servidor verifica el servicio y la tarifa.";
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+                catch (HttpRequestException)
+                {
+                    if (secuencia == secuenciaCobertura)
+                    {
+                        errorCobertura = true;
+                        mensajeCobertura = "No pudimos consultar la cobertura. No se muestran zonas; reintentá antes de usar el mapa como referencia.";
+                    }
+                }
+                finally { if (secuencia == secuenciaCobertura) cargandoCobertura = false; }
+            }
+        }
         if (PuedeEditar) return;
         ++secuenciaBusqueda;
         busquedaCancelacion?.Cancel();
@@ -115,6 +183,7 @@
             {
                 await mapa.InvokeVoidAsync("configurarEdicion", PuedeEditar);
                 await mapa.InvokeVoidAsync("mostrar", Latitud, Longitud);
+                await MostrarCoberturaAsync();
             }
             if (PuedeEditar && teclado is null && modulo is not null && referencia is not null)
                 teclado = await modulo.InvokeAsync<IJSObjectReference>("conectarTeclado", buscador, referencia);
@@ -127,6 +196,40 @@
             StateHasChanged();
         }
     }
+
+    private async Task MostrarCoberturaAsync()
+    {
+        try { if (mapa is not null) await mapa.InvokeVoidAsync("cobertura", cobertura); }
+        catch (JSException)
+        {
+            if (errorDibujoCobertura is not null) return;
+            errorDibujoCobertura = "No se pudo dibujar la cobertura. El marcador no acredita que las zonas se hayan cargado.";
+            StateHasChanged();
+        }
+    }
+
+    private async Task VerCoberturaAsync()
+    {
+        if (mapa is null || cargandoCobertura || errorCobertura || errorDibujoCobertura is not null || cobertura.Count == 0) return;
+        try { await mapa.InvokeVoidAsync("verCobertura"); }
+        catch (JSException) { errorCobertura = true; mensajeCobertura = "No se pudo encuadrar la cobertura. Reintentá la consulta."; }
+    }
+
+    private async Task ReintentarCoberturaAsync()
+    {
+        operadorCobertura = null;
+        await OnParametersSetAsync();
+    }
+
+    [JSInvokable]
+    public Task EstadoCobertura(string estado) => InvokeAsync(() =>
+    {
+        var mensaje = estado == "error"
+            ? "No se pudo dibujar la cobertura. El marcador no acredita que las zonas se hayan cargado." : null;
+        if (errorDibujoCobertura == mensaje) return;
+        errorDibujoCobertura = mensaje;
+        StateHasChanged();
+    });
 
     private async Task CambiarBusqueda(ChangeEventArgs args)
     {
@@ -261,6 +364,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        ++secuenciaCobertura; coberturaCancelacion?.Cancel(); coberturaCancelacion?.Dispose();
         busquedaCancelacion?.Cancel();
         ++secuenciaBusqueda;
         try
