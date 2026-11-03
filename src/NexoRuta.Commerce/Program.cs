@@ -13,6 +13,7 @@ using NexoRuta.Commerce.Components;
 using NexoRuta.Commerce.Core.Security;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseNexoRutaLogging("NexoRuta.Commerce");
 if (!builder.Services.AddSharedDataProtection(builder.Configuration,
         builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "commerce")
     && builder.Environment.IsProduction())
@@ -103,6 +104,8 @@ app.Use(async (context, next) =>
         statusPages.Enabled = false;
     await next(context);
 });
+app.UseRouting();
+app.UseNexoRutaRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
