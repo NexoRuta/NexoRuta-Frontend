@@ -41,6 +41,7 @@ const {chromium}=require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
     await control('revoke',portal);await b.goto(p.base+target);assert.equal(new URL(b.url()).pathname,'/ingresar');assert.match(await b.locator('[role=alert]').innerText(),/sesión ya no es válida/);assert.ok(await cookie()===current);
     await b.reload();assert.equal(new URL(b.url()).pathname,'/ingresar');
     await b.setViewportSize({width:320,height:740});await b.screenshot({path:path.join(out,portal+'-expired-320.png')});assert.ok(await b.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await b.setViewportSize({width:1280,height:900});report.checks.push(portal+': invalid current session shows explicit sign-in without cookie deletion or loop');
+    if(portal==='commerce'){await b.goto(p.base+'envios?private=do-not-preserve');await b.waitForURL(u=>u.pathname==='/ingresar');assert.equal(new URL(b.url()).searchParams.get('ReturnUrl'),'/envios');assert.ok(!b.url().includes('do-not-preserve'));report.checks.push('commerce: protected Blazor route preserves path without sensitive query');}
     await control('restart_api',portal);await control('revoke_after_login',portal);await login(b);assert.equal(new URL(b.url()).pathname,'/ingresar');
     assert.match(await b.locator('[role=alert]').innerText(),/validar la sesión recién iniciada/);report.checks.push(portal+': login 200 followed by whoami 401 is not reported as wrong password');
     await login(b);await b.goto(p.base+target);assert.equal(new URL(b.url()).pathname,'/'+target);
@@ -58,7 +59,7 @@ const {chromium}=require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
     await b.setViewportSize({width:320,height:740});await b.goto(p.base+'ingresar');await b.locator('#Email').focus();await b.keyboard.type(emails[portal]);assert.ok(await b.locator('#Email').evaluate(e=>e===document.activeElement));
     assert.ok(await b.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await b.screenshot({path:path.join(out,portal+'-login-320.png')});
     const {default:AxeBuilder}=require(path.join(path.dirname(process.env.NEXORUTA_PLAYWRIGHT_MODULE),'@axe-core/playwright'));const axe=await new AxeBuilder({page:b}).analyze();report.accessibility??=[];report.accessibility.push({portal,violations:axe.violations.map(v=>({id:v.id,targets:v.nodes.map(n=>n.target)}))});assert.deepEqual(axe.violations.map(v=>v.id),[]);
-    await b.setViewportSize({width:1280,height:900});await b.screenshot({path:path.join(out,portal+'-login-desktop.png')});report.checks.push(portal+': login 320px/desktop, keyboard focus, no horizontal overflow');
+    await b.setViewportSize({width:1280,height:900});await b.screenshot({path:path.join(out,portal+'-login-desktop.png')});await b.evaluate(()=>document.documentElement.style.zoom='2');assert.ok(await b.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await b.locator('#Password').focus();assert.ok(await b.locator('#Password').evaluate(e=>e===document.activeElement));await b.screenshot({path:path.join(out,portal+'-login-css-zoom200.png')});await b.evaluate(()=>document.documentElement.style.zoom='');report.checks.push(portal+': login 320px/desktop and CSS zoom 200%, keyboard focus, no horizontal overflow');
    }
    await context.close();
   }

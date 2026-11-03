@@ -205,7 +205,7 @@
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Forbidden)
         { error = "No tenés permiso para crear envíos."; }
         catch (NexoRutaApiException exception) { error = exception.Message; }
@@ -230,7 +230,7 @@
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Forbidden)
         { error = "No tenés permiso para crear envíos."; }
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Conflict)
@@ -268,7 +268,7 @@
         }
         catch (OperationCanceledException) when (carga.IsCancellationRequested) { }
         catch (NexoRutaApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-        { if (solicitud == identidadSolicitud) Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { if (solicitud == identidadSolicitud) Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         { if (solicitud == identidadSolicitud) errorIdentidad = "El operador seleccionado ya no está disponible. Elegí otro."; }
         catch (NexoRutaApiException)
@@ -409,7 +409,7 @@
         }
         catch (OperationCanceledException) when (carga.IsCancellationRequested) { }
         catch (NexoRutaApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-        { if (consulta == consultaCotizacion) Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { if (consulta == consultaCotizacion) Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException ex) { if (consulta == consultaCotizacion) error = ex.Message; }
         catch (HttpRequestException) { if (consulta == consultaCotizacion) error = "No pudimos calcular la tarifa. Conservamos los datos para reintentar."; }
         finally

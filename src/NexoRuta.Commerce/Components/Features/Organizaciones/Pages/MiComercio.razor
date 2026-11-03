@@ -120,11 +120,11 @@ else if (organizacion is not null)
             await CargarSolicitudesAsync();
         }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
         { error = "Esta sesión no pertenece a un comercio autorizado."; }
         catch (NexoRutaApiException exception) { error = exception.Message; }
-        catch (InvalidOperationException) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (InvalidOperationException) { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (HttpRequestException) { error = "No pudimos consultar el comercio porque la API no está disponible."; }
         catch (OperationCanceledException) when (!cancelacion.IsCancellationRequested)
         { error = "La consulta tardó demasiado. Intentá nuevamente."; }
@@ -145,7 +145,7 @@ else if (organizacion is not null)
             confirmacion = "Nombre del comercio actualizado.";
         }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
         { error = exception.Message; }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
@@ -153,7 +153,7 @@ else if (organizacion is not null)
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
         { error = exception.Message; }
         catch (NexoRutaApiException) { error = "No pudimos guardar el comercio porque la API no está disponible."; }
-        catch (InvalidOperationException) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (InvalidOperationException) { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (HttpRequestException) { error = "No pudimos guardar el comercio porque la API no está disponible."; }
         catch (OperationCanceledException) when (!cancelacion.IsCancellationRequested)
         { error = "La actualización tardó demasiado. Volvé a consultar antes de reintentar."; }
@@ -176,7 +176,7 @@ else if (organizacion is not null)
             await CargarSolicitudesAsync();
         }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
         { error = "Solo el dueño registrado puede solicitar la baja."; }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
@@ -184,7 +184,7 @@ else if (organizacion is not null)
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
         { error = "Ya existe una solicitud pendiente. Actualizamos el estado de la página."; await CargarSolicitudesAsync(); }
         catch (NexoRutaApiException) { error = "No pudimos completar la solicitud porque la API no está disponible."; }
-        catch (InvalidOperationException) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (InvalidOperationException) { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (HttpRequestException) { error = "No pudimos completar la solicitud porque la API no está disponible."; }
         catch (OperationCanceledException) when (!cancelacion.IsCancellationRequested) { error = "La API tardó demasiado. Intentá nuevamente."; }
         finally { solicitandoBaja = false; }
@@ -194,7 +194,7 @@ else if (organizacion is not null)
     {
         try { solicitudes = await ApiClient.ListarSolicitudesBajaAsync(token, cancelacion.Token); }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException exception) { error ??= exception.Message; }
         catch (HttpRequestException) { error ??= "No pudimos consultar el historial porque la API no está disponible."; }
         catch (OperationCanceledException) when (!cancelacion.IsCancellationRequested) { error ??= "La consulta tardó demasiado."; }

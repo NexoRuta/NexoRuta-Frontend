@@ -81,7 +81,7 @@ else if (envio is { } actual)
         }
         catch (OperationCanceledException) when (cancelacion.IsCancellationRequested) { }
         catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (HttpRequestException) { error = "No pudimos consultar el envío. Volvé a intentarlo desde Mis envíos."; }
         finally { if (id == EnvioId) cargando = false; }
     }

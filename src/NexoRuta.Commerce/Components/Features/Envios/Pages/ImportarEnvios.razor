@@ -152,7 +152,7 @@
         }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
         {
-            Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true);
+            Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true);
         }
     }
 
@@ -169,7 +169,7 @@
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
         {
-            Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true);
+            Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true);
         }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
         {
@@ -234,7 +234,7 @@
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
         {
-            Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true);
+            Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true);
         }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
         {

@@ -83,9 +83,9 @@
                 solicitudes = await Api.ListarReactivacionesAsync(token, cancellation.Token);
         }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException exception) { error = exception.Message; }
-        catch (InvalidOperationException) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        catch (InvalidOperationException) { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (HttpRequestException) { error = "La API no está disponible."; }
         finally { cargando = false; }
     }
@@ -105,7 +105,7 @@
             formulario.Confirmar = false;
         }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
-        { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); }
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
         { error = "Solo el dueño registrado puede solicitar la reactivación."; }
         catch (NexoRutaApiException exception) when (exception.StatusCode == HttpStatusCode.Conflict)

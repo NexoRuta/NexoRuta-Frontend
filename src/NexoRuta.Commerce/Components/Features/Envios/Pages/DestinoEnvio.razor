@@ -218,7 +218,7 @@ else if (destino is not null)
 
     private void MostrarError(HttpRequestException ex)
     {
-        if (ex.StatusCode == HttpStatusCode.Unauthorized) { Navigation.NavigateTo("/ingresar?expirada=true", forceLoad: true); return; }
+        if (ex.StatusCode == HttpStatusCode.Unauthorized) { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath,true), forceLoad: true); return; }
         mensajeError = true;
         mensaje = ex.StatusCode switch
         {
