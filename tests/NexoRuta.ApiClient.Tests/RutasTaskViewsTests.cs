@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text.RegularExpressions;
+using NexoRuta.ApiClient.Features.Reparto.Contracts;
 namespace NexoRuta.ApiClient.Tests;
 public sealed partial class BackofficeSessionAndPagesTests
 {
@@ -43,7 +45,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     [Fact]
     public async Task DepotReceiptPreservesTaskSearchAndExactVersionInPrg()
     {
-        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "Admitido" };
+        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "EnDevolucion" };
         api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
@@ -97,16 +99,60 @@ public sealed partial class BackofficeSessionAndPagesTests
     [Fact]
     public async Task DepotDefersPhysicalReceiptToExplicitShipmentContext()
     {
-        var api = new FakeApi { IncludeReparto = true, ShipmentStateOverride = "Admitido" };
+        var parcel = Guid.Parse("00000000-0000-0000-0000-000000000704");
+        var otherParcel = Guid.Parse("00000000-0000-0000-0000-000000000705");
+        var declared = new MedidasRecepcionResponse(100m, 1m, 1m, 1m);
+        var api = new FakeApi
+        {
+            IncludeReparto = true, ShipmentStateOverride = "Admitido",
+            DepotReceipt = new(EnvioPrueba, "Admitido", 8, "Destino de prueba", parcel,
+                [new(parcel, "TEST", 2, "SinRecepcion", declared, "Pendiente"),
+                 new(otherParcel, "TEST-2", 3, "SinRecepcion", declared, "Pendiente")], [])
+        };
         api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
         var list = await client.GetStringAsync("/deposito?fecha=2026-10-20");
         Assert.DoesNotContain("handler=Recibir", list);
-        var selected = await client.GetStringAsync($"/deposito?fecha=2026-10-20&envioSeleccionadoId={EnvioPrueba}");
-        Assert.Contains("handler=Recibir", selected);
+        var selected = WebUtility.HtmlDecode(await client.GetStringAsync($"/deposito?fecha=2026-10-20&envioSeleccionadoId={EnvioPrueba}"));
+        Assert.DoesNotContain("handler=Recibir", selected);
         Assert.Contains(EnvioPrueba.ToString(), selected);
-        Assert.Contains("físicamente en depósito", WebUtility.HtmlDecode(selected));
+        Assert.Contains("La primera recepción se registra por bulto", selected);
+        Assert.Contains("Los faltantes y discrepancias conservan el envío pendiente", selected);
+        var link = Regex.Match(selected, "<a\\b[^>]*href=\"([^\"]+)\"[^>]*>Cotejar bultos de este envío</a>");
+        Assert.True(link.Success, "La selección debe conducir al cotejo del bulto del envío.");
+        Assert.Equal("/deposito/recepcion?codigo=TEST", link.Groups[1].Value);
+
+        using var lookup = await client.GetAsync(link.Groups[1].Value);
+        Assert.Equal(HttpStatusCode.OK, lookup.StatusCode);
+        var cotejo = WebUtility.HtmlDecode(await lookup.Content.ReadAsStringAsync());
+        var call = Assert.Single(api.Calls, c => c.Path == "/api/deposito/consulta");
+        Assert.Equal(HttpMethod.Get, call.Method);
+        Assert.Equal("?codigo=TEST", call.Query);
+        Assert.Equal("jwt-user", call.Token);
+        Assert.Contains(EnvioPrueba.ToString(), cotejo);
+        Assert.Contains("id=\"cotejar-bulto\"", cotejo);
+        Assert.Contains("Confirmar recepción y cotejo", cotejo);
+        Assert.Contains("este bulto está físicamente presente", cotejo);
+        Assert.Contains("Observaciones (obligatorias si hay discrepancia)", cotejo);
+        Assert.Contains("0 de 2 con cotejo conforme", cotejo);
+        Assert.Contains("TEST-2", cotejo);
+        Assert.Contains("Las medidas y tarifas declaradas se conservan", cotejo);
+        Assert.Equal(parcel.ToString(), Input("BultoId"));
+        Assert.Equal("8", Input("Cotejo.VersionEnvio"));
+        Assert.Equal("2", Input("Cotejo.VersionBulto"));
+        Assert.True(Guid.TryParse(Input("Cotejo.ComandoId"), out var command) && command != Guid.Empty);
+        Assert.DoesNotContain(api.Calls, c => c.Method == HttpMethod.Post && c.Path.StartsWith("/api/deposito/", StringComparison.Ordinal));
+        Assert.Empty(api.RepartoPayloads);
+
+        string Input(string name)
+        {
+            var input = Regex.Match(cotejo, "<input\\b(?=[^>]*name=\"" + Regex.Escape(name) + "\")[^>]*>");
+            Assert.True(input.Success, "Falta el campo " + name);
+            var value = Regex.Match(input.Value, "value=\"([^\"]*)\"");
+            Assert.True(value.Success, "Falta el valor de " + name);
+            return value.Groups[1].Value;
+        }
     }
 
     [Fact]

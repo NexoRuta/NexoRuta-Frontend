@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using NexoRuta.Backoffice.Features.Reparto.Pages;
+using NexoRuta.ApiClient.Features.Reparto.Contracts;
 namespace NexoRuta.ApiClient.Tests;
 
 public sealed partial class BackofficeSessionAndPagesTests
@@ -722,6 +723,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     {
         public object? FleetResponse { get; init; }
         public bool FleetUnavailable { get; init; }
+        public ConsultaRecepcionResponse? DepotReceipt { get; init; }
         public bool IncludeRoadEstimates { get; init; }
         public HttpStatusCode? RepartoQueryFailure { get; init; }
         public bool IncludeRoadUpdates { get; init; }
@@ -771,6 +773,8 @@ public sealed partial class BackofficeSessionAndPagesTests
         public static object RoadEstimate(int number,Guid command)=>new {RutaId=RutaPrueba,ComandoId=command,NumeroVersion=number,VersionRuta=2,ActorId=TargetAccessId,RegistradaEnUtc=DateTimeOffset.Parse("2026-10-20T12:00:00Z"),Estado="Calculada",Motivo="Calculada",Vigencia=number==1?"Invalidada":"Desconocida",ZonaHoraria="America/Montevideo",CalculadoEnUtc=(DateTimeOffset?)DateTimeOffset.Parse("2026-10-20T12:00:00Z"),ValidoHastaUtc=(DateTimeOffset?)null,RegresoEstimadoBaseEnUtc=(DateTimeOffset?)DateTimeOffset.Parse("2026-10-21T03:20:00Z"),ListoPrevistoEnUtc=(DateTimeOffset?)DateTimeOffset.Parse("2026-10-21T03:27:00Z"),Paradas=new[]{new{EnvioId=EnvioPrueba,LlegadaManualEnUtc=DateTimeOffset.Parse("2026-10-21T04:00:00Z"),LlegadaCalculadaEnUtc=DateTimeOffset.Parse("2026-10-21T03:00:00Z"),SalidaCalculadaEnUtc=DateTimeOffset.Parse("2026-10-21T03:10:00Z")}},Tramos=new[]{new{Indice=0,DuracionSegundos=600d,DistanciaMetros=1000d,Proveedor="Geoapify",Modelo="drive/free_flow",Fuente="RespuestaControlada",Trafico="SinTrafico",Atribucion="Powered by Geoapify · © OpenStreetMap contributors",CalculadoEnUtc=DateTimeOffset.Parse("2026-10-20T12:00:00Z"),ValidoHastaUtc=(DateTimeOffset?)null}}};
         private async Task<HttpResponseMessage?> Reparto(HttpRequestMessage request, string path, string? token, CancellationToken ct)
         {
+            if (path == "/api/deposito/consulta" && request.Method == HttpMethod.Get && DepotReceipt is {} receipt)
+                return Json(HttpStatusCode.OK, receipt);
             if(RepartoQueryFailure is {} failed && request.Method==HttpMethod.Get && (path is "/api/reparto/flota" or "/api/reparto/perfiles-viales" || path.EndsWith("/estimaciones",StringComparison.Ordinal)))return Json(failed,new{detail="Controlled integration failure"});
             if(IncludeRoadEstimates && path.StartsWith("/api/reparto/perfiles-viales",StringComparison.Ordinal))
             {
