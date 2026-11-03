@@ -93,7 +93,7 @@
     private ElementReference elemento, buscador;
     private string? token, estilo, mensajeMapa, mensajeBusqueda;
     private string textoBusqueda = "";
-    private bool mapaCargando, buscando, busquedaResuelta, falloMapa;
+    private bool mapaCargando, buscando, busquedaResuelta, falloMapa, actualizandoMapa;
     private int indiceActivo = -1;
     private long secuenciaBusqueda;
     private CancellationTokenSource? busquedaCancelacion;
@@ -169,6 +169,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // Coverage and JS callbacks can render again while import/creation is awaiting.
+        // This invocation applies the latest parameters after creation completes.
+        if (actualizandoMapa) return;
+        actualizandoMapa = true;
         try
         {
             if (modulo is null)
@@ -195,6 +199,7 @@
             mensajeMapa = "No se pudo cargar el mapa. La dirección registrada permanece disponible.";
             StateHasChanged();
         }
+        finally { actualizandoMapa = false; }
     }
 
     private async Task MostrarCoberturaAsync()

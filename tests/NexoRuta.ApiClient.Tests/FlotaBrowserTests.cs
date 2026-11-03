@@ -111,12 +111,18 @@ const { chromium } = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
         await page.keyboard.press('Escape');
         await page.waitForFunction(() => !document.getElementById('backoffice-app-shell').inert);
         assert.equal(await opener.evaluate(el => el === document.activeElement), true);
-        await page.evaluate(() => {
+        const rapidSelection = await page.evaluate(() => {
             const cards = [...document.querySelectorAll('[data-fleet-card]')];
             cards.find(c=>c.dataset.name==='B2-DESCONOCIDO').querySelector('button').click();
             cards.find(c=>c.dataset.name==='B2-EN-CURSO').querySelector('button').click();
+            const panel=document.getElementById('flota-operacion'); return {classes:panel.className,title:panel.querySelector('#fleet-panel-title').textContent,inert:document.getElementById('backoffice-app-shell').inert};
         });
+        await fs.writeFile(path.join(output,'rapid-selection.json'),JSON.stringify(rapidSelection,null,2));
         await page.waitForFunction(() => { const p=document.getElementById('flota-operacion'); return p.classList.contains('show') && !p.classList.contains('showing'); });
+        await fs.writeFile(path.join(output,'rapid-panel-state.json'),JSON.stringify(await panel.evaluate(el=>({classes:el.className,visibility:getComputedStyle(el).visibility,title:el.querySelector('#fleet-panel-title').textContent,titleVisibility:getComputedStyle(el.querySelector('#fleet-panel-title')).visibility})),null,2));
+        // The show class can precede inherited visibility on the header after a rapid reopen.
+        // Require the actual title to be visible before reading its rendered text.
+        await panel.locator('#fleet-panel-title').waitFor({state:'visible'});
         assert.equal(await panel.locator('#fleet-panel-title').innerText(), 'B2-EN-CURSO');
         assert.equal(await panel.locator('form').count(), 0, 'Latest card replaces the initial inspection form');
         await page.keyboard.press('Escape');

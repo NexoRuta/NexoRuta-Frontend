@@ -16,6 +16,54 @@ public sealed class DestinosEnvioPagesTests
     private const string ApiToken = "commerce-session";
 
     [Fact]
+    public async Task RenderWhileMapCreationIsPendingDoesNotCreateAnotherMapOrKeyboardBinding()
+    {
+        var js = new PausedMapCreation();
+        var picker = new SelectorDestino { Editable = true };
+        var type = typeof(SelectorDestino);
+        type.GetProperty("Js", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, js);
+        type.GetField("token", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, "pk.synthetic");
+        Task Render() => (Task)type.GetMethod("OnAfterRenderAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(picker, [false])!;
+        var first = Render();
+        await js.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = Render();
+        try
+        {
+            Assert.Equal(1, js.Creations);
+            Assert.Equal(1, js.Keyboards);
+        }
+        finally
+        {
+            js.Continue.TrySetResult();
+            await Task.WhenAll(first, second);
+        }
+        await Render();
+        Assert.Equal(1, js.Creations);
+        Assert.Equal(1, js.Keyboards);
+        await picker.DisposeAsync();
+    }
+
+    private sealed class PausedMapCreation : IJSRuntime, IJSObjectReference
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int Creations, Keyboards;
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+        public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "crear")
+            {
+                Creations++;
+                Started.TrySetResult();
+                await Continue.Task.WaitAsync(cancellationToken);
+            }
+            if (identifier == "conectarTeclado") Keyboards++;
+            return typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)this : default!;
+        }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    [Fact]
     public async Task CoberturaDistingueCargaSinZonasYErrorDeConsulta()
     {
         var pending = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);

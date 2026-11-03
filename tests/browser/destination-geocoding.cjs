@@ -37,7 +37,10 @@ const RealMap = mapboxgl.Map;
         mapboxgl.Map = class extends RealMap {
             constructor(options) { super({ ...options, style: { version: 8, sources: {}, layers: [] } }); globalThis.__destinationRealMap = this; }
         };` });
-    const waitMap = () => page.locator('.mapboxgl-canvas').waitFor();
+    const waitMap = async () => {
+        await page.locator('.mapboxgl-canvas').waitFor();
+        await page.waitForFunction(() => globalThis.__destinationRealMap?.loaded() && !globalThis.__destinationRealMap.isMoving());
+    };
     async function visibleMarker(label) {
         await page.locator('.mapboxgl-marker').waitFor();
         await page.waitForFunction(() => {
@@ -49,16 +52,19 @@ const RealMap = mapboxgl.Map;
         markerChecks.push({ label, width: await page.evaluate(() => innerWidth), actualSdk: version, visible: true });
     }
     async function clickPoint(lat = -34.91, lon = -56.21) {
-        await page.evaluate(({lat,lon}) => globalThis.__destinationRealMap.jumpTo({ center: [lon,lat], zoom: 15 }), {lat,lon});
-        await page.waitForTimeout(100);
+        await waitMap();
         await page.locator('.mapboxgl-canvas').scrollIntoViewIfNeeded();
+        // Physical mouse coordinates are rounded to pixels. At zoom 17 a pixel is
+        // smaller than the existing 1e-5 degree assertion, including fractional layouts.
+        await page.evaluate(({lat,lon}) => globalThis.__destinationRealMap.jumpTo({ center: [lon,lat], zoom: 17 }), {lat,lon});
+        await page.waitForFunction(() => globalThis.__destinationRealMap.loaded() && !globalThis.__destinationRealMap.isMoving());
         await page.evaluate(() => globalThis.__destinationRealMap.once('click', event => {
             globalThis.__expectedClickPoint = { lat: event.lngLat.lat, lon: event.lngLat.lng };
         }));
         const box = await page.locator('.mapboxgl-canvas').boundingBox();
         await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
         finalPoint = await page.evaluate(() => globalThis.__expectedClickPoint);
-        assert.ok(Math.abs(finalPoint.lat - lat) < 0.00001 && Math.abs(finalPoint.lon - lon) < 0.00001);
+        assert.ok(Math.abs(finalPoint.lat - lat) < 0.00001 && Math.abs(finalPoint.lon - lon) < 0.00001, JSON.stringify({expected:{lat,lon},actual:finalPoint,center:await page.evaluate(()=>globalThis.__destinationRealMap.getCenter())}));
         await visibleMarker('map click');
     }
     async function dragMarker() {
