@@ -1,0 +1,21 @@
+@model NexoRuta.Backoffice.Pages.Deposito.RecepcionModel
+                <form method="post" data-single-submit id="cotejar-bulto">
+                    <input type="hidden" asp-for="Codigo" /><input type="hidden" asp-for="BultoId" />
+                    <input type="hidden" asp-for="Cotejo.ComandoId" /><input type="hidden" asp-for="Cotejo.VersionEnvio" /><input type="hidden" asp-for="Cotejo.VersionBulto" />
+                    <div asp-validation-summary="All" role="alert"></div>
+                    <fieldset><legend>Medidas observadas</legend><p>Se muestran las declaradas para cotejarlas. Si no podés medir, dejá ese valor vacío y registrá una discrepancia.</p>
+                        <div class="nr-observed-grid">
+                            <div><label asp-for="Cotejo.PesoObservado">Peso (g)</label><input asp-for="Cotejo.PesoObservado" type="number" min="0.01" max="999999999" step="0.01" /></div>
+                            <div><label asp-for="Cotejo.LargoObservado">Largo (cm)</label><input asp-for="Cotejo.LargoObservado" type="number" min="0.01" max="999999999" step="0.01" /></div>
+                            <div><label asp-for="Cotejo.AnchoObservado">Ancho (cm)</label><input asp-for="Cotejo.AnchoObservado" type="number" min="0.01" max="999999999" step="0.01" /></div>
+                            <div><label asp-for="Cotejo.AltoObservado">Alto (cm)</label><input asp-for="Cotejo.AltoObservado" type="number" min="0.01" max="999999999" step="0.01" /></div>
+                        </div>
+                    </fieldset>
+                    <fieldset><legend>Resultado del cotejo</legend>
+                        <label><input type="radio" asp-for="Cotejo.Conforme" id="cotejo-conforme" value="true" /> Coincide con lo declarado y no presenta daños</label>
+                        <label><input type="radio" asp-for="Cotejo.Conforme" id="cotejo-discrepancia" value="false" /> Hay diferencias o no pude verificarlo</label>
+                    </fieldset>
+                    <label asp-for="Cotejo.Observaciones">Observaciones (obligatorias si hay discrepancia)</label><textarea asp-for="Cotejo.Observaciones" maxlength="500" rows="3"></textarea>
+                    <p>Confirmá solo si este bulto está físicamente presente. Una discrepancia queda pendiente hasta un nuevo cotejo conforme; no se borra su registro anterior.</p>
+                    <button type="submit" class="nr-action-primary">Confirmar recepción y cotejo</button>
+                </form>

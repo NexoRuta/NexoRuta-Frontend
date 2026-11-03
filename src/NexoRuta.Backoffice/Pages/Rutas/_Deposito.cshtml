@@ -6,7 +6,7 @@
 }
             <section class="nr-depot-panel">
                 <header class="nr-section-heading">
-                    <div><p class="nr-routes-eyebrow">Custodia física</p><h2>Recepciones y custodia</h2><p>Registrá la recepción únicamente cuando todos los bultos indicados estén físicamente en depósito.</p></div>
+                    <div><p class="nr-routes-eyebrow">Custodia física</p><h2>Recepciones y custodia</h2><p>Cotejá cada bulto presente. Los faltantes y discrepancias mantienen pendiente la primera recepción.</p></div>
                     <span class="nr-count-pill">@Model.TotalDeposito coincidencias · todas las fechas</span>
                 </header>
                 <form method="get" asp-page="/Deposito" class="nr-depot-filters d-flex">
@@ -50,7 +50,12 @@
 {
     <section class="nr-selected-shipment">
         <h2>@envio.DestinatarioNombre</h2><p>@envio.Direccion</p>
-        @if (Model.AdmiteRecepcion(envio))
+        @if (Model.EsRecepcionInicial(envio))
+        {
+            <p>La primera recepción se registra por bulto. Los faltantes y discrepancias conservan el envío pendiente.</p>
+            <a class="nr-action-primary" asp-page="/Deposito/Recepcion" asp-route-codigo="@envio.Bultos.FirstOrDefault()?.Codigo">Cotejar bultos de este envío</a>
+        }
+        else if (Model.AdmiteRecepcion(envio))
         {
             <h3>@(Model.EsRecepcionInicial(envio) ? "Primera recepción" : Model.EsRecepcionDevolucion(envio) ? "Recepción de retorno" : "Confirmación de custodia")</h3>
             <p>Confirmá únicamente si todos los bultos están físicamente en depósito. Esta acción registra su recepción; no libera el vehículo.</p>

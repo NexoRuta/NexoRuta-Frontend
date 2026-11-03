@@ -4,6 +4,7 @@
 <nav class="nr-content-breadcrumb" aria-label="Migas de pan"><span>Operación</span><span aria-hidden="true">/</span><span aria-current="page">@Model.TituloVista</span></nav>
 <header class="nr-routes-heading"><div><h1>@Model.TituloVista</h1><p>@(Model.EsDeposito ? "Recepciones y custodia física · todas las fechas" : Model.EsFlota ? "Disponibilidad, ocupación y retorno · todas las fechas" : Model.EsDetalle ? "Estado, carga y acciones de esta hoja" : "Hojas de ruta por fecha")</p></div>
 @if(Model.EsFlota) { <a class="nr-action-secondary" asp-page="/Vehiculos">Gestionar vehículos</a> }
+else if(Model.EsDeposito) { <a class="nr-action-primary" asp-page="/Deposito/Recepcion">Escanear y cotejar bultos</a> }
 else if(!Model.EsDeposito) { <a class="@(Model.EsDetalle ? "nr-action-secondary" : "nr-action-primary")" asp-page="/Rutas/Planificar" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")">Planificar ruta</a> }
 </header>
 @if(Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
