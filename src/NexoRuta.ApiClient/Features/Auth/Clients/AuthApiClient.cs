@@ -30,7 +30,7 @@ public sealed class AuthApiClient(HttpClient httpClient)
             var message = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
                 ? "El correo o la contraseña no son válidos."
                 : $"No se pudo completar el ingreso (HTTP {(int)response.StatusCode}).";
-            throw new NexoRutaApiException(message, response.StatusCode);
+            throw new NexoRutaApiException(message, response.StatusCode) { AuthTraceId=ApiHttp.ReadAuthTraceId(response) };
         }
 
         return await response.Content.ReadFromJsonAsync<LoginResponse>(ct)
@@ -44,7 +44,7 @@ public sealed class AuthApiClient(HttpClient httpClient)
         var message = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
             ? "Se alcanzó el límite de solicitudes. Probá nuevamente más tarde."
             : "No se pudo procesar la solicitud. Intentá nuevamente más tarde.";
-        throw new NexoRutaApiException(message, response.StatusCode);
+        throw new NexoRutaApiException(message, response.StatusCode) { AuthTraceId=ApiHttp.ReadAuthTraceId(response) };
     }
 
     public async Task RestablecerPasswordAsync(RestablecerPasswordRequest request, CancellationToken ct = default)

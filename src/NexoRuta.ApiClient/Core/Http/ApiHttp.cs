@@ -19,7 +19,7 @@ internal static class ApiHttp
     {
         using var response = await httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            throw new NexoRutaApiException(await ReadErrorAsync(response, cancellationToken), response.StatusCode);
+            throw new NexoRutaApiException(await ReadErrorAsync(response, cancellationToken), response.StatusCode) { AuthTraceId=ReadAuthTraceId(response) };
 
         try
         {
@@ -36,7 +36,7 @@ internal static class ApiHttp
     {
         using var response = await httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            throw new NexoRutaApiException(await ReadErrorAsync(response, cancellationToken), response.StatusCode);
+            throw new NexoRutaApiException(await ReadErrorAsync(response, cancellationToken), response.StatusCode) { AuthTraceId=ReadAuthTraceId(response) };
     }
 
     internal static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
@@ -65,5 +65,11 @@ internal static class ApiHttp
         return $"No se pudo completar la operación (HTTP {(int)response.StatusCode}).";
     }
 
+    internal static string? ReadAuthTraceId(HttpResponseMessage response)
+    {
+        if(!response.Headers.TryGetValues("X-NexoRuta-Auth-Trace",out var values))return null;
+        var candidates=values.Take(2).ToArray();
+        return candidates.Length==1 && Guid.TryParseExact(candidates[0],"N",out _) ? candidates[0] : null;
+    }
     private sealed record ApiError(string? Message, string? Detail, string? Title, Dictionary<string, string[]>? Errors);
 }

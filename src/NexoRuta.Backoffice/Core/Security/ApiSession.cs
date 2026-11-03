@@ -8,10 +8,9 @@ namespace NexoRuta.Backoffice.Core.Security;
 
 public static class ApiSession
 {
-    public static async Task<IActionResult?> RedirectIfExpiredAsync(PageModel page, NexoRutaApiException exception)
+    public static Task<IActionResult?> RedirectIfExpiredAsync(PageModel page, NexoRutaApiException exception)
     {
-        if (exception.StatusCode != System.Net.HttpStatusCode.Unauthorized) return null;
-        await page.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return new RedirectResult("/ingresar?expirada=true");
+        if (exception.StatusCode != System.Net.HttpStatusCode.Unauthorized) return Task.FromResult<IActionResult?>(null);
+        return Task.FromResult<IActionResult?>(new RedirectResult(NexoRuta.ApiClient.Core.Session.RutaSesion.Ingreso(page.Request.Path,true,NexoRuta.ApiClient.Core.Session.SesionUsuario.IngresoWeb(page.User))));
     }
 }

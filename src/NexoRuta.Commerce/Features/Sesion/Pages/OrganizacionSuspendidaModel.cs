@@ -22,14 +22,13 @@ public sealed class OrganizacionSuspendidaModel(OrganizacionSuspendidaApiClient 
             !User.HasClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.OrganizacionSuspendida))
             return Redirect("/ingresar");
         try { Estado = await client.ObtenerAsync(SesionUsuario.ObtenerToken(User), HttpContext.RequestAborted); }
-        catch (NexoRutaApiException error) when (error.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        catch (NexoRutaApiException error) when (error.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return Redirect("/ingresar?expirada=true");
+            return Redirect(RutaSesion.Ingreso(Request.Path,true,SesionUsuario.IngresoWeb(User)));
         }
-        catch (NexoRutaApiException) { Error = "No pudimos confirmar el estado. Cerrá sesión y volvé a ingresar más tarde."; }
+        catch (NexoRutaApiException) { Error = "No pudimos confirmar el estado. Revisá tus permisos o reintentá cuando la API esté disponible; tu sesión no se cerró."; }
         catch (InvalidOperationException)
-        { await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme); return Redirect("/ingresar?expirada=true"); }
+        { return Redirect(RutaSesion.Ingreso(Request.Path,true,SesionUsuario.IngresoWeb(User))); }
         catch (HttpRequestException) { Error = "El estado no está disponible porque la API no responde."; }
         catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
         { Error = "La consulta tardó demasiado. Intentá nuevamente."; }

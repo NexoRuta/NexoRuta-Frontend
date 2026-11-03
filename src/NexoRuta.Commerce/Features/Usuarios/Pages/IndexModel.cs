@@ -205,8 +205,7 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
         }
         catch (InvalidOperationException)
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return Redirect("/ingresar?expirada=true");
+            return Redirect(RutaSesion.Ingreso(Request.Path,true,SesionUsuario.IngresoWeb(User)));
         }
         catch (HttpRequestException)
         {
@@ -224,8 +223,7 @@ public sealed class IndexModel(UsuariosApiClient usuariosClient, RolesApiClient 
     {
         if (exception.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return Redirect("/ingresar?expirada=true");
+            return Redirect(RutaSesion.Ingreso(Request.Path,true,SesionUsuario.IngresoWeb(User)));
         }
 
         Error = exception.StatusCode switch

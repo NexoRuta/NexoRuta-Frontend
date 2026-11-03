@@ -8,7 +8,9 @@
     {
         <p class="nr-auth-message" role="alert">@Model.Error</p>
     }
+    @if (Model.ApiNoDisponible) { <a class="btn btn-secondary" href="@NexoRuta.ApiClient.Core.Session.RutaSesion.Ingreso(Model.DestinoRetorno,true,Model.IngresoRechazado)">Volver a verificar la sesión</a> }
     <form method="post" asp-page="/Ingresar" data-single-submit>
+        <input type="hidden" name="ReturnUrl" value="@Model.DestinoRetorno" />
         <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
         <div class="nr-auth-field">
             <label asp-for="Email" class="form-label">Correo electrónico</label>
