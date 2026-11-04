@@ -5514,6 +5514,304 @@
         }
       }
     },
+    "/api/deposito/consulta": {
+      "get": {
+        "tags": [
+          "Recepcion"
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultaRecepcionDatos"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultaRecepcionDatos"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultaRecepcionDatos"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deposito/bultos/{id}/recepcion": {
+      "post": {
+        "tags": [
+          "Recepcion"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CotejoBultoDatos"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CotejoBultoDatos"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CotejoBultoDatos"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoRecepcionDatos"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoRecepcionDatos"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoRecepcionDatos"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/repartidores": {
       "get": {
         "tags": [
@@ -13914,6 +14212,43 @@
         },
         "additionalProperties": false
       },
+      "BultoDepositoDatos": {
+        "required": [
+          "id",
+          "codigo",
+          "version",
+          "custodia",
+          "declarado",
+          "cotejoActual"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "custodia": {
+            "type": "string"
+          },
+          "declarado": {
+            "$ref": "#/components/schemas/MedidasRecepcionDatos"
+          },
+          "cotejoActual": {
+            "type": "string"
+          }
+        }
+      },
       "BultoDetalle": {
         "required": [
           "codigo",
@@ -14671,6 +15006,135 @@
           }
         },
         "additionalProperties": false
+      },
+      "ConsultaRecepcionDatos": {
+        "required": [
+          "envioId",
+          "estadoEnvio",
+          "versionEnvio",
+          "destinatario",
+          "bultoSeleccionadoId",
+          "bultos",
+          "historial"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estadoEnvio": {
+            "type": "string"
+          },
+          "versionEnvio": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "destinatario": {
+            "type": "string"
+          },
+          "bultoSeleccionadoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bultos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BultoDepositoDatos"
+            }
+          },
+          "historial": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HechoRecepcionDatos"
+            }
+          }
+        }
+      },
+      "CotejoBultoDatos": {
+        "required": [
+          "comandoId",
+          "versionEnvio",
+          "versionBulto",
+          "conforme",
+          "pesoObservado",
+          "largoObservado",
+          "anchoObservado",
+          "altoObservado",
+          "observaciones"
+        ],
+        "type": "object",
+        "properties": {
+          "comandoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionEnvio": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "versionBulto": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "conforme": {
+            "type": "boolean"
+          },
+          "pesoObservado": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "largoObservado": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "anchoObservado": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "altoObservado": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "observaciones": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "CrearEnvioRequest": {
         "required": [
@@ -15855,6 +16319,46 @@
           }
         }
       },
+      "HechoRecepcionDatos": {
+        "required": [
+          "comandoId",
+          "bultoId",
+          "usuarioId",
+          "accesoId",
+          "registradaEnUtc",
+          "declarado",
+          "cotejo"
+        ],
+        "type": "object",
+        "properties": {
+          "comandoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bultoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usuarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accesoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "registradaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "declarado": {
+            "$ref": "#/components/schemas/MedidasRecepcionDatos"
+          },
+          "cotejo": {
+            "$ref": "#/components/schemas/CotejoBultoDatos"
+          }
+        }
+      },
       "HojaRutaResponse": {
         "required": [
           "id",
@@ -16371,6 +16875,49 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "MedidasRecepcionDatos": {
+        "required": [
+          "pesoGramos",
+          "largoCentimetros",
+          "anchoCentimetros",
+          "altoCentimetros"
+        ],
+        "type": "object",
+        "properties": {
+          "pesoGramos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "largoCentimetros": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "anchoCentimetros": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "altoCentimetros": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
           }
         }
       },
@@ -18308,6 +18855,21 @@
           }
         }
       },
+      "ResultadoRecepcionDatos": {
+        "required": [
+          "repetida",
+          "recepcion"
+        ],
+        "type": "object",
+        "properties": {
+          "repetida": {
+            "type": "boolean"
+          },
+          "recepcion": {
+            "$ref": "#/components/schemas/ConsultaRecepcionDatos"
+          }
+        }
+      },
       "ResumenImportacionEnvios": {
         "required": [
           "creados",
@@ -20024,6 +20586,9 @@
     },
     {
       "name": "OperacionesReparto"
+    },
+    {
+      "name": "Recepcion"
     },
     {
       "name": "Repartidores"
