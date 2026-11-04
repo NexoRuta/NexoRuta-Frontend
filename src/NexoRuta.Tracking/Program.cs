@@ -2,6 +2,7 @@ using NexoRuta.Hosting;
 using NexoRuta.Tracking.Components;
 using NexoRuta.ApiClient.Features.Seguimiento.Clients;
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseNexoRutaLogging("NexoRuta.Tracking");
 builder.Services.AddHealthChecks();
 if (!builder.Services.AddSharedDataProtection(builder.Configuration,
         builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "tracking")
@@ -48,6 +49,8 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseRouting();
+app.UseNexoRutaRequestLogging();
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health/ready").AllowAnonymous();

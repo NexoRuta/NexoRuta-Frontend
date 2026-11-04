@@ -10,6 +10,7 @@ using NexoRuta.ApiClient.Features.Plataforma.Clients;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseNexoRutaLogging("NexoRuta.Admin");
 if (!builder.Services.AddSharedDataProtection(builder.Configuration, "NexoRuta.Admin", "admin")
     && builder.Environment.IsProduction())
     throw new InvalidOperationException("Production Admin requires shared Data Protection storage.");
@@ -71,6 +72,7 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseRouting();
+app.UseNexoRutaRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();

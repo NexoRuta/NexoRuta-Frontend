@@ -37,9 +37,10 @@ public static class HostingTelemetry
             .WithTracing(tracing => tracing
                 .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(ratio)))
                 .AddAspNetCoreInstrumentation(options => options.RecordException = false)
+                .AddHttpClientInstrumentation(options => options.RecordException = false)
                 .AddProcessor(new SafeRequestProcessor())
                 .AddOtlpExporter());
-        // Outbound HTTP spans are intentionally absent: provider URLs can contain credentials.
+        // SafeRequestProcessor strips URL and exception fields before export while preserving trace propagation.
         return services;
     }
 

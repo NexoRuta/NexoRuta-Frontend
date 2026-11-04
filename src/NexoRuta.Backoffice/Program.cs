@@ -19,6 +19,7 @@ using NexoRuta.Backoffice.Features.ZonasCobertura;
 using NexoRuta.Backoffice.Features.ReglasOperativas;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseNexoRutaLogging("NexoRuta.Backoffice");
 if (!builder.Services.AddSharedDataProtection(builder.Configuration,
         builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "backoffice")
     && builder.Environment.IsProduction())
@@ -119,6 +120,7 @@ if (!app.Environment.IsDevelopment())
 app.UseRouting();
 
 app.UseRequestLocalization("es-UY");
+app.UseNexoRutaRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
