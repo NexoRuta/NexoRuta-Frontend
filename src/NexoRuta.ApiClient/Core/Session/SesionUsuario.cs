@@ -12,6 +12,11 @@ public static class SesionUsuario
     public const string OrganizacionSuspendida = "OrganizacionSuspendida";
     public const string ClaimAccesoId = "nexoruta:acceso_id";
     public const string ClaimTipoAcceso = "nexoruta:tipo_acceso";
+    public const string ClaimIngresoWeb = "nexoruta:web_signin_id";
+    // Correlation only: never a credential or an API authorization claim.
+    public static string? IngresoWeb(ClaimsPrincipal usuario)
+        => Guid.TryParseExact(usuario.FindFirst(ClaimIngresoWeb)?.Value, "N", out var id) ? id.ToString("N") : null;
+
     public const string ClaimApiToken = "nexoruta:api_access_token";
 
     public static ClaimsPrincipal CrearPrincipal(UsuarioActualResponse usuario, string token, string esquema)
@@ -22,7 +27,8 @@ public static class SesionUsuario
             new Claim(ClaimTypes.NameIdentifier, usuario.UsuarioId.ToString()),
             new Claim(ClaimTypes.Name, usuario.UsuarioEmail),
             new Claim(ClaimTipoAcceso, usuario.Tipo),
-            new Claim(ClaimApiToken, token)
+            new Claim(ClaimApiToken, token),
+            new Claim(ClaimIngresoWeb, Guid.NewGuid().ToString("N"))
         };
         if (usuario.AccesoId is Guid accessId)
             claims.Add(new Claim(ClaimAccesoId, accessId.ToString()));
@@ -33,7 +39,7 @@ public static class SesionUsuario
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         return new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim(ClaimTipoAcceso, OrganizacionSuspendida), new Claim(ClaimApiToken, token)], esquema));
+            [new Claim(ClaimTipoAcceso, OrganizacionSuspendida), new Claim(ClaimApiToken, token), new Claim(ClaimIngresoWeb, Guid.NewGuid().ToString("N"))], esquema));
     }
 
     public static string ObtenerToken(ClaimsPrincipal usuario)

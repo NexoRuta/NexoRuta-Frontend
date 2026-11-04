@@ -1,0 +1,53 @@
+@page "/deposito/recepcion"
+@model NexoRuta.Backoffice.Pages.Deposito.RecepcionModel
+@{ ViewData["Title"]="Recepción de bultos"; }
+@section Head { <link rel="stylesheet" href="~/css/rutas-deposito.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/recepcion-deposito.css" asp-append-version="true" /> }
+<div class="nr-reception">
+    <a asp-page="/Deposito">Volver a Depósito</a>
+    <h1>Recepción de bultos</h1>
+    <p>Escaneá la etiqueta y cotejá cada bulto presente. Las devoluciones y retornos se confirman desde Depósito.</p>
+    @if(Model.Confirmacion is {} mensaje) { <p role="status" class="nr-routes-alert is-info">@mensaje</p> }
+    @if(Model.Error is {} error) { <div role="alert" class="nr-routes-alert is-warning" tabindex="-1" data-receipt-error><p>@error</p><a asp-page="/Deposito/Recepcion" asp-route-codigo="@Model.Codigo">Consultar estado actualizado</a></div> }
+    <section aria-labelledby="escanear-heading" class="nr-depot-panel">
+        <h2 id="escanear-heading">Identificar bulto</h2>
+        <form method="get" id="buscar-bulto" data-single-submit>
+            <label for="codigo-bulto">UUID o código de la etiqueta</label>
+            <input id="codigo-bulto" name="codigo" value="@Model.Codigo" maxlength="80" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="ayuda-codigo" autofocus />
+            <p id="ayuda-codigo">Podés usar un lector USB/Bluetooth como teclado, pegar el UUID o escribir el código. Enter busca el bulto; no registra una recepción.</p>
+            <button type="submit" class="nr-action-primary">Buscar bulto</button>
+        </form>
+        <div class="nr-camera-actions"><button type="button" class="nr-action-secondary" id="activar-camara">Leer QR con cámara</button><button type="button" class="nr-action-secondary" id="detener-camara" hidden>Detener cámara</button></div>
+        <p id="estado-camara" role="status" aria-live="polite"></p>
+        <video id="video-recepcion" playsinline muted hidden aria-label="Vista de cámara para leer el QR"></video>
+    </section>
+    @if(Model.Recepcion is null && Model.Cotejo.ComandoId!=Guid.Empty)
+    {
+        <section class="nr-selected-shipment"><h2>Reintentar cotejo</h2><p>No pudimos recuperar el estado del bulto @Model.BultoId. Conservamos los valores y el comando anterior; podés reenviarlo para consultar o registrar el mismo resultado.</p><partial name="_CotejoRecepcion" model="Model" /></section>
+    }
+    @if(Model.Recepcion is {} recepcion && Model.Bulto is {} bulto)
+    {
+        <section class="nr-selected-shipment" aria-labelledby="bulto-heading">
+            <h2 id="bulto-heading">@bulto.Codigo</h2>
+            <p class="nr-receipt-id">UUID: @bulto.Id · Envío: @recepcion.EnvioId</p>
+            <p>@recepcion.Destinatario · Estado: @NexoRuta.Backoffice.Pages.Deposito.RecepcionModel.Estado(recepcion.EstadoEnvio) · Custodia: @NexoRuta.Backoffice.Pages.Deposito.RecepcionModel.Custodia(bulto.Custodia)</p>
+            <p>Declarado: <strong>@bulto.Declarado.PesoGramos g</strong> · @bulto.Declarado.LargoCentimetros × @bulto.Declarado.AnchoCentimetros × @bulto.Declarado.AltoCentimetros cm. Las medidas y tarifas declaradas se conservan.</p>
+            @if(recepcion.EstadoEnvio=="Admitido" && bulto.CotejoActual!="Conforme")
+            {
+                <partial name="_CotejoRecepcion" model="Model" />
+            }
+            else if(bulto.CotejoActual=="Conforme" && bulto.Custodia=="Deposito" && recepcion.EstadoEnvio is "Admitido" or "EnDeposito") { <p role="status">Este bulto ya tiene cotejo conforme. Escanearlo otra vez no duplica la recepción.</p> }
+            else { <p role="status">No admite primera recepción en su estado actual. Consultá sus acciones de retorno en Depósito.</p> }
+        </section>
+        <section class="nr-depot-panel" aria-labelledby="pendientes-heading"><h2 id="pendientes-heading">Bultos del envío</h2>
+            <p>@recepcion.Bultos.Count(b=>b.CotejoActual=="Conforme") de @recepcion.Bultos.Count con cotejo conforme. El envío pasa a En depósito cuando todos estén recibidos y conformes.</p>
+            <ul>@foreach(var b in recepcion.Bultos) { <li><a asp-page="/Deposito/Recepcion" asp-route-codigo="@b.Id">@b.Codigo</a> · @b.CotejoActual · Custodia: @NexoRuta.Backoffice.Pages.Deposito.RecepcionModel.Custodia(b.Custodia)</li> }</ul>
+        </section>
+        @if(recepcion.Historial.Count>0)
+        {
+            <section class="nr-depot-panel" aria-labelledby="historial-heading"><h2 id="historial-heading">Cotejos de este bulto</h2>
+                @foreach(var h in recepcion.Historial) { <article class="nr-receipt-history"><h3>@(h.Cotejo.Conforme ? "Conforme" : "Discrepancia registrada")</h3><p>@h.RegistradaEnUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'") · Operario: @h.AccesoId</p><p>Declarado: @h.Declarado.PesoGramos g · @h.Declarado.LargoCentimetros × @h.Declarado.AnchoCentimetros × @h.Declarado.AltoCentimetros cm</p><p>Observado: @(h.Cotejo.PesoObservado?.ToString()??"Sin medir") g · @(h.Cotejo.LargoObservado?.ToString()??"Sin medir") × @(h.Cotejo.AnchoObservado?.ToString()??"Sin medir") × @(h.Cotejo.AltoObservado?.ToString()??"Sin medir") cm</p><p>@h.Cotejo.Observaciones</p></article> }
+            </section>
+        }
+    }
+</div>
+@section Scripts { <script src="~/lib/zxing-browser/zxing-browser.min.js" asp-append-version="true"></script><script src="~/js/recepcion-deposito.js" asp-append-version="true"></script> }

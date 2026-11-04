@@ -173,6 +173,50 @@
         });
         zoneGeometryLayer = true;
     };
+    const geometryBounds = geometry => {
+        const bounds = [[Infinity, Infinity], [-Infinity, -Infinity]];
+        const visit = coordinates => {
+            if (!Array.isArray(coordinates)) return;
+            if (coordinates.length >= 2 && Number.isFinite(coordinates[0]) && Number.isFinite(coordinates[1])) {
+                bounds[0][0] = Math.min(bounds[0][0], coordinates[0]);
+                bounds[0][1] = Math.min(bounds[0][1], coordinates[1]);
+                bounds[1][0] = Math.max(bounds[1][0], coordinates[0]);
+                bounds[1][1] = Math.max(bounds[1][1], coordinates[1]);
+            } else coordinates.forEach(visit);
+        };
+        visit(geometry?.coordinates);
+        return bounds.flat().every(Number.isFinite) ? bounds : null;
+    };
+    const startOverview = () => {
+        const zones = JSON.parse(root.dataset.zones || "[]");
+        const features = zones.map(zone => ({ type: "Feature", properties: { id: zone.id, nombre: zone.nombre, estado: zone.estado }, geometry: zone.geometria }));
+        const bounds = geometryBounds({ coordinates: features.map(feature => feature.geometry?.coordinates) });
+        if (!bounds) { setStatus("No hay geometrías de zonas para mostrar."); return; }
+        window.mapboxgl.accessToken = root.dataset.token;
+        map = new window.mapboxgl.Map({ container: root, style: root.dataset.style, center: [-56, -33], zoom: 4, renderWorldCopies: false });
+        map.addControl(new window.mapboxgl.NavigationControl(), "top-right");
+        map.on("error", () => setStatus("No se pudo cargar el mapa. El listado de zonas sigue disponible."));
+        map.on("load", () => {
+            const colors = getComputedStyle(root);
+            const color = ["match", ["get", "estado"], "Activa", colors.getPropertyValue("--coverage-active").trim(), colors.getPropertyValue("--coverage-inactive").trim()];
+            map.addSource("zone-overview", { type: "geojson", data: { type: "FeatureCollection", features } });
+            map.addLayer({ id: "zone-overview-fill", type: "fill", source: "zone-overview", paint: { "fill-color": color, "fill-opacity": 0.24 } });
+            map.addLayer({ id: "zone-overview-outline", type: "line", source: "zone-overview", paint: { "line-color": color, "line-width": 3 } });
+            for (const zone of zones) {
+                const zoneBounds = geometryBounds(zone.geometria);
+                if (!zoneBounds) continue;
+                const label = document.createElement("a");
+                label.className = "coverage-zone-label";
+                label.dataset.state = zone.estado;
+                label.href = "/zonas/" + encodeURIComponent(zone.id);
+                label.textContent = zone.nombre + " · " + zone.estado;
+                new window.mapboxgl.Marker({ element: label, anchor: "center" })
+                    .setLngLat([(zoneBounds[0][0] + zoneBounds[1][0]) / 2, (zoneBounds[0][1] + zoneBounds[1][1]) / 2]).addTo(map);
+            }
+            map.fitBounds(bounds, { padding: 48, maxZoom: 13, duration: 0 });
+            setStatus("Zonas del operador. Seleccioná un nombre para abrir su detalle.");
+        });
+    };
     const clearExistingZoneLayer = () => {
         const source = map?.getSource("zone-coverage");
         if (source) source.setData({ type: "FeatureCollection", features: [] });
@@ -208,10 +252,11 @@
                 setStatus("Geometría dibujada. La API valida la forma completa y no recorta ni mueve sus vértices.");
             });
             map.on("draw.update", () => {
+                clearExistingZoneLayer();
                 updateGeoJsonField();
                 setStatus("Geometría modificada. El servidor comprobará que quede completamente dentro de Uruguay al guardar.");
             });
-            map.on("draw.delete", updateGeoJsonField);
+            map.on("draw.delete", () => { clearExistingZoneLayer(); updateGeoJsonField(); });
             drawListenersRegistered = true;
         }
     };
@@ -347,11 +392,17 @@
             catch { setStatus("No se pudo leer la geometría guardada; no se reemplazó su valor."); }
             const canEdit = root.dataset.editable === "true" && safelyEditable(geometryValue) && Boolean(window.MapboxDraw);
             const canCreate = mode === "create" && Boolean(window.MapboxDraw);
-            if (geometryValue && !canEdit && !canCreate) addExistingZoneLayer(geometryValue);
-            else if (geometryValue && mode === "create" && !safelyEditable(geometryValue)) addExistingZoneLayer(geometryValue);
+            if (geometryValue) addExistingZoneLayer(geometryValue);
             if (canEdit || canCreate) {
                 enableDraw(true);
                 if (geometryValue && safelyEditable(geometryValue)) addExistingToDraw(geometryValue);
+            }
+            const zoneBounds = geometryBounds(geometryValue);
+            if (zoneBounds) {
+                // Camera bounds must not push a narrow viewport away from the selected zone.
+                // Geometry validity remains enforced by the server, including during editing.
+                map.setMaxBounds(null);
+                map.fitBounds(zoneBounds, { padding: 40, maxZoom: 14, duration: 0 });
             }
             if (mode === "create" && !window.MapboxDraw) {
                 setStatus("El mapa se cargó, pero no se pudieron cargar los controles de dibujo.");
@@ -362,7 +413,7 @@
             }
             else if (root.dataset.editable === "true" && !canEdit)
                 setStatus("Esta geometría incluye componentes o huecos que el editor no conserva; se muestra en modo lectura.");
-            else setStatus("El mapa muestra la referencia territorial de Uruguay. La API valida las operaciones geográficas.");
+            else setStatus("La zona consultada está resaltada y encuadrada. La referencia de Uruguay se muestra como contexto.");
             if (departmentSelect?.value) void showDepartment(departmentSelect.value);
             setupCoveragePoint();
         });
@@ -678,7 +729,10 @@
         }
     });
 
-    if (mode === "create") {
+    if (mode === "overview") {
+        if (root?.dataset.token && window.mapboxgl) startOverview();
+        else setStatus("No se pudo cargar Mapbox. El listado de zonas sigue disponible.");
+    } else if (mode === "create") {
         void loadDepartmentReference();
         if (root?.dataset.token) {
             if (window.mapboxgl) startCreateMap();

@@ -832,7 +832,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
             await LoginAsync(client, "user@example.test");
             using var expired = await client.GetAsync("/tarifas");
             Assert.Equal(HttpStatusCode.Redirect, expired.StatusCode);
-            Assert.Equal("/ingresar?expirada=true", expired.Headers.Location!.OriginalString);
+            AssertRecoveryRedirect(expired);
         }
 
         var forbiddenApi = new FakeApi { TariffStateStatusOverride = HttpStatusCode.Forbidden };
@@ -1052,7 +1052,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.StartsWith("/ingresar?expirada=true", response.Headers.Location!.OriginalString, StringComparison.Ordinal);
         using var afterExpiry = await client.GetAsync("/zonas");
-        Assert.StartsWith("/ingresar", afterExpiry.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+        Assert.StartsWith("/ingresar", new Uri(client.BaseAddress!,afterExpiry.Headers.Location!).AbsolutePath, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -2050,9 +2050,10 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
         using var expired = await client.PostAsync("/roles?handler=Eliminar", Form(antiforgery,
             ("id", RoleId.ToString())));
         Assert.Equal(HttpStatusCode.Redirect, expired.StatusCode);
-        Assert.Equal("/ingresar?expirada=true", expired.Headers.Location!.OriginalString);
-        using var anonymous = await client.GetAsync("/roles");
-        Assert.StartsWith("/ingresar", anonymous.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+        AssertRecoveryRedirect(expired);
+        // Rejection did not erase the valid portal cookie: the read remains authorized.
+        using var stillAuthenticated = await client.GetAsync("/roles");
+        Assert.Equal(HttpStatusCode.OK,stillAuthenticated.StatusCode);
     }
 
     [Fact]
@@ -2115,7 +2116,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
     }
 
     [Fact]
-    public async Task CommercePermission401SignsOutWhile403AndMissingApiRemainControlled()
+    public async Task CommercePermission401RequiresSignInWhile403AndMissingApiRemainControlled()
     {
         var revokedApi = new FakeApi { PermissionStatusOverride = HttpStatusCode.Unauthorized };
         using (var factory = new CommerceFactory(revokedApi))
@@ -2124,11 +2125,11 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
             await LoginAsync(client, "commerce@example.test");
             using var expired = await client.GetAsync("/usuarios");
             Assert.Equal(HttpStatusCode.Redirect, expired.StatusCode);
-            Assert.Equal("/ingresar?expirada=true", expired.Headers.Location!.OriginalString);
+            AssertRecoveryRedirect(expired);
             using var login = await client.GetAsync(expired.Headers.Location);
             Assert.Contains("Tu sesi", await login.Content.ReadAsStringAsync());
             using var anonymous = await client.GetAsync("/usuarios");
-            Assert.StartsWith("/ingresar", anonymous.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+            Assert.StartsWith("/ingresar", new Uri(client.BaseAddress!,anonymous.Headers.Location!).AbsolutePath, StringComparison.Ordinal);
         }
 
         foreach (var status in new[] { HttpStatusCode.Forbidden, HttpStatusCode.NotFound })
@@ -2160,7 +2161,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
             using var response = await client.GetAsync("/usuarios");
 
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Equal("/api-indisponible", response.Headers.Location!.OriginalString);
+            Assert.Equal("/api-indisponible?ReturnUrl=%2Fusuarios", response.Headers.Location!.OriginalString);
             Assert.DoesNotContain(api.Calls, call => call.Path == "/api/usuarios" && call.Method == HttpMethod.Get);
         }
     }
@@ -2188,7 +2189,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
     }
 
     [Fact]
-    public async Task Api401ForRevokedTokenSignsOutAndRequestsLogin()
+    public async Task Api401ForRevokedTokenRequestsLoginWithoutErasingCookie()
     {
         var api = new FakeApi();
         using var factory = new BackofficeFactory(api);
@@ -2198,12 +2199,12 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
         using var response = await client.GetAsync("/usuarios");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Equal("/ingresar?expirada=true", response.Headers.Location!.OriginalString);
+        AssertRecoveryRedirect(response);
         using var page = await client.GetAsync(response.Headers.Location);
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         Assert.Contains("Tu sesi", await page.Content.ReadAsStringAsync());
         using var afterSignOut = await client.GetAsync("/usuarios");
-        Assert.StartsWith("/ingresar", afterSignOut.Headers.Location!.AbsolutePath, StringComparison.Ordinal);
+        Assert.StartsWith("/ingresar", new Uri(client.BaseAddress!,afterSignOut.Headers.Location!).AbsolutePath, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -2217,7 +2218,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
         using var denied = await client.GetAsync("/usuarios");
 
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
-        Assert.Equal("/api-indisponible", denied.Headers.Location!.OriginalString);
+        Assert.Equal("/api-indisponible?ReturnUrl=%2Fusuarios", denied.Headers.Location!.OriginalString);
         using var unavailable = await client.GetAsync(denied.Headers.Location);
         Assert.Equal(HttpStatusCode.OK, unavailable.StatusCode);
         Assert.Contains("API no disponible", await unavailable.Content.ReadAsStringAsync());
@@ -2357,6 +2358,17 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
         Assert.DoesNotContain($"name=\"usuarioId\" value=\"{CurrentUserId}\"", commerceHtml);
         Assert.DoesNotContain($"name=\"accesoId\" value=\"{OwnAccessId}\"", commerceHtml);
         Assert.Contains($"name=\"usuarioId\" value=\"{TargetUserId}\"", commerceHtml);
+    }
+
+    private static void AssertRecoveryRedirect(HttpResponseMessage response)
+    {
+        var uri = new Uri(new Uri("http://localhost"),response.Headers.Location!);
+        Assert.Equal("/ingresar",uri.AbsolutePath);
+        var query=Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        Assert.Equal("true",query["expirada"]);
+        Assert.True(Guid.TryParseExact(query["rechazo"],"N",out _));
+        Assert.True(query["ReturnUrl"].ToString().StartsWith('/'));
+        Assert.False(response.Headers.TryGetValues("Set-Cookie",out var cookies) && cookies.Any(c=>c.StartsWith("NexoRuta.")));
     }
 
     private static HttpClient Client(WebApplicationFactory<NexoRuta.Backoffice.Core.Security.ApiPermissionAuthorizationHandler> factory)

@@ -16,6 +16,151 @@ public sealed class DestinosEnvioPagesTests
     private const string ApiToken = "commerce-session";
 
     [Fact]
+    public async Task RenderWhileMapCreationIsPendingDoesNotCreateAnotherMapOrKeyboardBinding()
+    {
+        var js = new PausedMapCreation();
+        var picker = new SelectorDestino { Editable = true };
+        var type = typeof(SelectorDestino);
+        type.GetProperty("Js", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, js);
+        type.GetField("token", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, "pk.synthetic");
+        Task Render() => (Task)type.GetMethod("OnAfterRenderAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(picker, [false])!;
+        var first = Render();
+        await js.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = Render();
+        try
+        {
+            Assert.Equal(1, js.Creations);
+            Assert.Equal(1, js.Keyboards);
+        }
+        finally
+        {
+            js.Continue.TrySetResult();
+            await Task.WhenAll(first, second);
+        }
+        await Render();
+        Assert.Equal(1, js.Creations);
+        Assert.Equal(1, js.Keyboards);
+        await picker.DisposeAsync();
+    }
+
+    private sealed class PausedMapCreation : IJSRuntime, IJSObjectReference
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int Creations, Keyboards;
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+        public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "crear")
+            {
+                Creations++;
+                Started.TrySetResult();
+                await Continue.Task.WaitAsync(cancellationToken);
+            }
+            if (identifier == "conectarTeclado") Keyboards++;
+            return typeof(TValue) == typeof(IJSObjectReference) ? (TValue)(object)this : default!;
+        }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    [Fact]
+    public async Task CoberturaDistingueCargaSinZonasYErrorDeConsulta()
+    {
+        var pending = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var http = new HttpClient(new AsyncHandler(_ => pending.Task)) { BaseAddress = new Uri("http://api.test/") };
+        var picker = new SelectorDestino { Editable = true, ApiToken = ApiToken, OperadorId = Guid.NewGuid() };
+        typeof(SelectorDestino).GetProperty("Envios", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, new EnviosApiClient(http));
+        Task Parameters() => (Task)typeof(SelectorDestino).GetMethod("OnParametersSetAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(picker, null)!;
+        var loading = Parameters();
+        Assert.True(Field<bool>(picker, "cargandoCobertura"));
+        pending.SetResult(Respuesta(200, "[]")); await loading;
+        Assert.False(Field<bool>(picker, "cargandoCobertura")); Assert.False(Field<bool>(picker, "errorCobertura"));
+        Assert.Empty(Field<IReadOnlyList<CoberturaEnvioResponse>>(picker, "cobertura"));
+        using var failing = new HttpClient(new AsyncHandler(_ => Task.FromResult(Respuesta(503, "{}")))) { BaseAddress = new Uri("http://api.test/") };
+        typeof(SelectorDestino).GetProperty("Envios", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, new EnviosApiClient(failing));
+        picker.OperadorId = Guid.NewGuid(); await Parameters();
+        Assert.False(Field<bool>(picker, "cargandoCobertura")); Assert.True(Field<bool>(picker, "errorCobertura"));
+        Assert.NotEmpty(Field<string>(picker, "mensajeCobertura"));
+        await picker.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task CambioDeOperadorMientrasSeLimpiaMapaNoReutilizaTokenDescartado()
+    {
+        var first = Guid.NewGuid(); var second = Guid.NewGuid(); var calls = new List<string>();
+        using var http = new HttpClient(new Handler(request => {
+            calls.Add(request.RequestUri!.AbsolutePath);
+            return Respuesta(200, "[{\"zonaId\":\"" + second + "\",\"nombre\":\"Current\",\"geometria\":{\"type\":\"MultiPolygon\",\"coordinates\":[]}}]");
+        })) { BaseAddress = new Uri("http://api.test/") };
+        var picker = new SelectorDestino { Editable = true, ApiToken = ApiToken, OperadorId = first };
+        var type = typeof(SelectorDestino);
+        type.GetProperty("Envios", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, new EnviosApiClient(http));
+        var map = new PausedCoverageMap();
+        type.GetField("mapa", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, map);
+        Task Parameters() => (Task)type.GetMethod("OnParametersSetAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(picker, null)!;
+        var old = Parameters(); await map.Started.Task;
+        picker.OperadorId = second; await Parameters();
+        map.Release.SetResult(); await old;
+        Assert.Equal($"/api/operadores/{second}/cobertura-envios", Assert.Single(calls));
+        Assert.Equal(second, Assert.Single(Field<IReadOnlyList<CoberturaEnvioResponse>>(picker, "cobertura")).ZonaId);
+        await picker.DisposeAsync();
+    }
+
+    private sealed class PausedCoverageMap : IJSObjectReference
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int clears;
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+        public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "cobertura" && Interlocked.Increment(ref clears) == 1) { Started.SetResult(); await Release.Task; }
+            return default!;
+        }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    [Fact]
+    public async Task CoberturaCambiaConOperadorYDescartaRespuestaAnterior()
+    {
+        var first = Guid.NewGuid(); var second = Guid.NewGuid();
+        var pending = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var http = new HttpClient(new AsyncHandler(request => request.RequestUri!.AbsolutePath.Contains(first.ToString())
+            ? pending.Task : Task.FromResult(Respuesta(200, "[{\"zonaId\":\"" + second + "\",\"nombre\":\"Current\",\"geometria\":{\"type\":\"MultiPolygon\",\"coordinates\":[]}}]")))) { BaseAddress = new Uri("http://api.test/") };
+        var picker = new SelectorDestino { Editable = true, ApiToken = ApiToken, OperadorId = first };
+        typeof(SelectorDestino).GetProperty("Envios", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(picker, new EnviosApiClient(http));
+        Task Parameters() => (Task)typeof(SelectorDestino).GetMethod("OnParametersSetAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(picker, null)!;
+        var old = Parameters();
+        picker.OperadorId = second; await Parameters();
+        pending.SetResult(Respuesta(200, "[{\"zonaId\":\"" + first + "\",\"nombre\":\"Old\",\"geometria\":{\"type\":\"MultiPolygon\",\"coordinates\":[]}}]"));
+        await old;
+        Assert.Equal(second, Assert.Single(Field<IReadOnlyList<CoberturaEnvioResponse>>(picker, "cobertura")).ZonaId);
+        picker.OperadorId = null; await Parameters();
+        Assert.Empty(Field<IReadOnlyList<CoberturaEnvioResponse>>(picker, "cobertura"));
+        await picker.DisposeAsync();
+    }
+
+    [Fact]
+    public void DestinoConfirmadoNoRequiereOtraConfirmacionHastaCambiarElPunto()
+    {
+        var page = new NexoRuta.Commerce.Components.Features.Envios.Pages.DestinoEnvio();
+        var type = page.GetType();
+        void Set(string name, object value) => type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(page, value);
+        T Get<T>(string name) => (T)type.GetProperty(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page)!;
+        Set("destino", new DestinoEnvioResponse(EnvioId, "Recipient", "Saved address", 1, "Admitido", -34.9, -56.2, DateTimeOffset.UtcNow));
+        var point = type.GetField("punto", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page)!;
+        point.GetType().GetProperty("Latitud")!.SetValue(point, -34.9);
+        point.GetType().GetProperty("Longitud")!.SetValue(point, -56.2);
+        Set("puntoPersistido", true); Set("revisado", true);
+        Assert.Equal("Ubicación confirmada y guardada.", Get<string>("EstadoPunto"));
+        Assert.False(Get<bool>("PuedeConfirmar"));
+        type.GetMethod("ActualizarPunto", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(page, [(-34.91 as double?, -56.21 as double?, "Adjusted address")]);
+        Set("revisado", true);
+        Assert.True(Get<bool>("PuedeConfirmar"));
+        Assert.Contains("pendiente de confirmar", Get<string>("EstadoPunto"));
+    }
+
+    [Fact]
     public async Task ContratoPublicaBusquedaAutenticadaSinCambiarLaRespuestaDePropuestas()
     {
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Contracts", "nexoruta.openapi.json")));

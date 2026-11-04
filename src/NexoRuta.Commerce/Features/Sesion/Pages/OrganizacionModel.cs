@@ -45,8 +45,7 @@ public sealed class OrganizacionModel(AuthApiClient auth, UsuariosApiClient usua
         {
             if (error.StatusCode == HttpStatusCode.Unauthorized)
             {
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return LocalRedirect("/ingresar?expirada=true");
+                return LocalRedirect(RutaSesion.Ingreso(Request.Path,true,SesionUsuario.IngresoWeb(User)));
             }
             if (error.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.Forbidden) PuedeCrear = false;
             Error = error.StatusCode == HttpStatusCode.Conflict

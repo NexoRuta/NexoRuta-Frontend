@@ -107,3 +107,7 @@
         min-height: 20rem;
     }
 }
+
+.nr-coverage-status { display: grid; justify-items: start; gap: 0.5rem; min-width: 0; }
+.nr-coverage-key { display: flex; align-items: center; gap: 0.5rem; margin: 0; overflow-wrap: anywhere; }
+.nr-coverage-swatch { flex: 0 0 1.5rem; height: 1.25rem; border: 3px solid var(--nr-action-strong); background: var(--nr-action-soft); }

@@ -159,11 +159,8 @@ public sealed class IdentidadVisualModel(IdentidadVisualApiClient client) : Page
         QuitarLogo = false;
     }
 
-    private async Task<IActionResult> CerrarSesionAsync()
-    {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return Redirect("/ingresar?expirada=true");
-    }
+    private Task<IActionResult> CerrarSesionAsync()
+        => Task.FromResult<IActionResult>(Redirect(RutaSesion.Ingreso(Request.Path,true,SesionUsuario.IngresoWeb(User))));
 
     private string Token() => SesionUsuario.ObtenerToken(User);
 }

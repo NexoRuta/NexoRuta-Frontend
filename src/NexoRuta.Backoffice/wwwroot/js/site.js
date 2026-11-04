@@ -1,4 +1,4 @@
-﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
+// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
 const initializeSingleSubmitForms = (root) => {
@@ -16,6 +16,23 @@ const initializeSingleSubmitForms = (root) => {
                 form.setAttribute("aria-busy", "true");
             }
         });
+    });
+};
+// Keep native disclosure children out of Tab boundaries; Bootstrap still owns the modal lifecycle.
+const initializeOffcanvasKeyboard = (panel, initialFocus) => {
+    if (panel.dataset.keyboardBoundary === "true") return;
+    panel.dataset.keyboardBoundary = "true";
+    panel.addEventListener("keydown", event => {
+        if (event.key !== "Tab") return;
+        const stops = [...panel.querySelectorAll('a[href], button, input:not([type=hidden]), textarea, select, summary, [tabindex="0"]')]
+            .filter(el => el.tabIndex >= 0 && !el.matches(":disabled") && el.checkVisibility({ checkVisibilityCSS: true }));
+        const first = stops[0], last = stops.at(-1);
+        if (!first) { event.preventDefault(); panel.focus(); }
+        else if (event.shiftKey && (document.activeElement === first || document.activeElement === initialFocus || document.activeElement === panel)) {
+            event.preventDefault(); last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault(); first.focus();
+        }
     });
 };
 initializeSingleSubmitForms(document);
@@ -61,12 +78,31 @@ const shipmentDetailDialog = document.getElementById("shipment-detail-dialog");
 if (shipmentDetailDialog && window.bootstrap?.Offcanvas) {
     const detailBody = document.getElementById("shipment-detail-body");
     const detailTitle = document.getElementById("shipment-detail-title");
+    initializeOffcanvasKeyboard(shipmentDetailDialog, detailTitle);
     const detailShortId = document.getElementById("shipment-detail-short-id");
     const detailStatus = document.getElementById("shipment-detail-status");
     const copyButton = document.getElementById("shipment-detail-copy");
     const copyStatus = document.getElementById("shipment-detail-copy-status");
     const appShell = document.getElementById("backoffice-app-shell");
     let detailOpener = null;
+    const hasOperatorList = !!document.querySelector(".nr-operator-shipments");
+    let historyNavigation = false;
+    let openingInitialSelection = false;
+    const updateSelection = (id) => {
+        if (!hasOperatorList || historyNavigation) return;
+        const url = new URL(window.location.href);
+        if (id) url.searchParams.set("Seleccion", id);
+        else url.searchParams.delete("Seleccion");
+        url.searchParams.delete("handler");
+        document.querySelectorAll('[data-operator-refresh] [name="Seleccion"]').forEach(input => { input.value = id || ""; });
+        if (url.href === window.location.href) return;
+        window.history[openingInitialSelection ? "replaceState" : "pushState"]({}, "", url);
+    };
+    if (hasOperatorList) window.addEventListener("popstate", () => {
+        // Native SSR keeps selection and filters authoritative; no parallel detail requests can race.
+        historyNavigation = true;
+        window.location.reload();
+    });
 
     shipmentDetailDialog.addEventListener("show.bs.offcanvas", (event) => {
         const trigger = event.relatedTarget;
@@ -79,6 +115,7 @@ if (shipmentDetailDialog && window.bootstrap?.Offcanvas) {
         }
 
         detailOpener = trigger;
+        updateSelection(trigger.dataset.shipmentId);
         detailBody.replaceChildren(template.content.cloneNode(true));
         initializeSingleSubmitForms(detailBody);
         detailShortId.textContent = trigger.dataset.shipmentShortId || "";
@@ -101,18 +138,26 @@ if (shipmentDetailDialog && window.bootstrap?.Offcanvas) {
     });
 
     shipmentDetailDialog.addEventListener("shown.bs.offcanvas", () => {
-        detailTitle?.focus({ preventScroll: true });
+        const cancellation = detailOpener?.dataset.focusCancel === "true" ? detailBody.querySelector(".nr-cancel-shipment") : null;
+        if (cancellation) {
+            cancellation.open = true;
+            cancellation.querySelector("textarea")?.focus({ preventScroll: true });
+        } else detailTitle?.focus({ preventScroll: true });
     });
 
     shipmentDetailDialog.addEventListener("hidden.bs.offcanvas", () => {
         if (appShell) appShell.inert = false;
-        if (detailOpener?.isConnected) detailOpener.focus({ preventScroll: true });
+        updateSelection(null);
+        if (detailOpener?.isConnected && !detailOpener.hidden) detailOpener.focus({ preventScroll: true });
+        else document.getElementById("shipment-search")?.focus({ preventScroll: true });
         detailOpener = null;
     });
 
     const failedCancellationTrigger = document.querySelector('[data-open-on-load="true"]');
     if (failedCancellationTrigger) {
+        openingInitialSelection = true;
         window.bootstrap.Offcanvas.getOrCreateInstance(shipmentDetailDialog).show(failedCancellationTrigger);
+        openingInitialSelection = false;
     }
 }
 

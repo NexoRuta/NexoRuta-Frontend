@@ -12,6 +12,23 @@ namespace NexoRuta.ApiClient.Features.Envios.Clients;
 
 public sealed class EnviosApiClient(HttpClient httpClient)
 {
+    public async Task<byte[]> DescargarEtiquetasAsync(Guid envio, string token, CancellationToken ct = default)
+    {
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get, $"api/envios/{envio:D}/etiquetas"), token);
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!response.IsSuccessStatusCode)
+            throw new NexoRutaApiException(await ApiHttp.ReadErrorAsync(response, ct), response.StatusCode);
+        if (response.Content.Headers.ContentType?.MediaType != "application/pdf")
+            throw new NexoRutaApiException("La API no devolvió etiquetas PDF válidas.", HttpStatusCode.BadGateway);
+        return await response.Content.ReadAsByteArrayAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<CoberturaEnvioResponse>> CoberturaAsync(Guid operador, string token, CancellationToken ct)
+    {
+        using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get, $"api/operadores/{operador}/cobertura-envios"), token);
+        return await ApiHttp.SendAsync<CoberturaEnvioResponse[]>(httpClient, request, ct);
+    }
+
     private const long MaximumImportFileBytes = 5 * 1024 * 1024;
 
     public async Task<EnvioCanceladoResponse> CancelarAsync(Guid envioId, long version, string motivo, string token, CancellationToken ct = default)

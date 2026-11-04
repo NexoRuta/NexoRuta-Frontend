@@ -48,6 +48,13 @@ public sealed class RutasApiClient(HttpClient http)
         ConfirmarExtravioEnvioRequest datos, string token, CancellationToken ct) =>
         EnviarResponseAsync<ConfirmacionExtravioEnvioResponse, ConfirmarExtravioEnvioRequest>(
             $"api/envios/{envio}/confirmar-extravio", datos, token, ct);
+    public async Task<ConsultaRecepcionResponse> ConsultarRecepcionAsync(string codigo,string token,CancellationToken ct)
+    {
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Get,"api/deposito/consulta?codigo="+Uri.EscapeDataString(codigo)),token);
+        return await ApiHttp.SendAsync<ConsultaRecepcionResponse>(http,request,ct);
+    }
+    public Task<ResultadoRecepcionResponse> CotejarBultoAsync(Guid id,CotejoBultoRequest datos,string token,CancellationToken ct) =>
+        EnviarResponseAsync<ResultadoRecepcionResponse,CotejoBultoRequest>($"api/deposito/bultos/{id}/recepcion",datos,token,ct);
     public async Task RecibirAsync(Guid envio, long version, string token, CancellationToken ct)
     {
         using var request = ApiHttp.WithBearerToken(new(HttpMethod.Post, $"api/deposito/envios/{envio}/recepcion")

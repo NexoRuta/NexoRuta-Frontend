@@ -4,6 +4,7 @@
 @inject IJSRuntime Js
 @inject IConfiguration Configuration
 @inject DestinosEnvioApiClient Destinos
+@inject EnviosApiClient Envios
 @implements IAsyncDisposable
 
 <div class="nr-destination-picker">
@@ -49,12 +50,37 @@
              aria-label="Mapa de la ubicación del destino" aria-busy="@mapaCargando"></div>
         @if (mapaCargando) { <p class="nr-destination-status" role="status">Cargando el mapa…</p> }
         @if (mensajeMapa is not null) { <p class="nr-destination-map-message" role="status">@mensajeMapa</p> }
+        @if (OperadorId is not null)
+        {
+            <div class="nr-coverage-status" aria-busy="@cargandoCobertura">
+                @if (cargandoCobertura)
+                {
+                    <p class="nr-destination-status" role="status">Cargando cobertura del operador...</p>
+                }
+                else if (errorCobertura || errorDibujoCobertura is not null)
+                {
+                    <p class="nr-destination-feedback" role="alert">@(errorCobertura ? mensajeCobertura : errorDibujoCobertura)</p>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ReintentarCoberturaAsync">Reintentar cobertura</button>
+                }
+                else if (cobertura.Count == 0)
+                {
+                    <p class="nr-destination-help" role="status">Este operador no tiene zonas activas para mostrar.</p>
+                }
+                else
+                {
+                    <p class="nr-coverage-key"><span class="nr-coverage-swatch" aria-hidden="true"></span> Cobertura activa: @string.Join(", ", cobertura.Select(z => z.Nombre)). Marcador: destino.</p>
+                    <button type="button" class="btn btn-outline-secondary" disabled="@(mapa is null || mapaCargando)" @onclick="VerCoberturaAsync">Ver cobertura</button>
+                }
+                <p class="nr-destination-help">La cobertura es orientativa. El servidor confirma el servicio y la tarifa.</p>
+            </div>
+        }
     }
 </div>
 
 @code {
     [Parameter] public bool ParaAlta { get; set; }
     [Parameter] public Guid EnvioId { get; set; }
+    [Parameter] public Guid? OperadorId { get; set; }
     [Parameter] public string ApiToken { get; set; } = "";
     [Parameter] public double? Latitud { get; set; }
     [Parameter] public double? Longitud { get; set; }
@@ -67,7 +93,7 @@
     private ElementReference elemento, buscador;
     private string? token, estilo, mensajeMapa, mensajeBusqueda;
     private string textoBusqueda = "";
-    private bool mapaCargando, buscando, busquedaResuelta, falloMapa;
+    private bool mapaCargando, buscando, busquedaResuelta, falloMapa, actualizandoMapa, dispuesto;
     private int indiceActivo = -1;
     private long secuenciaBusqueda;
     private CancellationTokenSource? busquedaCancelacion;
@@ -75,8 +101,15 @@
     private DotNetObjectReference<SelectorDestino>? referencia;
 
     private bool sinResultados => busquedaResuelta && !buscando && sugerencias.Count == 0 && mensajeBusqueda is null;
-    private bool PuedeEditar => Editable && !Bloqueado;
+    private bool PuedeEditar => !dispuesto && Editable && !Bloqueado;
     private readonly List<Sugerencia> sugerencias = [];
+    private Guid? operadorCobertura;
+    private CancellationTokenSource? coberturaCancelacion;
+    private long secuenciaCobertura;
+    private bool cargandoCobertura, errorCobertura;
+    private string? mensajeCobertura;
+    private string? errorDibujoCobertura;
+    private IReadOnlyList<NexoRuta.ApiClient.Features.Envios.Contracts.Responses.CoberturaEnvioResponse> cobertura = [];
 
     protected override void OnInitialized()
     {
@@ -88,9 +121,45 @@
         mapaCargando = token is not null;
     }
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        if (PuedeEditar) return;
+        if (dispuesto) return;
+        if (OperadorId != operadorCobertura)
+        {
+            var operadorActual = OperadorId;
+            operadorCobertura = operadorActual;
+            coberturaCancelacion?.Cancel(); coberturaCancelacion?.Dispose();
+            var cancelacion = coberturaCancelacion = new();
+            var ct = cancelacion.Token;
+            var secuencia = ++secuenciaCobertura;
+            cobertura = []; mensajeCobertura = null; cargandoCobertura = false; errorCobertura = false;
+            if (mapa is not null) await MostrarCoberturaAsync();
+            if (ct.IsCancellationRequested || secuencia != secuenciaCobertura) return;
+            if (operadorActual is { } operador)
+            {
+                cargandoCobertura = true;
+                try
+                {
+                    var resultado = await Envios.CoberturaAsync(operador, ApiToken, ct);
+                    if (secuencia == secuenciaCobertura && !ct.IsCancellationRequested)
+                    {
+                        cobertura = resultado; errorCobertura = false;
+                        if (resultado.Count == 0) mensajeCobertura = "Este operador no tiene zonas activas para mostrar. El servidor verifica el servicio y la tarifa.";
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+                catch (HttpRequestException)
+                {
+                    if (secuencia == secuenciaCobertura)
+                    {
+                        errorCobertura = true;
+                        mensajeCobertura = "No pudimos consultar la cobertura. No se muestran zonas; reintentá antes de usar el mapa como referencia.";
+                    }
+                }
+                finally { if (secuencia == secuenciaCobertura) cargandoCobertura = false; }
+            }
+        }
+        if (dispuesto || PuedeEditar) return;
         ++secuenciaBusqueda;
         busquedaCancelacion?.Cancel();
         textoBusqueda = "";
@@ -101,24 +170,47 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // Coverage and JS callbacks can render again while import/creation is awaiting.
+        // This invocation applies the latest parameters after creation completes.
+        if (dispuesto || actualizandoMapa) return;
+        actualizandoMapa = true;
         try
         {
             if (modulo is null)
             {
-                modulo = await Js.InvokeAsync<IJSObjectReference>("import", "./js/destino-mapbox.js");
+                var importado = await Js.InvokeAsync<IJSObjectReference>("import", "./js/destino-mapbox.js");
+                if (dispuesto) { await LiberarAsync(importado, false); return; }
+                modulo = importado;
                 referencia = DotNetObjectReference.Create(this);
-                if (PuedeEditar) teclado = await modulo.InvokeAsync<IJSObjectReference>("conectarTeclado", buscador, referencia);
+            }
+            if (PuedeEditar && teclado is null && referencia is not null)
+            {
+                var conectado = await modulo.InvokeAsync<IJSObjectReference>("conectarTeclado", buscador, referencia);
+                if (dispuesto) { await LiberarAsync(conectado); return; }
+                teclado = conectado;
             }
             if (mapa is null && token is not null && !falloMapa)
-                mapa = await modulo.InvokeAsync<IJSObjectReference>("crear", elemento, token, estilo, referencia, PuedeEditar);
+            {
+                var creado = await modulo.InvokeAsync<IJSObjectReference>("crear", elemento, token, estilo, referencia, PuedeEditar);
+                if (dispuesto) { await LiberarAsync(creado); return; }
+                mapa = creado;
+            }
             if (mapa is not null)
             {
                 await mapa.InvokeVoidAsync("configurarEdicion", PuedeEditar);
+                if (dispuesto) return;
                 await mapa.InvokeVoidAsync("mostrar", Latitud, Longitud);
+                if (dispuesto) return;
+                await MostrarCoberturaAsync();
             }
-            if (PuedeEditar && teclado is null && modulo is not null && referencia is not null)
-                teclado = await modulo.InvokeAsync<IJSObjectReference>("conectarTeclado", buscador, referencia);
+            if (PuedeEditar && teclado is null && referencia is not null)
+            {
+                var conectado = await modulo.InvokeAsync<IJSObjectReference>("conectarTeclado", buscador, referencia);
+                if (dispuesto) { await LiberarAsync(conectado); return; }
+                teclado = conectado;
+            }
         }
+        catch (JSException) when (dispuesto) { }
         catch (JSException)
         {
             falloMapa = true;
@@ -126,7 +218,45 @@
             mensajeMapa = "No se pudo cargar el mapa. La dirección registrada permanece disponible.";
             StateHasChanged();
         }
+        finally { actualizandoMapa = false; }
     }
+
+    private async Task MostrarCoberturaAsync()
+    {
+        try { if (!dispuesto && mapa is not null) await mapa.InvokeVoidAsync("cobertura", cobertura); }
+        catch (JSException)
+        {
+            if (dispuesto || errorDibujoCobertura is not null) return;
+            errorDibujoCobertura = "No se pudo dibujar la cobertura. El marcador no acredita que las zonas se hayan cargado.";
+            StateHasChanged();
+        }
+    }
+
+    private async Task VerCoberturaAsync()
+    {
+        if (dispuesto || mapa is null || cargandoCobertura || errorCobertura || errorDibujoCobertura is not null || cobertura.Count == 0) return;
+        try { await mapa.InvokeVoidAsync("verCobertura"); }
+        catch (JSException) when (dispuesto) { }
+        catch (JSException) { errorCobertura = true; mensajeCobertura = "No se pudo encuadrar la cobertura. Reintentá la consulta."; }
+    }
+
+    private async Task ReintentarCoberturaAsync()
+    {
+        if (dispuesto) return;
+        operadorCobertura = null;
+        await OnParametersSetAsync();
+    }
+
+    [JSInvokable]
+    public Task EstadoCobertura(string estado) => dispuesto ? Task.CompletedTask : InvokeAsync(() =>
+    {
+        if (dispuesto) return;
+        var mensaje = estado == "error"
+            ? "No se pudo dibujar la cobertura. El marcador no acredita que las zonas se hayan cargado." : null;
+        if (errorDibujoCobertura == mensaje) return;
+        errorDibujoCobertura = mensaje;
+        StateHasChanged();
+    });
 
     private async Task CambiarBusqueda(ChangeEventArgs args)
     {
@@ -136,9 +266,11 @@
         sugerencias.Clear(); indiceActivo = -1; mensajeBusqueda = null; busquedaResuelta = false;
         busquedaCancelacion?.Cancel(); busquedaCancelacion?.Dispose();
         var cancelacion = new CancellationTokenSource(); busquedaCancelacion = cancelacion;
+        var ct = cancelacion.Token;
         var secuencia = ++secuenciaBusqueda;
         // A new query is not a selected destination. Invalidate the provisional selection, not stored data.
         await PuntoCambiado.InvokeAsync((null, null, null));
+        if (dispuesto || ct.IsCancellationRequested || secuencia != secuenciaBusqueda) return;
         if (consulta.Length < 3) { buscando = false; return; }
         if (consulta.Length > 240)
         {
@@ -158,10 +290,10 @@
         buscando = true;
         try
         {
-            await Task.Delay(DemoraBusqueda, cancelacion.Token);
+            await Task.Delay(DemoraBusqueda, ct);
             var respuesta = ParaAlta
-                ? await Destinos.BuscarParaAltaAsync(consulta, ApiToken, cancelacion.Token)
-                : await Destinos.BuscarAsync(EnvioId, consulta, ApiToken, cancelacion.Token);
+                ? await Destinos.BuscarParaAltaAsync(consulta, ApiToken, ct)
+                : await Destinos.BuscarAsync(EnvioId, consulta, ApiToken, ct);
             if (cancelacion.IsCancellationRequested || secuencia != secuenciaBusqueda) return;
             sugerencias.Clear();
             sugerencias.AddRange(respuesta.Propuestas.Select((p, i) => new Sugerencia
@@ -201,11 +333,11 @@
         textoBusqueda = sugerencia.Descripcion;
         sugerencias.Clear(); indiceActivo = -1; buscando = false; busquedaResuelta = false; mensajeBusqueda = null;
         await PuntoCambiado.InvokeAsync((sugerencia.Latitud, sugerencia.Longitud, sugerencia.Descripcion));
-        if (modulo is not null) await modulo.InvokeVoidAsync("enfocarBusqueda", buscador);
+        if (!dispuesto && modulo is not null) await modulo.InvokeVoidAsync("enfocarBusqueda", buscador);
     }
 
     [JSInvokable]
-    public Task Seleccionar(double latitud, double longitud, string? descripcion) => InvokeAsync(async () =>
+    public Task Seleccionar(double latitud, double longitud, string? descripcion) => dispuesto ? Task.CompletedTask : InvokeAsync(async () =>
     {
         if (!PuedeEditar) return;
         busquedaCancelacion?.Cancel(); ++secuenciaBusqueda;
@@ -215,8 +347,9 @@
     });
 
     [JSInvokable]
-    public Task EstadoMapa(string estado) => InvokeAsync(() =>
+    public Task EstadoMapa(string estado) => dispuesto ? Task.CompletedTask : InvokeAsync(() =>
     {
+        if (dispuesto) return;
         mapaCargando = estado == "cargando";
         mensajeMapa = estado switch
         {
@@ -230,9 +363,9 @@
     });
 
     [JSInvokable]
-    public Task MoverSugerencia(int delta) => InvokeAsync(() =>
+    public Task MoverSugerencia(int delta) => dispuesto ? Task.CompletedTask : InvokeAsync(() =>
     {
-        if (sugerencias.Count == 0) return;
+        if (dispuesto || sugerencias.Count == 0) return;
         indiceActivo = indiceActivo < 0
             ? (delta >= 0 ? 0 : sugerencias.Count - 1)
             : (indiceActivo + delta + sugerencias.Count) % sugerencias.Count;
@@ -240,16 +373,18 @@
     });
 
     [JSInvokable]
-    public Task ElegirSugerenciaActiva() => InvokeAsync(async () =>
+    public Task ElegirSugerenciaActiva() => dispuesto ? Task.CompletedTask : InvokeAsync(async () =>
     {
+        if (dispuesto) return;
         if (indiceActivo >= 0 && indiceActivo < sugerencias.Count)
             await ElegirAsync(sugerencias[indiceActivo]);
-        StateHasChanged(); // JS interop is not a Blazor event.
+        if (!dispuesto) StateHasChanged(); // JS interop is not a Blazor event.
     });
 
     [JSInvokable]
-    public Task CerrarSugerencias() => InvokeAsync(() =>
+    public Task CerrarSugerencias() => dispuesto ? Task.CompletedTask : InvokeAsync(() =>
     {
+        if (dispuesto) return;
         busquedaCancelacion?.Cancel(); ++secuenciaBusqueda;
         sugerencias.Clear(); indiceActivo = -1; buscando = busquedaResuelta = false; StateHasChanged();
     });
@@ -261,17 +396,29 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (dispuesto) return;
+        dispuesto = true;
+        ++secuenciaCobertura; coberturaCancelacion?.Cancel(); coberturaCancelacion?.Dispose();
         busquedaCancelacion?.Cancel();
         ++secuenciaBusqueda;
-        try
-        {
-            if (teclado is not null) { await teclado.InvokeVoidAsync("dispose"); await teclado.DisposeAsync(); }
-            if (mapa is not null) { await mapa.InvokeVoidAsync("dispose"); await mapa.DisposeAsync(); }
-            if (modulo is not null) await modulo.DisposeAsync();
-        }
-        catch (JSDisconnectedException) { }
         referencia?.Dispose();
         busquedaCancelacion?.Dispose();
+        await LiberarAsync(teclado);
+        await LiberarAsync(mapa);
+        await LiberarAsync(modulo, false);
+        teclado = mapa = modulo = null;
+    }
+
+    private static async ValueTask LiberarAsync(IJSObjectReference? recurso, bool invocarDispose = true)
+    {
+        if (recurso is null) return;
+        try { if (invocarDispose) await recurso.InvokeVoidAsync("dispose"); }
+        catch (JSDisconnectedException) { }
+        finally
+        {
+            try { await recurso.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
     }
 
     public sealed class Sugerencia

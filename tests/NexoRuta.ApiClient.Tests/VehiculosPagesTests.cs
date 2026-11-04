@@ -22,8 +22,38 @@ public sealed partial class BackofficeSessionAndPagesTests
     {
         var api=new FakeApi{IncludeReparto=true,IncludeVehicleConfiguration=true,IncludeRoadEstimates=true,RepartoQueryFailure=status};api.PermissionOverrides["jwt-user"]=["configuracion.gestionar","envios.gestionar","envios.consultar"];
         using var factory=new BackofficeFactory(api);using var client=Client(factory);await LoginAsync(client,"user@example.test");
-        var routes=WebUtility.HtmlDecode(await client.GetStringAsync("/rutas?fecha=2026-10-20"));Assert.Contains("GET /api/reparto/flota",routes);Assert.Contains($"GET /api/rutas/{RutaPrueba}/estimaciones",routes);Assert.Contains($"HTTP {(int)status}",routes);Assert.Contains("Disponibilidad desconocida",routes);Assert.DoesNotContain("Sin cálculos registrados",routes);
-        var config=WebUtility.HtmlDecode(await client.GetStringAsync("/configuracion-reparto"));Assert.Contains("GET /api/reparto/perfiles-viales",config);Assert.Contains($"HTTP {(int)status}",config);Assert.Contains("no se presume confirmada",config);
+        // The accepted task split keeps the day list free of global fleet/history queries.
+        using var day = await client.GetAsync("/rutas?fecha=2026-10-20");
+        Assert.Equal(HttpStatusCode.OK, day.StatusCode);
+        Assert.DoesNotContain(api.Calls, call => call.Path == "/api/reparto/flota" || call.Path.EndsWith("/estimaciones", StringComparison.Ordinal));
+
+        using var fleetResponse = await client.GetAsync("/flota");
+        Assert.Equal(HttpStatusCode.OK, fleetResponse.StatusCode);
+        var fleet = WebUtility.HtmlDecode(await fleetResponse.Content.ReadAsStringAsync());
+        Assert.Contains(api.Calls, call => call.Method == HttpMethod.Get && call.Path == "/api/reparto/flota");
+        Assert.Contains("GET /api/reparto/flota", fleet);
+        Assert.Contains($"HTTP {(int)status}", fleet);
+        Assert.Contains("Disponibilidad desconocida", fleet);
+        Assert.Contains("Conteos no disponibles", fleet);
+        Assert.DoesNotContain("No hay vehículos registrados", fleet);
+        Assert.DoesNotContain("data-fleet-count=", fleet);
+
+        using var detailResponse = await client.GetAsync($"/rutas/{RutaPrueba}?fecha=2026-10-20");
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+        var detail = WebUtility.HtmlDecode(await detailResponse.Content.ReadAsStringAsync());
+        Assert.Contains(api.Calls, call => call.Method == HttpMethod.Get && call.Path == $"/api/rutas/{RutaPrueba}/estimaciones");
+        Assert.Contains($"GET /api/rutas/{RutaPrueba}/estimaciones", detail);
+        Assert.Contains($"HTTP {(int)status}", detail);
+        Assert.Contains("no se presume una estimación vigente ni un histórico vacío", detail);
+        Assert.DoesNotContain("Sin cálculos registrados", detail);
+
+        using var configResponse = await client.GetAsync("/configuracion-reparto");
+        Assert.Equal(HttpStatusCode.OK, configResponse.StatusCode);
+        var config = WebUtility.HtmlDecode(await configResponse.Content.ReadAsStringAsync());
+        Assert.Contains(api.Calls, call => call.Method == HttpMethod.Get && call.Path == "/api/reparto/perfiles-viales");
+        Assert.Contains("GET /api/reparto/perfiles-viales", config);
+        Assert.Contains($"HTTP {(int)status}", config);
+        Assert.Contains("no se presume confirmada", config);
     }
     [Theory][InlineData(false)][InlineData(true)]
     public async Task VehicleReadFailureOrUnknownWriteRetainsInputAndNeverInventsAnEmptyList(bool unknownWrite)

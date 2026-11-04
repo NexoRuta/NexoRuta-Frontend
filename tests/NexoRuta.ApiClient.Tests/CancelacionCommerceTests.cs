@@ -64,7 +64,7 @@ public sealed partial class SeguimientoPagesTests
             {
                 Assert.Contains("Cancelado", root.ToHtmlString()); Assert.DoesNotContain("Confirmar cancelaci", root.ToHtmlString());
             }
-            else if (estadoRespuesta == 401) Assert.Equal("/ingresar?expirada=true", navigation.Destination);
+            else if (estadoRespuesta == 401) Assert.Equal("/ingresar?expirada=true&ReturnUrl=%2Fenvios", navigation.Destination);
             else Assert.Contains("El envío cambió", WebUtility.HtmlDecode(root.ToHtmlString()));
             Assert.DoesNotContain(ApiToken, root.ToHtmlString());
         });

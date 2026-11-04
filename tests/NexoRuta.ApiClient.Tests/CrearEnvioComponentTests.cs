@@ -15,6 +15,29 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed partial class SeguimientoPagesTests
 {
     [Fact]
+    public async Task CrearEnvioPrerenderNoPermiteSeleccionarAntesDeConectar()
+    {
+        var page = new CrearEnvio();
+        using var http = new HttpClient(new CreateShipmentHandler()) { BaseAddress = new Uri("http://api.test/") };
+        var services = Servicios(page);
+        services.AddSingleton(new EnviosApiClient(http));
+        services.AddSingleton(new DestinosEnvioApiClient(http));
+        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+        services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(new AdmissionTestJs());
+        services.AddSingleton(new UsuariosApiClient(http));
+        services.AddSingleton(new OperadoresApiClient(http));
+        services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
+        services.AddSingleton<NavigationManager>(new AdmissionNavigation());
+        using var provider = services.BuildServiceProvider();
+        await using var renderer = new TestHtmlRenderer(provider, provider.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var rendered = await renderer.RenderAsync<CrearEnvio>();
+            Assert.Matches("<fieldset[^>]*disabled", rendered.ToHtmlString());
+        });
+    }
+
+    [Fact]
     public async Task CrearEnvioIgnoresConcurrentSubmitAndRetriesWithTheSameEnteredValues()
     {
         var page = new CrearEnvio();
@@ -28,7 +51,8 @@ public sealed partial class SeguimientoPagesTests
         services.AddSingleton(new UsuariosApiClient(http));
         services.AddSingleton(new OperadoresApiClient(http));
         services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
-        services.AddSingleton<NavigationManager>(new TestNavigation());
+        var navigation = new AdmissionNavigation();
+        services.AddSingleton<NavigationManager>(navigation);
         using var provider = services.BuildServiceProvider();
         await using var renderer = new TestHtmlRenderer(provider, provider.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>());
 
@@ -68,6 +92,19 @@ public sealed partial class SeguimientoPagesTests
         Assert.Equal("destinatario@example.test", handler.RetriedEmail);
         Assert.Null(typeof(CrearEnvio).GetField("error", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page));
         Assert.NotNull(typeof(CrearEnvio).GetField("creado", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page));
+        Assert.Equal("/envios/00000000-0000-0000-0000-000000000501?creado=true", navigation.Destination);
+        Assert.True(navigation.ReplaceHistoryEntry);
+        await renderer.Dispatcher.InvokeAsync(() => (Task)create.Invoke(page, null)!);
+        Assert.Equal(2, handler.PostCount);
+    }
+
+    private sealed class AdmissionNavigation : NavigationManager
+    {
+        public string? Destination { get; private set; }
+        public bool ReplaceHistoryEntry { get; private set; }
+        public AdmissionNavigation() => Initialize("http://commerce.test/", "http://commerce.test/envios/crear");
+        protected override void NavigateToCore(string uri, NavigationOptions options)
+        { Destination = uri; ReplaceHistoryEntry = options.ReplaceHistoryEntry; }
     }
 
     private sealed class AdmissionTestJs : Microsoft.JSInterop.IJSRuntime

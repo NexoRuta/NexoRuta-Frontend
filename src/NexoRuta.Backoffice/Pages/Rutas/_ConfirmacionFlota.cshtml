@@ -1,15 +1,27 @@
 @model NexoRuta.Backoffice.Features.Reparto.Pages.AccionFlotaFormulario
-@{ var id = $"flota-{Model.Vehiculo}-{Model.Ocupacion}-{Model.Accion}-{Model.Envio}"; }
-<details class="mb-2">
-    <summary>@Model.Texto</summary>
-    <form data-single-submit method="post" asp-page="/Rutas" asp-page-handler="Flota">
-        <input type="hidden" name="Fecha" value="@Model.Fecha.ToString("yyyy-MM-dd")" />
-        <input type="hidden" name="FlotaVehiculo" value="@Model.Vehiculo" /><input type="hidden" name="FlotaOcupacion" value="@Model.Ocupacion" />
-        <input type="hidden" name="FlotaComando" value="@Guid.NewGuid()" /><input type="hidden" name="FlotaVersion" value="@Model.Version" />
-        <input type="hidden" name="FlotaAccion" value="@Model.Accion" /><input type="hidden" name="FlotaEnvio" value="@Model.Envio" />
-        <input type="hidden" name="FlotaVersionEnvio" value="@Model.VersionEnvio" />
-        <label for="@id">Motivo y comprobación realizada</label>
-        <textarea id="@id" name="FlotaMotivo" required maxlength="500" class="form-control"></textarea>
-        <button data-loading-text="Registrando confirmación…" type="submit" class="nr-action-secondary">@Model.Texto</button>
-    </form>
-</details>
+@using NexoRuta.Backoffice.Features.Reparto.Pages
+@{ var id = RutasModel.IdAccionFlota(Model); }
+<template id="@id">
+    <section class="fleet-action" aria-label="@Model.Texto">
+        <h3>@Model.Texto</h3>
+        <p>@RutasModel.ConsecuenciaFlota(Model.Accion)</p>
+        <form class="d-flex flex-column gap-3" data-single-submit method="post" asp-page="/Flota" asp-page-handler="Flota">
+            <input type="hidden" name="Vista" value="flota" /><input type="hidden" name="BuscarVehiculo" value="@Context.Request.Query["buscarVehiculo"]" /><input type="hidden" name="Disponibilidad" value="@Context.Request.Query["disponibilidad"]" />
+            <input type="hidden" name="Fecha" value="@Model.Fecha.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="FlotaVehiculo" value="@Model.Vehiculo" />
+            <input type="hidden" name="FlotaOcupacion" value="@Model.Ocupacion" />
+            <input type="hidden" name="FlotaComando" value="@Guid.NewGuid()" />
+            <input type="hidden" name="FlotaVersion" value="@Model.Version" />
+            <input type="hidden" name="FlotaAccion" value="@Model.Accion" />
+            <input type="hidden" name="FlotaEnvio" value="@Model.Envio" />
+            <input type="hidden" name="FlotaVersionEnvio" value="@Model.VersionEnvio" />
+            <label for="@id-motivo">Motivo y comprobación realizada (obligatorio, hasta 500 caracteres)</label>
+            <textarea id="@id-motivo" name="FlotaMotivo" required maxlength="500" class="form-control" rows="3"></textarea>
+            <label class="fleet-confirm"><input type="checkbox" required />Confirmo la comprobación física y las consecuencias indicadas.</label>
+            <div class="fleet-actions">
+                <button data-loading-text="Registrando confirmación…" type="submit" class="nr-action-primary">@Model.Texto</button>
+                <button type="button" class="nr-action-secondary" data-fleet-cancel-action>Cancelar acción</button>
+            </div>
+        </form>
+    </section>
+</template>

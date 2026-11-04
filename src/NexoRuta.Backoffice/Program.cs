@@ -36,6 +36,9 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Usuarios", "usuarios.gestionar");
     options.Conventions.AuthorizePage("/Rutas", "envios.gestionar");
     options.Conventions.AuthorizePage("/Rutas/Planificar", "envios.gestionar");
+    options.Conventions.AuthorizePage("/Rutas/Detalle", "envios.gestionar");
+    options.Conventions.AuthorizePage("/Deposito", "envios.gestionar");
+    options.Conventions.AuthorizePage("/Flota", "envios.gestionar");
     options.Conventions.AuthorizePage("/ConfiguracionReparto", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AuthorizePage("/Vehiculos", ZonaCoberturaUi.PermisoGestionar);
     options.Conventions.AuthorizePage("/Roles", ZonaCoberturaUi.PermisoGestionar);
@@ -68,18 +71,24 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     options.LoginPath = "/ingresar";
     options.AccessDeniedPath = "/acceso-denegado";
     options.SlidingExpiration = false;
-    options.Events.OnRedirectToAccessDenied = async context =>
+    options.Events.OnRedirectToLogin = context =>
+    {
+        var cookiePresent=context.Request.Cookies.ContainsKey(options.Cookie.Name!);
+        context.Response.Redirect(new Uri(new Uri(context.RedirectUri),RutaSesion.Ingreso(context.Request.Path,cookiePresent)).AbsoluteUri);
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
     {
         if (context.HttpContext.User.HasClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.OrganizacionSuspendida))
             context.Response.Redirect("/OrganizacionSuspendida");
         else if (context.HttpContext.Items.ContainsKey(ApiPermissionAuthorizationHandler.ExpiredSessionItemKey))
         {
-            await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            context.Response.Redirect("/ingresar?expirada=true");
+            context.Response.Redirect(RutaSesion.Ingreso(context.Request.Path,true,SesionUsuario.IngresoWeb(context.HttpContext.User)));
         }
         else if (context.HttpContext.Items.ContainsKey(ApiPermissionAuthorizationHandler.ApiUnavailableItemKey))
-            context.Response.Redirect("/api-indisponible");
+            context.Response.Redirect(RutaSesion.Indisponible(context.Request.Path));
         else context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
     };
 });
 builder.Services.AddAuthorization(options =>

@@ -77,7 +77,7 @@ public sealed partial class SeguimientoPagesTests
                 (Func<Task>)(() => (Task)handler.Invoke(page, [Envio])!)), null);
             if (mensaje == "session-expired")
             {
-                Assert.Equal("/ingresar?expirada=true", navigation.Destination);
+                Assert.Equal("/ingresar?expirada=true&ReturnUrl=%2Fenvios", navigation.Destination);
                 Assert.True(navigation.ForceLoad);
             }
             else if (mensaje is null)

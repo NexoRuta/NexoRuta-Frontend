@@ -159,11 +159,8 @@ public sealed class MiOperadorModel(OrganizacionPropiaApiClient apiClient) : Pag
         return null;
     }
 
-    private async Task<IActionResult> CerrarSesionExpiradaAsync()
-    {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return Redirect("/ingresar?expirada=true");
-    }
+    private Task<IActionResult> CerrarSesionExpiradaAsync()
+        => Task.FromResult<IActionResult>(Redirect(RutaSesion.Ingreso(Request.Path,true,SesionUsuario.IngresoWeb(User))));
 
     private string Token() => SesionUsuario.ObtenerToken(User);
 }

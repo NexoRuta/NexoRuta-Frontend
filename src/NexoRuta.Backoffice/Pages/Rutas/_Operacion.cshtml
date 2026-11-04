@@ -1,0 +1,24 @@
+@model NexoRuta.Backoffice.Features.Reparto.Pages.RutasModel
+@{ ViewData["Title"] = Model.TituloVista; }
+<div class="nr-routes-page nr-task-page">
+<nav class="nr-content-breadcrumb" aria-label="Migas de pan"><span>Operación</span><span aria-hidden="true">/</span><span aria-current="page">@Model.TituloVista</span></nav>
+<header class="nr-routes-heading"><div><h1>@Model.TituloVista</h1><p>@(Model.EsDeposito ? "Recepciones y custodia física · todas las fechas" : Model.EsFlota ? "Disponibilidad, ocupación y retorno · todas las fechas" : Model.EsDetalle ? "Estado, carga y acciones de esta hoja" : "Hojas de ruta por fecha")</p></div>
+@if(Model.EsFlota) { <a class="nr-action-secondary" asp-page="/Vehiculos">Gestionar vehículos</a> }
+else if(Model.EsDeposito) { <a class="nr-action-primary" asp-page="/Deposito/Recepcion">Escanear y cotejar bultos</a> }
+else if(!Model.EsDeposito) { <a class="@(Model.EsDetalle ? "nr-action-secondary" : "nr-action-primary")" asp-page="/Rutas/Planificar" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")">Planificar ruta</a> }
+</header>
+@if(Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
+@if(Model.Confirmacion is not null) { <div class="nr-routes-alert is-success" role="status">@Model.Confirmacion</div> }
+@if(Model.EsDetalle) { <a class="nr-small-link" asp-page="/Rutas" asp-route-fecha="@Model.Fecha.ToString("yyyy-MM-dd")" asp-route-buscarRuta="@Model.BuscarRuta" asp-route-filtroRuta="@Model.FiltroRuta">← Volver a rutas del día</a> }
+@if(!Model.EsFlota && !Model.EsDeposito && !Model.EsDetalle) {
+<section class="nr-routes-toolbar" aria-label="Fecha de las rutas"><form method="get" asp-page="/Rutas" class="nr-date-picker d-flex flex-wrap"><label for="fecha-rutas">Fecha</label><a class="nr-quiet-button" asp-page="/Rutas" asp-route-fecha="@((Model.Fecha > DateOnly.MinValue ? Model.Fecha.AddDays(-1) : Model.Fecha).ToString("yyyy-MM-dd"))" aria-label="Día anterior">←</a><input id="fecha-rutas" type="date" name="fecha" value="@Model.Fecha.ToString("yyyy-MM-dd")"/><button class="nr-action-secondary" type="submit">Consultar</button><a class="nr-quiet-button" asp-page="/Rutas" asp-route-fecha="@Model.HoyOperativo.ToString("yyyy-MM-dd")">Hoy</a><a class="nr-quiet-button" asp-page="/Rutas" asp-route-fecha="@((Model.Fecha < DateOnly.MaxValue ? Model.Fecha.AddDays(1) : Model.Fecha).ToString("yyyy-MM-dd"))" aria-label="Día siguiente">→</a></form></section>
+}
+@if(!Model.CargaCompleta) { <section class="nr-routes-empty"><h2>No se pudo cargar la operación</h2><a href="@Context.Request.Path@Context.Request.QueryString" class="nr-action-secondary">Reintentar</a></section> }
+else if(Model.EsFlota) { <partial name="Rutas/_Flota" model="Model" /> }
+else if(Model.EsDeposito) { <partial name="Rutas/_Deposito" model="Model" /> }
+else if(Model.EsDetalle) { <partial name="Rutas/_Detalle" model="Model" /> }
+else {
+<section class="nr-routes-metrics" aria-label="Resumen de la fecha"><div><strong>@Model.Rutas.Count</strong><span>rutas del día</span></div><div><strong>@Model.Rutas.Count(r=>r.Estado=="Planificada" && Model.ConservaReservaDeRecursos(r))</strong><span>planificadas con reserva</span></div><div><strong>@Model.Rutas.Sum(r=>r.Paradas.Count(p=>p.Activa))</strong><span>paradas activas del día</span></div></section>
+<partial name="Rutas/_Lista" model="Model" />
+}
+</div>

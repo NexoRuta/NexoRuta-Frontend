@@ -4,11 +4,35 @@
 @{
     ViewData["Title"] = "Zonas y franjas | Backoffice NexoRuta";
 }
+@section Head {
+    <link rel="stylesheet" href="~/css/zonas-cobertura.css" asp-append-version="true" />
+    @if (Model.MapboxConfigured)
+    {
+        <link href="https://api.mapbox.com/mapbox-gl-js/v@(ZonaCoberturaUi.MapboxGlJsVersion)/mapbox-gl.css" rel="stylesheet" />
+    }
+}
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
     <div><h1>Zonas y franjas</h1><p>Configuración de cobertura del operador autenticado.</p></div>
     <a class="btn btn-primary" asp-page="/ZonasCobertura/Crear">Crear zona</a>
 </div>
+
+<section aria-labelledby="zone-map-title" class="my-4">
+    <h2 id="zone-map-title">Mapa de zonas</h2>
+    <p class="coverage-legend"><span class="coverage-key coverage-key-active" aria-hidden="true"></span> Activa <span class="coverage-key coverage-key-inactive" aria-hidden="true"></span> Inactiva</p>
+    <p class="form-text">Una zona activa no garantiza un servicio contratable: también requiere tarifa y modalidad publicadas. El mapa incluye todas las zonas; los filtros siguientes se aplican al listado.</p>
+    @if (Model.ErrorMapa is not null)
+    {
+        <p class="alert alert-warning" role="status">@Model.ErrorMapa <a href="/zonas">Reintentar</a></p>
+    }
+    else if (Model.MapboxConfigured)
+    {
+        <div id="coverage-map" class="coverage-map" role="region" aria-label="Mapa de zonas activas e inactivas del operador"
+             data-mode="overview" data-token="@Model.MapboxPublicToken" data-style="@Model.MapboxStyleUrl" data-zones="@Model.MapaJson"></div>
+        <p id="map-status" class="form-text" role="status" aria-live="polite">Cargando mapa de zonas…</p>
+    }
+    else { <p class="form-text">Mapbox no está configurado. Las zonas se pueden consultar en el listado.</p> }
+</section>
 
 @if (Model.Error is not null)
 {
@@ -95,3 +119,11 @@
         <a asp-page="/ZonasCobertura/Index" asp-route-Estado="@Model.Estado" asp-route-TamanoPagina="@Model.TamanoPagina" asp-route-Pagina="@(Model.Pagina + 1)">Siguiente</a>
     }
 </div>
+
+@section Scripts {
+    @if (Model.MapboxConfigured)
+    {
+        <script src="https://api.mapbox.com/mapbox-gl-js/v@(ZonaCoberturaUi.MapboxGlJsVersion)/mapbox-gl.js"></script>
+    }
+    <script src="~/js/zonas-cobertura.js" asp-append-version="true"></script>
+}

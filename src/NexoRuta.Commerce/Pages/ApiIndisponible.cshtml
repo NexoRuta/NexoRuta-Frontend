@@ -8,7 +8,7 @@
     <main>
         <h1>API no disponible</h1>
         <p>No pudimos verificar tus permisos. No se concedió acceso; volvé a intentarlo más tarde.</p>
-        <a href="/usuarios">Volver a intentar</a>
+        <a href="@(NexoRuta.ApiClient.Core.Session.RutaSesion.Destino(Request.Query["ReturnUrl"]) ?? "/envios")">Volver a intentar</a>
     </main>
 </body>
 </html>
