@@ -639,7 +639,7 @@
         return true;
     };
 
-    mode = root?.dataset.mode;
+    mode = root?.dataset.mode ?? (zoneForm ? "create" : undefined);
     if (departmentSource) {
         departmentSelect = departmentSource.querySelector("select");
         departmentSelect?.addEventListener("change", () => void showDepartment(departmentSelect.value));
