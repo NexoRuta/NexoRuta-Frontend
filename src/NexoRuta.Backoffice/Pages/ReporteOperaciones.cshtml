@@ -1,0 +1,8 @@
+@page
+@model NexoRuta.Backoffice.Pages.ReporteOperacionesModel
+@{ ViewData["Title"] = "Reporte de operaciones"; }
+<h1>Reporte de entregas y retiros</h1>
+<p><a href="/">Volver a envíos</a> · <a asp-page-handler="Csv">Descargar CSV</a></p>
+@if (Model.Error is not null) { <p role="alert" class="alert alert-danger">@Model.Error</p> }
+else if (Model.Filas.Count == 0) { <p>No hay operaciones disponibles.</p> }
+else { <div class="table-responsive" role="region" aria-label="Reporte por tipo y estado"><table class="table"><thead><tr><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Operaciones</th><th scope="col">Bultos</th><th scope="col">Entregados</th><th scope="col">Importe (UYU)</th></tr></thead><tbody>@foreach (var f in Model.Filas) { <tr><td>@f.Tipo</td><td>@f.Estado</td><td>@f.Operaciones</td><td>@f.Bultos</td><td>@f.BultosEntregados</td><td>@f.ImporteUyu.ToString("N2")</td></tr> }</tbody></table></div> }

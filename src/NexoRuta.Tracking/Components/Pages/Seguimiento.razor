@@ -67,7 +67,8 @@
             else if (estado is not null)
             {
                 <div class="nr-tracking-status" role="status">
-                    <span>Estado actual</span><strong>@estado</strong>
+                    <span>@(esRetiro ? "Estado del retiro" : "Estado de la entrega")</span><strong>@EstadoVisible</strong>
+                    @if (!esRetiro && totalBultos > 0) { <p>@bultosEntregados de @totalBultos bultos entregados</p> }
                 </div>
             }
             else if (limiteExcedido)
@@ -124,9 +125,18 @@
     private bool cargando = true, enlaceNoDisponible, limiteExcedido;
     private bool procesando, codigoSolicitado, cancelado;
     private string? estado, mensajeCancelacion;
+    private string? EstadoVisible => estado switch
+    {
+        "EntregadoParcialmente" => "Entregado parcialmente", "RetiroSolicitado" => "Retiro solicitado",
+        "RetiroAsignado" => "Retiro asignado", "Retirado" => "Retirado", "RetiroFallido" => "Retiro fallido",
+        "RetiroEnDeposito" => "Retiro en depósito", "EntregadoComercio" => "Entregado al comercio",
+        _ => estado
+    };
     private NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses.IdentidadVisualPublicaResponse? identidad;
     private string codigo = "";
     private CancellationTokenSource solicitudes = new();
+    private int totalBultos, bultosEntregados;
+    private bool esRetiro;
     private bool PuedeCancelar => estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado" or "EnDevolucion";
     private string? LogoDataUri => identidad?.LogoContenido is { Length: > 0 } bytes && identidad.LogoTipoContenido is "image/png" or "image/jpeg"
         ? $"data:{identidad.LogoTipoContenido};base64,{Convert.ToBase64String(bytes)}" : null;
@@ -143,7 +153,7 @@
         {
             var respuesta = await SeguimientoClient.ConsultarAsync(Token, ct);
             if (ct.IsCancellationRequested) return;
-            estado = respuesta?.Estado;
+            estado = respuesta?.Estado; totalBultos = respuesta?.TotalBultos ?? 0; bultosEntregados = respuesta?.BultosEntregados ?? 0; esRetiro = respuesta?.EsRetiro ?? false;
             identidad = respuesta?.Identidad;
             enlaceNoDisponible = respuesta is null;
         }

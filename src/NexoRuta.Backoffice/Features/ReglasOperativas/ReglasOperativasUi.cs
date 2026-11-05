@@ -12,6 +12,11 @@ namespace NexoRuta.Backoffice.Features.ReglasOperativas;
 
 internal static class ReglasOperativasUi
 {
+    public static string PendientesLabel(string politica) => politica switch
+    {
+        "NuevaVisitaConRecargo" => "Nueva visita con recargo", "DevolverComercio" => "Devolver al comercio",
+        "NuevaVisitaSinRecargo" => "Nueva visita sin recargo", _ => "Sin configurar"
+    };
     public const string PermissionManage = "configuracion.gestionar";
     public const string HomeRoute = "/reglas-operativas";
     public const int MaxMotives = 100;

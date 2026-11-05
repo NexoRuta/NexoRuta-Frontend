@@ -1,4 +1,5 @@
 @page "/envios/crear"
+@page "/retiros/crear"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy)]
 
 @using NexoRuta.Commerce.Components.Features.Envios.Shared
@@ -25,9 +26,9 @@
 @rendermode InteractiveServer
 @implements IDisposable
 
-<PageTitle>Crear envío | NexoRuta</PageTitle>
+<PageTitle>@(EsRetiro ? "Solicitar retiro" : "Crear envío") | NexoRuta</PageTitle>
 <header class="nr-page-heading">
-    <div><p class="nr-eyebrow">Envíos</p><h1>Crear envío</h1><p>Elegí el destino y revisá la tarifa antes de confirmar.</p></div>
+    <div><p class="nr-eyebrow">Envíos</p><h1>@(EsRetiro ? "Solicitar retiro en domicilio" : "Crear envío")</h1><p>@(EsRetiro ? "Elegí el domicilio del comprador y revisá la tarifa antes de solicitar el retiro." : "Elegí el destino y revisá la tarifa antes de confirmar.")</p></div>
     <div class="nr-page-actions"><a class="btn btn-outline-secondary" href="/envios">Mis envíos</a><a class="btn btn-outline-secondary" href="/envios/importar">Importar CSV</a></div>
 </header>
 @if (usuarioActual is not null)
@@ -76,13 +77,21 @@
             }
         </section>
         <section class="nr-form-section nr-admission-recipient" aria-labelledby="alta-destinatario-titulo">
-            <h2 id="alta-destinatario-titulo">Destinatario</h2>
+            <h2 id="alta-destinatario-titulo">@(EsRetiro ? "Comprador que entrega los bultos" : "Destinatario")</h2>
             <div class="nr-field"><label>Nombre<InputText @bind-Value="formulario.DestinatarioNombre" autocomplete="name" maxlength="160" /></label><ValidationMessage For="() => formulario.DestinatarioNombre" /></div>
-            <div class="nr-field"><label>Correo del destinatario<InputText type="email" autocomplete="email" maxlength="254" @bind-Value="formulario.DestinatarioEmail" /></label><ValidationMessage For="() => formulario.DestinatarioEmail" /></div>
+            <div class="nr-field"><label>@(EsRetiro ? "Correo del comprador" : "Correo del destinatario")<InputText type="email" autocomplete="email" maxlength="254" @bind-Value="formulario.DestinatarioEmail" /></label><ValidationMessage For="() => formulario.DestinatarioEmail" /></div>
             <p class="form-text">Este correo permite verificar sus solicitudes de cancelación.</p>
         </section>
+        @if (EsRetiro)
+        {
+            <section class="nr-form-section" aria-labelledby="retiro-franja"><h2 id="retiro-franja">Franja del retiro</h2>
+            <label for="retiro-desde">Inicio (UTC)</label><InputDate id="retiro-desde" Type="InputDateType.DateTimeLocal" @bind-Value="retiroDesde" />
+            <label for="retiro-hasta">Fin (UTC)</label><InputDate id="retiro-hasta" Type="InputDateType.DateTimeLocal" @bind-Value="retiroHasta" />
+            <label for="retiro-motivo">Motivo</label><InputTextArea id="retiro-motivo" @bind-Value="retiroMotivo" maxlength="500" />
+            <p>El operador retira en este domicilio y entrega los bultos al comercio.</p></section>
+        }
         <section class="nr-form-section nr-admission-destination" aria-labelledby="alta-destino-titulo">
-            <h2 id="alta-destino-titulo">Destino y servicio</h2>
+            <h2 id="alta-destino-titulo">@(EsRetiro ? "Domicilio de retiro y servicio" : "Destino y servicio")</h2>
             <SelectorDestino OperadorId="formulario.OperadorId" ParaAlta="true" ApiToken="@token" Latitud="formulario.Servicio.Latitud" Longitud="formulario.Servicio.Longitud" Editable="true" Bloqueado="@(enviando || creado is not null)" PuntoCambiado="SeleccionarDestinoAsync" />
             <div class="nr-field"><label>Dirección<InputText @bind-Value="formulario.Direccion" maxlength="240" /></label><ValidationMessage For="() => formulario.Direccion" /></div>
             <details class="nr-disclosure"><summary>Ajustar coordenadas manualmente</summary><div class="nr-fields-grid">
@@ -145,13 +154,23 @@
                     <span>Se aplicar&#225; al confirmar el env&#237;o.</span>
                 </div>
             }
-            <button class="btn btn-primary" type="submit" disabled="@(enviando || cotizando || cargandoIdentidad || consultandoServicios || creado is not null)">@(cotizando ? "Cotizando…" : enviando ? "Procesando…" : cotizacion is null ? "Calcular tarifa" : "Confirmar envío")</button>
+            <button class="btn btn-primary" type="submit" disabled="@(enviando || cotizando || cargandoIdentidad || consultandoServicios || creado is not null)">@(cotizando ? "Cotizando…" : enviando ? "Procesando…" : cotizacion is null ? "Calcular tarifa" : EsRetiro ? "Solicitar retiro" : "Confirmar envío")</button>
         </section>
     </fieldset>
 </EditForm>
 
 @code {
     private readonly CancellationTokenSource cancelacion = new();
+    private bool EsRetiro => Navigation.Uri.Contains("/retiros/crear", StringComparison.Ordinal);
+    private readonly Guid solicitudRetiroId = Guid.NewGuid();
+    private DateTime retiroDesde = DateTime.UtcNow.AddDays(1), retiroHasta = DateTime.UtcNow.AddDays(1).AddHours(2);
+    private string retiroMotivo = "";
+    private void PrepararRetiro()
+    {
+        formulario.Retiro = EsRetiro ? new(solicitudRetiroId, retiroMotivo,
+            new DateTimeOffset(DateTime.SpecifyKind(retiroDesde, DateTimeKind.Utc)), new DateTimeOffset(DateTime.SpecifyKind(retiroHasta, DateTimeKind.Utc))) : null;
+        if (EsRetiro && (string.IsNullOrWhiteSpace(retiroMotivo) || retiroHasta <= retiroDesde)) throw new ArgumentException("Indicá motivo y una franja válida para el retiro.");
+    }
     private readonly CrearEnvioRequest formulario = new() { Bultos = [new()] };
     private EditContext contextoEdicion = null!;
     private ElementReference resumenValidacion;
@@ -220,6 +239,7 @@
         enviando = true; error = null; creado = null;
         try
         {
+            PrepararRetiro();
             if (cotizacion is null)
                 await CotizarAsync();
             else
@@ -236,7 +256,8 @@
         catch (NexoRutaApiException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Conflict)
         { cotizacion = null; formulario.Servicio.VersionTarifarioEsperada = null; error = exception.Message; }
         catch (NexoRutaApiException exception) { InvalidarCotizacion(); error = exception.Message; }
-        catch (HttpRequestException) { error = "No se pudo guardar el envío porque el servicio no está disponible."; }
+        catch (ArgumentException exception) { error = exception.Message; }
+        catch (HttpRequestException) { error = "No se pudo guardar la operación porque el servicio no está disponible."; }
         finally { enviando = false; }
     }
 
@@ -328,7 +349,7 @@
         {
             var resultado = await ApiClient.ServiciosAsync(operador, lat, lon, token, carga.Token);
             if (consulta != consultaServicio || carga.IsCancellationRequested || formulario.OperadorId != operador || formulario.Servicio.Latitud != lat || formulario.Servicio.Longitud != lon) return;
-            servicios = resultado; consultandoServicios = false;
+            servicios = resultado.Where(s => EsRetiro ? s.Modalidad == "Retiro" : s.Modalidad != "Retiro").ToArray(); consultandoServicios = false;
             if (servicios.Count == 0)
             {
                 sinServicio = true;

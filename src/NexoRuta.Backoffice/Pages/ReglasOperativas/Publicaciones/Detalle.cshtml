@@ -15,6 +15,9 @@
             <h2 id="publication-title" class="h4">Publicación @publication.NumeroVersionPublicada</h2>
             <p>Publicada el @publication.PublicadaUtc?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</p>
             <dl class="row">
+                <dt class="col-sm-4">Entrega parcial</dt><dd class="col-sm-8">@(publication.PermiteEntregaParcial ? "Permitida" : "No permitida")</dd>
+                <dt class="col-sm-4">Pendientes de entrega parcial</dt><dd class="col-sm-8">@ReglasOperativasUi.PendientesLabel(publication.PoliticaPendientesParcial)</dd>
+                <dt class="col-sm-4">Recargo por nueva visita</dt><dd class="col-sm-8">@publication.RecargoNuevaVisitaUyu.ToString("N2") UYU</dd>
                 <dt class="col-sm-4">Máximo de intentos de entrega</dt><dd class="col-sm-8">@publication.MaxIntentosEntrega</dd>
                 <dt class="col-sm-4">Espera mínima después de un intento fallido</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(publication.IntervaloEntreIntentosMinutos)</dd>
                 <dt class="col-sm-4">Prueba requerida para entregar</dt><dd class="col-sm-8">@string.Join(", ", publication.RequisitosPrueba.Select(ReglasOperativasUi.ProofLabel))</dd>

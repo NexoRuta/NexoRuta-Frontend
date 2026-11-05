@@ -130,3 +130,20 @@
                 }
             }
 </section>
+<section class="nr-form-section"><h2>Retiros recibidos</h2>
+@foreach (var retiro in Model.Envios.Where(e => e.EsRetiro && e.Estado == "RetiroEnDeposito"))
+{
+<form method="post" asp-page-handler="EntregarComercio" data-single-submit>@await Html.PartialAsync("Shared/_RutasPostContext")
+<input type="hidden" name="envioId" value="@retiro.Id"/><input type="hidden" name="version" value="@retiro.Version"/>
+<p>@retiro.ComercioNombre · @retiro.Bultos.Count bulto(s)</p><button type="submit" class="nr-action-primary">Confirmar entrega física al comercio</button></form>
+}
+</section>
+
+<section class="nr-form-section"><h2>Pendientes para devolver al comercio</h2>
+@foreach (var envio in Model.Envios.Where(e => !e.EsRetiro && e.Bultos.Any(b => b.Resultado == "EnDevolucion") && e.Bultos.Where(b => b.Resultado == "EnDevolucion").All(b => b.Custodia == "Deposito")))
+{
+<form method="post" asp-page-handler="DevolverBultosComercio" data-single-submit>@await Html.PartialAsync("Shared/_RutasPostContext")
+<input type="hidden" name="envioId" value="@envio.Id"/><input type="hidden" name="version" value="@envio.Version"/>
+<p>@envio.ComercioNombre · @envio.Bultos.Count(b => b.Resultado == "EnDevolucion") pendiente(s)</p><button type="submit" class="nr-action-primary">Confirmar devolución física al comercio</button></form>
+}
+</section>

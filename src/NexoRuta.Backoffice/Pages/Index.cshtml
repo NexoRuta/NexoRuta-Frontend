@@ -23,6 +23,7 @@
         <button type="submit" class="btn btn-outline-secondary" data-loading-text="Actualizando…" aria-label="Actualizar envíos"><span aria-hidden="true">↻</span> Actualizar</button>
     </form>
 </header>
+@if (Model.ConsultaCorrecta) { <p>@Model.TotalParciales entregas parciales · @Model.TotalRetiros retiros · <a href="/ReporteOperaciones">Ver reporte de operaciones</a></p> }
 @if (Model.Confirmacion is not null) { <p class="alert alert-success" role="status">@Model.Confirmacion</p> }
 @if (Model.Error is not null) {
     <div class="alert alert-danger nr-op-error" role="alert"><span>@Model.Error</span>
@@ -77,6 +78,7 @@ else if (Model.ConsultaCorrecta && Model.TotalResultados > 0) {
                 <th scope="row" data-label="Envío"><div class="nr-op-identity">
                     <strong>@(envio.ReferenciaExterna ?? $"Envío #{shortId}")</strong>
                     <span>@envio.Bultos.Count @(envio.Bultos.Count == 1 ? "bulto" : "bultos") · @Model.PesoTotal(envio) kg</span>
+                    @if (!envio.EsRetiro) { <span>@envio.Bultos.Count(b => b.Resultado == "Entregado") de @envio.Bultos.Count bultos entregados</span> }
                     @if (envio.Tarifa is { } cargo) {
                         <details class="nr-op-tariff"><summary>@cargo.TotalFinalUyu.ToString("N2") @cargo.Moneda <span>· @cargo.Modalidad</span></summary>
                             <dl class="nr-tariff-breakdown"><dt>Base</dt><dd>@cargo.ImporteBaseUyu.ToString("N2")</dd><dt>Peso</dt><dd>@cargo.ComponentePesoUyu.ToString("N2")</dd><dt>Volumen</dt><dd>@cargo.ComponenteVolumenUyu.ToString("N2")</dd><dt>Recargos</dt><dd>@cargo.TotalRecargosUyu.ToString("N2")</dd><dt>Bonificaciones</dt><dd>@cargo.TotalBonificacionesUyu.ToString("N2")</dd></dl>
@@ -155,6 +157,9 @@ else if (Model.ConsultaCorrecta && Model.TotalResultados > 0) {
                                             {
                                                 <li>
                                                     <span><strong>Identificador</strong><code>@Model.ValorInformado(bulto.Codigo)</code></span>
+                                                    @if (!envio.EsRetiro) { <span><strong>Resultado</strong>@bulto.Resultado</span> }
+                                                    <span><strong>Custodia</strong>@bulto.Custodia</span>
+                                                    @if (bulto.MotivoNoEntrega is not null) { <span><strong>Motivo</strong>@bulto.MotivoNoEntrega</span> }
                                                     <span><strong>Peso</strong>@bulto.PesoGramos.ToString("0.##", CultureInfo.GetCultureInfo("es-UY")) g</span>
                                                     <span><strong>Dimensiones</strong>@bulto.LargoCentimetros.ToString("0.##", CultureInfo.GetCultureInfo("es-UY")) × @bulto.AnchoCentimetros.ToString("0.##", CultureInfo.GetCultureInfo("es-UY")) × @bulto.AltoCentimetros.ToString("0.##", CultureInfo.GetCultureInfo("es-UY")) cm</span>
                                                 </li>

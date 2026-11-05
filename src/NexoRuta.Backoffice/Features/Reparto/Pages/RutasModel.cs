@@ -191,6 +191,16 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
         catch (HttpRequestException) { Error = "No se pudo confirmar el resultado. Actualizá la ruta antes de repetir la operación."; }
         return await Cargar();
     }
+    public Task<IActionResult> OnPostDevolverBultosComercioAsync(Guid envioId, long version) => Ejecutar(async () =>
+    {
+        await api.DevolverBultosComercioAsync(envioId, version, Token(), HttpContext.RequestAborted);
+        Confirmacion = "Bultos pendientes devueltos físicamente al comercio.";
+    });
+    public Task<IActionResult> OnPostEntregarComercioAsync(Guid envioId, long version) => Ejecutar(async () =>
+    {
+        await api.EntregarComercioAsync(envioId, version, Token(), HttpContext.RequestAborted);
+        Confirmacion = "Retiro entregado físicamente al comercio.";
+    });
     public Task<IActionResult> OnPostRecibirAsync(Guid envioId, long version) => Ejecutar(async () =>
     {
         await api.RecibirAsync(envioId, version, Token(), HttpContext.RequestAborted);
@@ -333,7 +343,7 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
             var usuarioActual = EsDeposito || EsDetalle || EsPlanificacion
                 ? await usuarios.ObtenerUsuarioActualAsync(Token(), HttpContext.RequestAborted) : null;
             var anteriores = Plan.GroupBy(p => p.EnvioId).ToDictionary(g => g.Key, g => g.First());
-            var plan = enviosActuales.Where(e => e.Estado is "EnDeposito" or "Reprogramado").Select(e => anteriores.GetValueOrDefault(e.Id) ?? new() { EnvioId = e.Id }).ToList();
+            var plan = enviosActuales.Where(e => e.Estado is "EnDeposito" or "Reprogramado" or "EntregadoParcialmente" or "RetiroSolicitado" or "RetiroFallido").Select(e => anteriores.GetValueOrDefault(e.Id) ?? new() { EnvioId = e.Id }).ToList();
             Recursos = recursos;
             Rutas = rutas;
             Envios = enviosActuales;
@@ -395,7 +405,8 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
     {
         var bultosEnvio = Envios.SingleOrDefault(e => e.Id == envioId)?.Bultos;
         if (bultosEnvio is null || bultosEnvio.Count == 0) return false;
-        return bultosEnvio.All(b => b.Custodia == "Deposito");
+        var envio = Envios.Single(e => e.Id == envioId);
+        return bultosEnvio.Where(b => b.Resultado == "Pendiente").All(b => b.Custodia == (envio.EsRetiro ? "SinRecepcion" : "Deposito"));
     }
     public bool ConservaReservaDeRecursos(HojaRutaResponse ruta) => ruta.Estado is not ("Finalizada" or "Cancelada")
         && (ruta.ReservaRecursosActiva ?? true);
@@ -405,7 +416,7 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
         && ruta.Estado == "Planificada" && ruta.Paradas.All(p => !p.Activa);
     public bool DestinoConfirmado(Guid envioId) => Envios.SingleOrDefault(e => e.Id == envioId)?.DestinoConfirmado == true;
     public bool AdmiteRecepcion(EnvioResponse envio) =>
-        envio.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion" ||
+        envio.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion" or "EntregadoParcialmente" or "Retirado" ||
         Rutas.Any(r => r.IncidenciasCierre.Any(i => i.EnvioId == envio.Id)) && envio.Estado is "EnTransito" or "NoEntregado";
     public bool EsRecepcionInicial(EnvioResponse envio) => envio.Estado == "Admitido";
     public bool EsRecepcionDevolucion(EnvioResponse envio) => envio.Estado == "EnDevolucion";
@@ -433,6 +444,9 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
     public string EtiquetaEstadoEnvio(string estado) => estado switch
     {
         "EnDeposito" => "En depósito",
+        "EntregadoParcialmente" => "Entregado parcialmente",
+        "RetiroSolicitado" => "Retiro solicitado", "RetiroAsignado" => "Retiro asignado",
+        "Retirado" => "Retirado", "RetiroFallido" => "No retirado", "RetiroEnDeposito" => "Retiro en depósito", "EntregadoComercio" => "Entregado al comercio",
         "AsignadoRuta" => "Asignado a ruta",
         "EnTransito" => "En tránsito",
         "EntregaPendienteValidacion" => "Entrega pendiente de validación",

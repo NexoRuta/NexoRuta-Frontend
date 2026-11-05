@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost/"
+      "url": "http://127.0.0.1:5000/"
     }
   ],
   "paths": {
@@ -5514,6 +5514,92 @@
         }
       }
     },
+    "/api/deposito/envios/{id}/devolucion-comercio": {
+      "post": {
+        "tags": [
+          "Recepcion"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/deposito/retiros/{id}/entrega-comercio": {
+      "post": {
+        "tags": [
+          "Recepcion"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRutaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/deposito/consulta": {
       "get": {
         "tags": [
@@ -10780,6 +10866,44 @@
         }
       }
     },
+    "/api/avisos-comercio": {
+      "get": {
+        "tags": [
+          "AvisosComercio"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AvisoComercioDatos"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AvisoComercioDatos"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AvisoComercioDatos"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/envios/{envioId}/cancelacion": {
       "post": {
         "tags": [
@@ -11901,6 +12025,138 @@
         }
       }
     },
+    "/api/retiros": {
+      "post": {
+        "tags": [
+          "Envios"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEnvioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEnvioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEnvioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvioCreado"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvioCreado"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvioCreado"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/envios": {
       "post": {
         "tags": [
@@ -12312,6 +12568,44 @@
               "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reportes/operaciones": {
+      "get": {
+        "tags": [
+          "ReporteOperaciones"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteOperacionesFila"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteOperacionesFila"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReporteOperacionesFila"
+                  }
                 }
               }
             }
@@ -13969,6 +14263,45 @@
           }
         }
       },
+      "AvisoComercioDatos": {
+        "required": [
+          "eventoId",
+          "envioId",
+          "tipo",
+          "versionContrato",
+          "datos",
+          "recibidoEnUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "eventoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "versionContrato": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "datos": {
+            "type": "string"
+          },
+          "recibidoEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "AvisoRepartoResponse": {
         "required": [
           "id",
@@ -14294,6 +14627,15 @@
             ],
             "format": "decimal"
           },
+          "resultado": {
+            "type": "string"
+          },
+          "motivoNoEntrega": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "custodia": {
             "type": "string"
           }
@@ -14343,6 +14685,12 @@
               "string"
             ],
             "format": "int64"
+          },
+          "enEstaRuta": {
+            "type": "boolean"
+          },
+          "resultado": {
+            "type": "string"
           }
         }
       },
@@ -15147,6 +15495,16 @@
         ],
         "type": "object",
         "properties": {
+          "retiro": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SolicitudRetiroRequest"
+              }
+            ]
+          },
           "operadorId": {
             "type": [
               "null",
@@ -15784,6 +16142,29 @@
                 "$ref": "#/components/schemas/TarifaEnvioResponse"
               }
             ]
+          },
+          "esRetiro": {
+            "type": "boolean"
+          },
+          "motivoRetiro": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "franjaRetiroDesdeUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "franjaRetiroHastaUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           },
           "destinoConfirmado": {
             "type": "boolean"
@@ -16924,7 +17305,8 @@
       "ModalidadTarifariaContract": {
         "enum": [
           "Estandar",
-          "Urgente"
+          "Urgente",
+          "Retiro"
         ]
       },
       "MonedaTarifariaContract": {
@@ -17614,6 +17996,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "esRetiro": {
+            "type": "boolean"
+          },
+          "resultadoVisita": {
+            "type": "string"
           }
         }
       },
@@ -18190,6 +18578,23 @@
         ],
         "type": "object",
         "properties": {
+          "permiteEntregaParcial": {
+            "type": "boolean"
+          },
+          "politicaPendientesParcial": {
+            "pattern": "^(NuevaVisitaSinRecargo|NuevaVisitaConRecargo|DevolverComercio)$",
+            "type": "string"
+          },
+          "recargoNuevaVisitaUyu": {
+            "maximum": 999999999,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
           "versionConcurrencia": {
             "maximum": 9223372036854776000,
             "minimum": 0,
@@ -18431,6 +18836,9 @@
             "items": {
               "$ref": "#/components/schemas/MotivoNoEntregaResponse"
             }
+          },
+          "permiteEntregaParcial": {
+            "type": "boolean"
           }
         }
       },
@@ -18564,6 +18972,57 @@
               "string"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "ReporteOperacionesFila": {
+        "required": [
+          "tipo",
+          "estado",
+          "operaciones",
+          "bultos",
+          "bultosEntregados",
+          "importeUyu"
+        ],
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "operaciones": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bultosEntregados": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "importeUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
           }
         }
       },
@@ -18852,6 +19311,17 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "versionesBulto": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
           }
         }
       },
@@ -18979,6 +19449,33 @@
           },
           "identidad": {
             "$ref": "#/components/schemas/IdentidadVisualPublicaResponse"
+          },
+          "totalBultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bultosEntregados": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bultosDevueltos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "esRetiro": {
+            "type": "boolean"
           }
         }
       },
@@ -19048,7 +19545,7 @@
             "format": "double"
           },
           "modalidad": {
-            "pattern": "^(Estandar|Urgente)$",
+            "pattern": "^(Estandar|Urgente|Retiro)$",
             "type": "string"
           }
         },
@@ -19462,6 +19959,35 @@
             "format": "int64"
           }
         }
+      },
+      "SolicitudRetiroRequest": {
+        "required": [
+          "solicitudId",
+          "motivo",
+          "desdeUtc",
+          "hastaUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "solicitudId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "desdeUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hastaUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
       },
       "TarifaEnvioHistorialResponse": {
         "required": [
@@ -20231,6 +20757,20 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "permiteEntregaParcial": {
+            "type": "boolean"
+          },
+          "politicaPendientesParcial": {
+            "type": "string"
+          },
+          "recargoNuevaVisitaUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
           }
         }
       },
@@ -20630,6 +21170,9 @@
       "name": "IdentidadVisualPublica"
     },
     {
+      "name": "AvisosComercio"
+    },
+    {
       "name": "CancelacionesEnvio"
     },
     {
@@ -20637,6 +21180,9 @@
     },
     {
       "name": "Envios"
+    },
+    {
+      "name": "ReporteOperaciones"
     },
     {
       "name": "OperadoresDisponibles"

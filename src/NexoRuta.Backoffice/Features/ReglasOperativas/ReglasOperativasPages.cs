@@ -63,6 +63,9 @@ public sealed class BorradorModel(ReglasOperativasApiClient api) : ReglasOperati
     [BindProperty] public string? PoliticaDevolucionAlAgotarIntentos { get; set; }
     [BindProperty] public DurationForm PlazoEstandar { get; set; } = new();
     [BindProperty] public DurationForm PlazoUrgente { get; set; } = new();
+    [BindProperty] public bool PermiteEntregaParcial { get; set; }
+    [BindProperty] public string PoliticaPendientesParcial { get; set; } = "NuevaVisitaSinRecargo";
+    [BindProperty] public decimal RecargoNuevaVisitaUyu { get; set; }
     [BindProperty] public DurationForm PlazoValidacionPrueba { get; set; } = new();
     [BindProperty] public List<string>? RequisitosPrueba { get; set; }
     [BindProperty] public List<MotivoForm>? Motivos { get; set; }
@@ -136,7 +139,7 @@ public sealed class BorradorModel(ReglasOperativasApiClient api) : ReglasOperati
         if (!ModelState.IsValid) return Page();
 
         var request = new ReemplazarBorradorReglasOperativasRequest(expectedVersion,
-            maxAttempts, interval, policy, standard, urgent, proof, proofs, motives);
+            maxAttempts, interval, policy, standard, urgent, proof, proofs, motives) { PermiteEntregaParcial = PermiteEntregaParcial, PoliticaPendientesParcial = PoliticaPendientesParcial, RecargoNuevaVisitaUyu = RecargoNuevaVisitaUyu };
         try
         {
             await api.ReemplazarBorradorAsync(request, SesionUsuario.ObtenerToken(User), HttpContext.RequestAborted);
@@ -203,6 +206,7 @@ public sealed class BorradorModel(ReglasOperativasApiClient api) : ReglasOperati
         PoliticaDevolucionAlAgotarIntentos = draft.PoliticaDevolucionAlAgotarIntentos?.ToString();
         PlazoEstandar = ReglasOperativasUi.Duration(draft.PlazoEstandarMinutos);
         PlazoUrgente = ReglasOperativasUi.Duration(draft.PlazoUrgenteMinutos);
+        PermiteEntregaParcial = draft.PermiteEntregaParcial; PoliticaPendientesParcial = draft.PoliticaPendientesParcial; RecargoNuevaVisitaUyu = draft.RecargoNuevaVisitaUyu;
         PlazoValidacionPrueba = ReglasOperativasUi.Duration(draft.PlazoValidacionPruebaMinutos);
         RequisitosPrueba = draft.RequisitosPrueba.Select(value => value.ToString()).ToList();
         Motivos = draft.Motivos.Select(value => new MotivoForm

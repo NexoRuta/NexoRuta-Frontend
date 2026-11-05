@@ -16,6 +16,10 @@ public sealed record EnvioResponse(
     DateTimeOffset CreadoEnUtc)
 {
     public TarifaEnvioResponse? Tarifa { get; init; }
+    public bool EsRetiro { get; init; }
+    public string? MotivoRetiro { get; init; }
+    public DateTimeOffset? FranjaRetiroDesdeUtc { get; init; }
+    public DateTimeOffset? FranjaRetiroHastaUtc { get; init; }
     public bool DestinoConfirmado { get; init; }
     public string? ReferenciaExterna { get; init; }
     public string? DestinatarioEmail { get; init; }

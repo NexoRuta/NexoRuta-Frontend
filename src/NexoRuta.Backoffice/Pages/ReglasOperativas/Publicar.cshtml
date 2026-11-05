@@ -26,6 +26,9 @@
                 </ul><p class="mb-0 mt-2">La API mantiene la validación definitiva.</p></div>
             }
             <dl class="row">
+                <dt class="col-sm-4">Entrega parcial</dt><dd class="col-sm-8">@(draft.PermiteEntregaParcial ? "Permitida" : "No permitida")</dd>
+                <dt class="col-sm-4">Pendientes de entrega parcial</dt><dd class="col-sm-8">@ReglasOperativasUi.PendientesLabel(draft.PoliticaPendientesParcial)</dd>
+                <dt class="col-sm-4">Recargo por nueva visita</dt><dd class="col-sm-8">@draft.RecargoNuevaVisitaUyu.ToString("N2") UYU</dd>
                 <dt class="col-sm-4">Máximo de intentos de entrega</dt><dd class="col-sm-8">@(draft.MaxIntentosEntrega?.ToString(CultureInfo.InvariantCulture) ?? "Sin completar")</dd>
                 <dt class="col-sm-4">Espera mínima después de un intento fallido</dt><dd class="col-sm-8">@ReglasOperativasUi.DurationLabel(draft.IntervaloEntreIntentosMinutos)</dd>
                 <dt class="col-sm-4">Prueba requerida</dt><dd class="col-sm-8">@(draft.RequisitosPrueba.Count == 0 ? "Sin requisitos" : string.Join(", ", draft.RequisitosPrueba.Select(ReglasOperativasUi.ProofLabel)))</dd>

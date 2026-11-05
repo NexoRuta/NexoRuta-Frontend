@@ -5,12 +5,12 @@ var ruta = Model.RutaSeleccionada;
     var conteoActivas = Model.Rutas.Count(r => r.Estado == "EnCurso" || Model.ConservaReservaDeRecursos(r) && r.Estado == "Planificada");
     var porDespachar = Model.Rutas.Count(r => r.Estado == "Planificada" && Model.ConservaReservaDeRecursos(r) && r.Paradas.Any(p => p.Activa));
     var paradasActivas = Model.Rutas.Sum(r => r.Paradas.Count(p => p.Activa));
-    var bultosEnRuta = ruta?.Paradas.Where(p => p.Activa).Sum(p => p.Bultos.Count) ?? 0;
-    var custodiasEnRuta = ruta?.Paradas.Where(p => p.Activa).SelectMany(p => p.Bultos).Select(b => b.Custodia).ToArray() ?? Array.Empty<string>();
+    var bultosEnRuta = ruta?.Paradas.SelectMany(p => p.Bultos).Count(b => b.EnEstaRuta && b.Custodia is "Repartidor" or "PendienteDeposito") ?? 0;
+    var custodiasEnRuta = ruta?.Paradas.SelectMany(p => p.Bultos).Where(b => b.EnEstaRuta && b.Custodia is "Repartidor" or "PendienteDeposito").Select(b => b.Custodia).ToArray() ?? Array.Empty<string>();
     var resumenCarga = custodiasEnRuta.Length == 0 ? "Sin bultos" : custodiasEnRuta.All(c => c == "Deposito") ? "En depósito" : custodiasEnRuta.All(c => c == "Repartidor") ? "Con repartidor" : "Custodia mixta";
     var disponibilidadHoja = ruta?.Estado switch { "Planificada" => "planificada para el reparto", "Despachada" or "EnCurso" => "disponible para el repartidor", "Finalizada" => "finalizada", "Cancelada" => "cancelada; sin reserva de recursos", _ => "registrada" };
     var destinoListo = ruta is not null && ruta.Paradas.Where(p => p.Activa).All(p => Model.DestinoConfirmado(p.EnvioId));
-    var custodiaLista = ruta is not null && ruta.Paradas.Where(p => p.Activa).All(p => p.Bultos.Count > 0 && p.Bultos.All(b => b.Custodia == "Deposito"));
+    var custodiaLista = ruta is not null && ruta.Paradas.Where(p => p.Activa).All(p => p.Bultos.Count > 0 && p.Bultos.Where(b => b.Resultado == "Pendiente").All(b => b.Custodia == (p.EsRetiro ? "SinRecepcion" : "Deposito")));
     var enviosEnDetalle = ruta?.Paradas.Where(p => p.Activa).Select(p => p.EnvioId).ToHashSet() ?? new HashSet<Guid>();
     var reasignacionesFueraDeDetalle = Model.Envios.Where(e => e.Estado == "AsignadoRuta" && !enviosEnDetalle.Contains(e.Id)).ToArray();
     var filtroTodas = string.IsNullOrWhiteSpace(Model.FiltroRuta) || Model.FiltroRuta == "Todas";
@@ -32,7 +32,7 @@ var ruta = Model.RutaSeleccionada;
                         <p class="nr-routes-alert is-info" role="status"><strong>Salida física:</strong> @(ruta.SalidaEnUtc is { } salida ? Model.FechaHora(salida, ruta.Politica.ZonaHoraria) : "Sin registrar"). El estado de la hoja no confirma carga ni salida.</p><dl class="nr-route-facts" id="carga">
                             <div><dt>Estado de la ruta</dt><dd><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M2 5h10v9H2zM12 8h3l3 3v3h-6zM5 16a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>@Model.EstadoRuta(ruta.Estado)</dd></div>
                             <div><dt>Paradas</dt><dd><svg aria-hidden="true" viewBox="0 0 20 20"><circle cx="4" cy="4" r="1"/><circle cx="4" cy="10" r="1"/><circle cx="4" cy="16" r="1"/><path d="M8 4h9M8 10h9M8 16h9"/></svg>@ruta.Paradas.Count(p => p.Activa)</dd></div>
-                            <div><dt>Carga</dt><dd><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m10 2 7 4v8l-7 4-7-4V6zM3 6l7 4 7-4m-7 4v8"/></svg>@bultosEnRuta @(bultosEnRuta == 1 ? "bulto" : "bultos")</dd><span>@resumenCarga</span></div>
+                            <div><dt>Carga</dt><dd><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m10 2 7 4v8l-7 4-7-4V6zM3 6l7 4 7-4m-7 4v8"/></svg>@bultosEnRuta @(bultosEnRuta == 1 ? "bulto" : "bultos")</dd><dd class="nr-route-custody">@resumenCarga</dd></div>
                         </dl>
                         <details class="nr-context-action"><summary>Identificadores técnicos</summary><dl><dt>Ruta</dt><dd><code>@ruta.Id</code></dd><dt>Jornada</dt><dd><code>@ruta.JornadaId</code></dd><dt>Repartidor</dt><dd><code>@ruta.RepartidorAccesoId</code></dd><dt>Vehículo</dt><dd><code>@ruta.VehiculoId</code></dd></dl></details>
                         @if (ruta.Estado == "Planificada" && ruta.ReservaRecursosActiva == false)
@@ -65,14 +65,14 @@ var ruta = Model.RutaSeleccionada;
                                     {
                                         var destinosReasignacion = Model.Rutas.Where(r => Model.PuedeRecibirReasignaciones(r) && r.Paradas.All(p => p.EnvioId != parada.EnvioId)).ToArray();
                                         var envioIdFormato = parada.EnvioId.ToString("N").ToUpperInvariant();
-                                        <tr class="@(parada.Activa ? null : "is-suspended")">
+                                        <tr class="@(parada.ResultadoVisita is "Suspendida" or "Retirada" ? "is-suspended" : null)">
                                             <td headers="stop-order-heading" data-label="Orden y hora"><div class="nr-stop-position"><strong>@parada.Orden</strong><span>@Model.Hora(parada.LlegadaEstimadaUtc, ruta.Politica.ZonaHoraria)</span></div></td>
-                                            <td class="nr-stop-identity" headers="stop-recipient-heading" data-label="Destinatario"><strong>@parada.Destinatario</strong><span>@parada.Direccion</span><partial name="_DescargarEtiquetas" model="parada.EnvioId" /><details class="nr-stop-shipment-id"><summary>Identificador del envío</summary><code>@parada.EnvioId</code></details></td>
+                                            <td class="nr-stop-identity" headers="stop-recipient-heading" data-label="Destinatario"><strong>@(parada.EsRetiro ? "Retiro · " : "Entrega · ")@parada.Destinatario</strong><span>@parada.Direccion</span><partial name="_DescargarEtiquetas" model="parada.EnvioId" /><details class="nr-stop-shipment-id"><summary>Identificador del envío</summary><code>@parada.EnvioId</code></details></td>
                                             <td headers="stop-state-heading" data-label="Estado del envío"><div class="nr-shipment-state"><span class="nr-state-pill">@Model.EtiquetaEstadoEnvio(parada.Estado)</span><small class="nr-route-version">Versión del envío <span>@parada.EnvioVersion</span></small></div></td>
-                                            <td headers="stop-package-heading" data-label="Bulto y custodia"><ul class="nr-package-chips compact">@foreach (var bulto in parada.Bultos) { <li><strong>@bulto.Codigo</strong><span>@bulto.PesoGramos g</span><span class="nr-state-pill">@Model.EtiquetaCustodia(bulto.Custodia)</span></li> }</ul></td>
+                                            <td headers="stop-package-heading" data-label="Bulto y custodia"><ul class="nr-package-chips compact">@foreach (var bulto in parada.Bultos) { <li><strong>@bulto.Codigo</strong><span>@bulto.PesoGramos g</span><span class="nr-state-pill">@Model.EtiquetaCustodia(bulto.Custodia)</span>@if (!parada.EsRetiro) { <span>@bulto.Resultado</span> }</li> }</ul></td>
                                             <td headers="stop-actions-heading" data-label="Acciones">
-                                                @if (!parada.Activa) { <span class="nr-muted-note">Suspendida: @parada.MotivoSuspension</span> }
-                                                @if (parada.Estado == "NoEntregado")
+                                                @if (!parada.Activa) { <span class="nr-muted-note">@(parada.ResultadoVisita == "Completada" ? "Visita completada" : parada.ResultadoVisita == "Retirada" ? $"Retirada de esta ruta: {parada.MotivoSuspension}" : string.IsNullOrWhiteSpace(parada.MotivoSuspension) ? "Visita cerrada sin resultado acreditado" : $"Suspendida: {parada.MotivoSuspension}")</span> }
+                                                @if (parada.Estado == "NoEntregado" || parada.Estado == "EntregadoParcialmente" && parada.IntentosFallidos >= parada.Reglas.MaximoIntentos)
                                                 {
                                                     <div class="nr-stop-actions"><p class="nr-stop-help">Requiere reprogramación a una ruta nueva · Intentos fallidos: @parada.IntentosFallidos de @parada.Reglas.MaximoIntentos · @(parada.ProximoIntentoElegibleUtc is { } proximo ? $"Próxima tentativa elegible desde {Model.FechaHora(proximo, ruta.Politica.ZonaHoraria)}" : "sin nueva elegibilidad calculada")</p>
                                                         @if (parada.IntentosFallidos < parada.Reglas.MaximoIntentos) { <form method="post" asp-page-handler="Reprogramar" data-single-submit>@await Html.PartialAsync("Shared/_RutasPostContext")<input type="hidden" name="envioId" value="@parada.EnvioId"/><input type="hidden" name="versionEnvio" value="@parada.EnvioVersion"/><button class="nr-action-secondary" type="submit">Reprogramar para una ruta nueva</button></form> }

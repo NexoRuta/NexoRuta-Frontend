@@ -45,8 +45,17 @@
 
         function refreshSummary() {
             const selected = selectedRows();
-            const totalWeight = selected.reduce((sum, row) => sum + Number(row.dataset.weight || 0), 0);
-            const totalVolume = selected.reduce((sum, row) => sum + Number(row.dataset.volume || 0), 0);
+            let weightNow = selected.filter(row => row.dataset.pickup !== "true").reduce((sum, row) => sum + Number(row.dataset.weight || 0), 0);
+            let volumeNow = selected.filter(row => row.dataset.pickup !== "true").reduce((sum, row) => sum + Number(row.dataset.volume || 0), 0);
+            let totalWeight = weightNow, totalVolume = volumeNow;
+            const itinerary = [...selected].sort((a,b) => Number(a.querySelector("[data-stop-order]")?.value || 0) - Number(b.querySelector("[data-stop-order]")?.value || 0));
+            for (const row of itinerary) {
+                const direction = row.dataset.pickup === "true" ? 1 : -1;
+                weightNow += direction * Number(row.dataset.weight || 0);
+                volumeNow += direction * Number(row.dataset.volume || 0);
+                totalWeight = Math.max(totalWeight, weightNow); totalVolume = Math.max(totalVolume, volumeNow);
+            }
+
             const totalPackages = selected.reduce((sum, row) => sum + Number(row.dataset.packageCount || 0), 0);
             const firstRow = [...selected].sort((a, b) => {
                 const orderA = Number(a.querySelector("[data-stop-order]")?.value || Number.MAX_SAFE_INTEGER);

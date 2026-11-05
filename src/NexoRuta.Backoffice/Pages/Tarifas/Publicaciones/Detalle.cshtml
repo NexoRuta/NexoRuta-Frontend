@@ -34,7 +34,7 @@
     {
         <section class="card tariff-rate-card mb-3" aria-label="Tarifa @Model.ZonaNombre(rate.ZonaId), @rate.Modalidad">
             <div class="card-body">
-                <h2 class="h5">@Model.ZonaNombre(rate.ZonaId) · @(rate.Modalidad == ModalidadTarifaria.Estandar ? "Estándar" : "Urgente")</h2>
+                <h2 class="h5">@Model.ZonaNombre(rate.ZonaId) · @TarifasUi.ModalityLabel(rate.Modalidad)</h2>
                 @if (Model.ZonaInactiva(rate.ZonaId))
                 {
                     <p class="alert alert-warning">Zona inactiva: esta tarifa se conserva en el historial, pero no es una oferta operativa.</p>
