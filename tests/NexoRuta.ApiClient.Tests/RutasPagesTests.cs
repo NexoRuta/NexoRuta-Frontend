@@ -136,7 +136,8 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("Envíos y paradas", html);
         Assert.Contains("Resumen de la ruta", html);
         Assert.Contains("Destino confirmado", html);
-        Assert.Contains("Bulto recibido en depósito", html);
+        Assert.Contains("Pendientes recibidos en depósito", html);
+        Assert.Contains("data-custody=\"true\"", html);
         Assert.Contains("data-plan-summary", html);
         Assert.Contains("name=\"CrearBorrador\"", html);
         Assert.Contains("aria-live=\"polite\"", html);
@@ -894,7 +895,7 @@ public sealed partial class BackofficeSessionAndPagesTests
                 creadoPorUsuarioId = Guid.NewGuid(), usuarioEmail = "comercio@example.test", operadorNombre = "Operador", comercioNombre = "Comercio",
                 destinatarioNombre = "Destino de prueba", direccion = "Dirección de prueba", estado = CancellationApplied ? "Cancelado" : ShipmentStateOverride ?? (IncludeNoEntregado ? "NoEntregado" : "EnTransito"), version = ShipmentVersionOverride ?? (CancellationApplied ? 9 : 8),
                 destinoConfirmado = DestinationConfirmedOverride,
-                bultos = new[] { new { codigo = "TEST", pesoGramos = 100m, largoCentimetros = 1m, anchoCentimetros = 1m, altoCentimetros = 1m, custodia = BultoCustodyOverride } } } });
+                bultos = new[] { new { codigo = "TEST", pesoGramos = 100m, largoCentimetros = 1m, anchoCentimetros = 1m, altoCentimetros = 1m, custodia = BultoCustodyOverride, resultado = "Pendiente" } } } });
             if (request.Method == HttpMethod.Post && path.StartsWith("/api/envios/", StringComparison.Ordinal)
                 && path.EndsWith("/cancelacion", StringComparison.Ordinal))
             {

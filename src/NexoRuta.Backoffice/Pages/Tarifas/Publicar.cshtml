@@ -32,7 +32,7 @@
                 @foreach (var rate in draft.Tarifas)
                 {
                     <li>
-                        <strong>@Model.ZonaNombre(rate.ZonaId)</strong> — @(rate.Modalidad == ModalidadTarifaria.Estandar ? "Estándar" : "Urgente"):
+                        <strong>@Model.ZonaNombre(rate.ZonaId)</strong> — @TarifasUi.ModalityLabel(rate.Modalidad):
                         base UYU @TarifasUi.FormatDecimal(rate.ImporteBaseUyu, 2), UYU @TarifasUi.FormatDecimal(rate.PrecioPorKilogramoUyu, 6)/kg,
                         UYU @TarifasUi.FormatDecimal(rate.PrecioPorMetroCubicoUyu, 6)/m³.
                         @if (Model.ZonaInactiva(rate.ZonaId)) { <span class="badge text-bg-warning">Zona inactiva; no es oferta operativa</span> }

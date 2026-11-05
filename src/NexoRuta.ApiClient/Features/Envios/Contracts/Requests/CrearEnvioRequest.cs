@@ -5,6 +5,7 @@ namespace NexoRuta.ApiClient.Features.Envios.Contracts.Requests;
 
 public sealed class CrearEnvioRequest : IValidatableObject
 {
+    public SolicitudRetiroRequest? Retiro { get; set; }
     [Required(ErrorMessage = "Seleccioná un operador para el envío.")]
     public Guid? OperadorId { get; set; }
 
@@ -67,6 +68,8 @@ public sealed class ServicioEnvioRequest
     [Required] public Guid? ZonaId { get; set; }
     [Required, Range(-90d, 90d)] public double? Latitud { get; set; }
     [Required, Range(-180d, 180d)] public double? Longitud { get; set; }
-    [Required, RegularExpression("^(Estandar|Urgente)$")]
+    [Required, RegularExpression("^(Estandar|Urgente|Retiro)$")]
     public string Modalidad { get; set; } = "Estandar";
 }
+
+public sealed record SolicitudRetiroRequest(Guid SolicitudId, string Motivo, DateTimeOffset DesdeUtc, DateTimeOffset HastaUtc);

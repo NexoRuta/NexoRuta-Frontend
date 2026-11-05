@@ -12,6 +12,11 @@ namespace NexoRuta.ApiClient.Features.Envios.Clients;
 
 public sealed class EnviosApiClient(HttpClient httpClient)
 {
+    public async Task<IReadOnlyList<AvisoComercioResponse>> AvisosAsync(string token, CancellationToken ct = default)
+    {
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Get, "api/avisos-comercio"), token);
+        return await ApiHttp.SendAsync<AvisoComercioResponse[]>(httpClient, request, ct);
+    }
     public async Task<byte[]> DescargarEtiquetasAsync(Guid envio, string token, CancellationToken ct = default)
     {
         using var request = ApiHttp.WithBearerToken(new HttpRequestMessage(HttpMethod.Get, $"api/envios/{envio:D}/etiquetas"), token);
@@ -204,3 +209,5 @@ public sealed class EnviosApiClient(HttpClient httpClient)
         }
     }
 }
+
+public sealed record AvisoComercioResponse(Guid EventoId, Guid EnvioId, string Tipo, int VersionContrato, string Datos, DateTimeOffset RecibidoEnUtc);

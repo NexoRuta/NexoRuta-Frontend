@@ -20,7 +20,7 @@ public class IndexModel(EnviosApiClient apiClient, UsuariosApiClient usuariosCli
     [
         "Admitido", "EnDeposito", "AsignadoRuta", "EnTransito", "Entregado", "NoEntregado",
         "Reprogramado", "EnDevolucion", "Devuelto", "Extraviado", "EntregaPendienteValidacion",
-        "EntregaSinValidacion", "Cancelado"
+        "EntregaSinValidacion", "EntregadoParcialmente", "RetiroSolicitado", "RetiroAsignado", "Retirado", "RetiroFallido", "RetiroEnDeposito", "EntregadoComercio", "Cancelado"
     ];
     private IReadOnlyList<EnvioResponse> EnviosAutorizados { get; set; } = [];
     public IReadOnlyList<EnvioResponse> Envios { get; private set; } = [];
@@ -38,6 +38,8 @@ public class IndexModel(EnviosApiClient apiClient, UsuariosApiClient usuariosCli
     public IReadOnlyList<string> EstadosRapidos => new[] { "", "Admitido", "EnDeposito", "EnTransito", "Entregado" }
         .Concat(string.IsNullOrEmpty(Estado) ? [] : new[] { Estado }).Distinct(StringComparer.Ordinal).ToArray();
     private IReadOnlyDictionary<string, int> ConteosEstado { get; set; } = new Dictionary<string, int>();
+    public int TotalRetiros => EnviosAutorizados.Count(e => e.EsRetiro);
+    public int TotalParciales => EnviosAutorizados.Count(e => e.Estado == "EntregadoParcialmente");
     public int TotalAmbito { get; private set; }
     public int ContarEstado(string estado) => estado.Length == 0 ? TotalAmbito : ConteosEstado.GetValueOrDefault(estado);
     public EnvioResponse? EnvioSeleccionado => EnviosAutorizados.SingleOrDefault(e => e.Id == Seleccion);
@@ -141,6 +143,7 @@ public class IndexModel(EnviosApiClient apiClient, UsuariosApiClient usuariosCli
         "AsignadoRuta" => "Asignado a ruta",
         "EnTransito" => "En tránsito",
         "Entregado" => "Entregado",
+        "EntregadoParcialmente" => "Entregado parcialmente", "RetiroSolicitado" => "Retiro solicitado", "RetiroAsignado" => "Retiro asignado", "Retirado" => "Retirado", "RetiroFallido" => "No retirado", "RetiroEnDeposito" => "Retiro en depósito", "EntregadoComercio" => "Entregado al comercio",
         "NoEntregado" => "No entregado",
         "Reprogramado" => "Reprogramado",
         "EnDevolucion" => "En devolución",

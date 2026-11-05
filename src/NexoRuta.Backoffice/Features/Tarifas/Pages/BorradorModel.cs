@@ -206,7 +206,7 @@ public sealed class BorradorModel(TarifasApiClient tarifasApi, ZonasCoberturaApi
             if (!Enum.TryParse<ModalidadTarifaria>(rate.Modalidad, ignoreCase: false, out var modality) ||
                 !Enum.IsDefined(modality))
             {
-                ModelState.AddModelError($"Tarifas[{i}].Modalidad", "Seleccioná Estándar o Urgente.");
+                ModelState.AddModelError($"Tarifas[{i}].Modalidad", "Seleccioná Estándar, Urgente o Retiro.");
                 continue;
             }
             if (!combinations.Add((zoneId, modality)))

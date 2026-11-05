@@ -143,7 +143,7 @@ public sealed partial class SeguimientoPagesTests
     }
 
     [Theory]
-    [InlineData(200, "Estado actual")]
+    [InlineData(200, "Estado del envío")]
     [InlineData(404, "El enlace no existe, venció o fue revocado.")]
     [InlineData(429, "Demasiadas consultas.")]
     [InlineData(500, "No pudimos consultar el estado.")]

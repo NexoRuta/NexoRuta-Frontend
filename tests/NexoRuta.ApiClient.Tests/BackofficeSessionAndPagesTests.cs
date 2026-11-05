@@ -328,6 +328,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
         var fields = new List<KeyValuePair<string, string>>
         {
             new("VersionConcurrencia", "0"), new("ColeccionesEnviadas", "true"),
+            new("PoliticaPendientesParcial", "NuevaVisitaSinRecargo"), new("RecargoNuevaVisitaUyu", "0"),
             new("MaxIntentosEntrega", "3"), new("IntervaloEntreIntentos.Dias", "1"),
             new("IntervaloEntreIntentos.Horas", "01"), new("IntervaloEntreIntentos.Minutos", "01"),
             new("PoliticaDevolucionAlAgotarIntentos", "IniciarAutomaticamente"),
@@ -2396,7 +2397,14 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
     }
 
     private static FormUrlEncodedContent Form(string token, params (string Key, string Value)[] values)
-        => new(values.Append(("__RequestVerificationToken", token)).ToDictionary(pair => pair.Item1, pair => pair.Item2));
+    {
+        var fields = values.Append(("__RequestVerificationToken", token)).ToDictionary(pair => pair.Item1, pair => pair.Item2);
+        if (fields.ContainsKey("ColeccionesEnviadas"))
+        {
+            fields.TryAdd("PermiteEntregaParcial", "false"); fields.TryAdd("PoliticaPendientesParcial", "NuevaVisitaSinRecargo"); fields.TryAdd("RecargoNuevaVisitaUyu", "0");
+        }
+        return new(fields);
+    }
 
     private sealed class BackofficeFactory(FakeApi api, bool mapboxConfigured = false) : WebApplicationFactory<NexoRuta.Backoffice.Core.Security.ApiPermissionAuthorizationHandler>
     {
@@ -2953,6 +2961,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
                 intervaloEntreIntentosMinutos = RulesIntervalMinutes,
                 politicaDevolucionAlAgotarIntentos = RulesPolicy, plazoEstandarMinutos = RulesStandardMinutes,
                 plazoUrgenteMinutos = RulesUrgentMinutes, plazoValidacionPruebaMinutos = RulesProofDeadlineMinutes,
+                permiteEntregaParcial = false, politicaPendientesParcial = "NuevaVisitaSinRecargo", recargoNuevaVisitaUyu = 0m,
                 requisitosPrueba = RulesProofs,
                 motivos = RulesMotives.Select(motive => new { codigo = motive.Code, descripcion = motive.Description, disponible = motive.Available }),
                 creadaUtc = DateTimeOffset.UtcNow, publicadaUtc = state == "Publicada" ? DateTimeOffset.UtcNow : (DateTimeOffset?)null };

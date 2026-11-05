@@ -77,6 +77,7 @@
                             <option value="">Seleccioná una modalidad</option>
                             <option value="Estandar" selected="@(rate.Modalidad == "Estandar" ? "selected" : null)">Estándar</option>
                             <option value="Urgente" selected="@(rate.Modalidad == "Urgente" ? "selected" : null)">Urgente</option>
+                            <option value="Retiro" selected="@(rate.Modalidad == "Retiro" ? "selected" : null)">Retiro</option>
                         </select>
                         <span class="text-danger" asp-validation-for="Tarifas[i].Modalidad"></span>
                     </div>

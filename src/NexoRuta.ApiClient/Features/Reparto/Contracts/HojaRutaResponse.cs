@@ -7,8 +7,8 @@ public sealed record HojaRutaResponse(Guid Id, Guid JornadaId, Guid RepartidorAc
 public sealed record ParadaRutaResponse(Guid EnvioId, int Orden, bool Activa, string? MotivoSuspension,
     DateTimeOffset LlegadaEstimadaUtc, string Estado, long EnvioVersion, string Destinatario,
     string Direccion, double Latitud, double Longitud, IReadOnlyList<BultoRutaResponse> Bultos, ReglasEnvioResponse Reglas,
-    int IntentosFallidos, DateTimeOffset? ProximoIntentoElegibleUtc, int? ServicioMinutos = null);
-public sealed record BultoRutaResponse(Guid Id, string Codigo, decimal PesoGramos, decimal VolumenCm3, string Custodia, long Version);
+    int IntentosFallidos, DateTimeOffset? ProximoIntentoElegibleUtc, int? ServicioMinutos = null) { public bool EsRetiro { get; init; } public string ResultadoVisita { get; init; } = "Pendiente"; }
+public sealed record BultoRutaResponse(Guid Id, string Codigo, decimal PesoGramos, decimal VolumenCm3, string Custodia, long Version) { public bool EnEstaRuta { get; init; } public string Resultado { get; init; } = "Pendiente"; }
 public sealed record PlanificarRutaRequest(Guid RepartidorAccesoId, Guid VehiculoId, DateOnly Fecha,
     IReadOnlyList<ParadaPlanificadaRequest> Paradas, DateTimeOffset? SalidaPlanificadaEnUtc = null);
 public sealed record ParadaPlanificadaRequest(Guid EnvioId, DateTimeOffset LlegadaEstimadaUtc, int? ServicioMinutos = null);

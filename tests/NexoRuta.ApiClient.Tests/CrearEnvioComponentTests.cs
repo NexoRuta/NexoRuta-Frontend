@@ -82,7 +82,7 @@ public sealed partial class SeguimientoPagesTests
         await firstAttempt;
         Assert.Equal("Destinataria sintética", request.DestinatarioNombre);
         Assert.Equal("destinatario@example.test", request.DestinatarioEmail);
-        Assert.Equal("No se pudo guardar el envío porque el servicio no está disponible.",
+        Assert.Equal("No se pudo guardar la operación porque el servicio no está disponible.",
             typeof(CrearEnvio).GetField("error", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(page));
 
         await renderer.Dispatcher.InvokeAsync(() => (Task)create.Invoke(page, null)!);

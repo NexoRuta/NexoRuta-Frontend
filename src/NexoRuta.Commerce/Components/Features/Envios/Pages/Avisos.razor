@@ -1,0 +1,32 @@
+@page "/avisos"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)]
+@using NexoRuta.ApiClient.Features.Envios.Clients
+@using NexoRuta.ApiClient.Core.Session
+@using Microsoft.AspNetCore.Components.Authorization
+@inject EnviosApiClient Api
+@inject AuthenticationStateProvider AuthenticationState
+@rendermode InteractiveServer
+<PageTitle>Avisos | NexoRuta</PageTitle>
+<h1>Avisos de entregas y retiros</h1>
+@if (error is not null) { <p class="alert alert-danger" role="alert">@error</p><button class="btn btn-secondary" @onclick="Cargar">Reintentar</button> }
+else if (avisos is null) { <div class="nr-detail-skeleton" aria-busy="true"><span aria-hidden="true"></span><p role="status">Consultando avisos…</p></div> }
+else if (avisos.Count == 0) { <p>Los avisos aparecerán cuando el operador registre cambios en tus bultos y retiros.</p> }
+else
+{
+ <ul class="list-group">@foreach (var a in avisos) {
+ var d = System.Text.Json.JsonDocument.Parse(a.Datos).RootElement;
+ <li class="list-group-item"><a href="/envios/@a.EnvioId">Ver operación</a> · <time>@a.RecibidoEnUtc.ToString("dd/MM/yyyy HH:mm 'UTC'")</time>
+ @if (a.Tipo == "BultoActualizado") { <p><strong>@d.GetProperty("codigo").GetString()</strong> · @d.GetProperty("resultado").GetString() · Custodia: @d.GetProperty("custodia").GetString()</p> }
+ else { <p>@d.GetProperty("estado").GetString()</p> }</li>
+ }</ul>
+}
+@code {
+ private IReadOnlyList<AvisoComercioResponse>? avisos;
+ private string? error;
+ protected override async Task OnInitializedAsync() => await Cargar();
+ private async Task Cargar() {
+  error = null;
+  try { var token = SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User); avisos = await Api.AvisosAsync(token); }
+  catch (Exception) { error = "No pudimos consultar los avisos. Volvé a intentarlo."; }
+ }
+}

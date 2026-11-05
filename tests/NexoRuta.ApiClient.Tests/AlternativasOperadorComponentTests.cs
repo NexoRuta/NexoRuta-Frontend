@@ -162,6 +162,7 @@ public sealed class AlternativasOperadorComponentTests
             typeof(CrearEnvio).GetField("token",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(Page,"synthetic-token");
             typeof(CrearEnvio).GetProperty("ApiClient", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Page, new EnviosApiClient(Http));
             typeof(CrearEnvio).GetProperty("OperadoresClient", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Page, new OperadoresApiClient(Http));
+            typeof(CrearEnvio).GetProperty("Navigation", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Page, new Navigation());
             Form.OperadorId = Handler.Current; Form.DestinatarioNombre = "Recipient";
             Form.DestinatarioEmail = "recipient@example.test"; Form.Direccion = "Saved address";
             Form.Servicio.Latitud = -34.9; Form.Servicio.Longitud = -56.2;
@@ -172,6 +173,12 @@ public sealed class AlternativasOperadorComponentTests
         public int Count(string name) => ((System.Collections.IEnumerable)Value<object>(name)!).Cast<object>().Count();
         public Task Call(string name, params object[] args) => (Task)typeof(CrearEnvio).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Page,args)!;
         public void Dispose() { Page.Dispose(); Http.Dispose(); }
+    }
+
+    private sealed class Navigation : NavigationManager
+    {
+        public Navigation() => Initialize("http://commerce.test/", "http://commerce.test/envios/crear");
+        protected override void NavigateToCore(string uri, bool forceLoad) => throw new NotSupportedException();
     }
 
     private sealed class AlternativeHandler : HttpMessageHandler

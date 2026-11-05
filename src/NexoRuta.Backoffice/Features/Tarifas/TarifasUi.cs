@@ -25,6 +25,7 @@ internal static class TarifasUi
     public const int MaxParcels = 100;
     public const string ActiveZone = "Activa";
     public const string InactiveZone = "Inactiva";
+    public static string ModalityLabel(ModalidadTarifaria modalidad) => modalidad switch { ModalidadTarifaria.Estandar => "Estándar", ModalidadTarifaria.Urgente => "Urgente", ModalidadTarifaria.Retiro => "Retiro", _ => "Sin configurar" };
     public const string StandardModality = "Estandar";
     public const string UrgentModality = "Urgente";
 

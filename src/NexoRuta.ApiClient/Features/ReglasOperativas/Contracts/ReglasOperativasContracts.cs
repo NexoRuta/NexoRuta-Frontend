@@ -37,7 +37,7 @@ public sealed record ReemplazarBorradorReglasOperativasRequest(
     int? PlazoUrgenteMinutos,
     int? PlazoValidacionPruebaMinutos,
     IReadOnlyList<TipoPruebaEntrega> RequisitosPrueba,
-    IReadOnlyList<MotivoNoEntregaRequest> Motivos);
+    IReadOnlyList<MotivoNoEntregaRequest> Motivos) { public bool PermiteEntregaParcial { get; init; } public string PoliticaPendientesParcial { get; init; } = "NuevaVisitaSinRecargo"; public decimal RecargoNuevaVisitaUyu { get; init; } }
 
 public sealed record PublicarBorradorReglasOperativasRequest(long VersionConcurrencia);
 public sealed record MotivoNoEntregaRequest(string Codigo, string Descripcion, bool Disponible);
@@ -76,4 +76,4 @@ public sealed record VersionReglasOperativasResponse(
     IReadOnlyList<TipoPruebaEntrega> RequisitosPrueba,
     IReadOnlyList<MotivoNoEntregaResponse> Motivos,
     DateTimeOffset CreadaUtc,
-    DateTimeOffset? PublicadaUtc);
+    DateTimeOffset? PublicadaUtc) { public bool PermiteEntregaParcial { get; init; } public string PoliticaPendientesParcial { get; init; } = "NuevaVisitaSinRecargo"; public decimal RecargoNuevaVisitaUyu { get; init; } }

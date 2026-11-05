@@ -65,7 +65,7 @@
                             <option value="">Seleccioná una modalidad configurada</option>
                             @foreach (var modality in Model.Modalidades)
                             {
-                                <option value="@modality.ToString()" selected="@(Model.Modalidad == modality.ToString() ? "selected" : null)">@(modality == ModalidadTarifaria.Estandar ? "Estándar" : "Urgente")</option>
+                                <option value="@modality.ToString()" selected="@(Model.Modalidad == modality.ToString() ? "selected" : null)">@TarifasUi.ModalityLabel(modality)</option>
                             }
                         </select>
                     </div>
@@ -132,7 +132,7 @@
                 @if (result.NumeroVersionPublicada is { } number) { <span>n.º @number</span> }
             </p>
             <p><strong>Versión:</strong> @result.VersionTarifarioId · concurrencia @result.VersionConcurrencia</p>
-            <p><strong>Zona y modalidad:</strong> @Model.ZonaNombre(result.ZonaId) · @(result.Modalidad == ModalidadTarifaria.Estandar ? "Estándar" : "Urgente")</p>
+            <p><strong>Zona y modalidad:</strong> @Model.ZonaNombre(result.ZonaId) · @TarifasUi.ModalityLabel(result.Modalidad)</p>
             <dl class="row tariff-measure-list">
                 <dt class="col-sm-6">Peso total</dt><dd class="col-sm-6">@TarifasUi.FormatExact(result.PesoTotalKg) kg</dd>
                 <dt class="col-sm-6">Volumen total</dt><dd class="col-sm-6">@TarifasUi.FormatExact(result.VolumenTotalM3) m³</dd>

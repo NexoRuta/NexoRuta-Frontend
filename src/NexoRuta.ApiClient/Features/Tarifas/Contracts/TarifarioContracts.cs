@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace NexoRuta.ApiClient.Features.Tarifas.Contracts;
 
 [JsonConverter(typeof(JsonStringEnumConverter<ModalidadTarifaria>))]
-public enum ModalidadTarifaria { Estandar, Urgente }
+public enum ModalidadTarifaria { Estandar, Urgente, Retiro }
 
 [JsonConverter(typeof(JsonStringEnumConverter<TipoAjusteTarifario>))]
 public enum TipoAjusteTarifario { RecargoFijo, RecargoPorcentual, BonificacionFija, BonificacionPorcentual }

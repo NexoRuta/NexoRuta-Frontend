@@ -33,6 +33,7 @@ builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/", SesionUsuario.Operador);
     options.Conventions.AuthorizePage("/Index", "envios.consultar");
+    options.Conventions.AuthorizePage("/ReporteOperaciones", "envios.consultar");
     options.Conventions.AuthorizePage("/Usuarios", "usuarios.gestionar");
     options.Conventions.AuthorizePage("/Rutas", "envios.gestionar");
     options.Conventions.AuthorizePage("/Rutas/Planificar", "envios.gestionar");

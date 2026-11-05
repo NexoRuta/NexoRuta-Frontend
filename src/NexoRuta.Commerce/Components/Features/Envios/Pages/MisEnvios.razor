@@ -30,7 +30,7 @@
             <p>Encontrá tus pedidos y consultá su estado</p>
         </div>
         <div class="nr-shipments-page-actions">
-            <a class="btn btn-primary" href="/envios/crear"><span aria-hidden="true">＋</span> Crear envío</a>
+            <a class="btn btn-outline-secondary" href="/retiros/crear">Solicitar retiro</a> <a class="btn btn-primary" href="/envios/crear"><span aria-hidden="true">＋</span> Crear envío</a>
             <a class="btn btn-outline-primary" href="/envios/importar"><span aria-hidden="true">↑</span> Importar CSV</a>
             <button class="btn btn-outline-secondary nr-shipments-refresh" type="button" aria-label="Actualizar lista"
                     aria-controls="shipments-list" disabled="@(cargando || consultando is not null)" @onclick="CargarAsync">
@@ -360,10 +360,10 @@
     private static bool PerteneceEstado(EnvioResponse envio, string categoria) => categoria switch
     {
         "Todos" => true,
-        "Admitidos" => envio.Estado == "Admitido",
-        "EnDeposito" => envio.Estado == "EnDeposito",
-        "EnTransito" => envio.Estado is "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado" or "EnDevolucion",
-        "Entregados" => envio.Estado is "Entregado" or "EntregaPendienteValidacion" or "EntregaSinValidacion" or "Devuelto",
+        "Admitidos" => envio.Estado is "Admitido" or "RetiroSolicitado",
+        "EnDeposito" => envio.Estado is "EnDeposito" or "RetiroEnDeposito",
+        "EnTransito" => envio.Estado is "EntregadoParcialmente" or "RetiroAsignado" or "RetiroFallido" or "Retirado" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado" or "EnDevolucion",
+        "Entregados" => envio.Estado is "EntregadoComercio" or "Entregado" or "EntregaPendienteValidacion" or "EntregaSinValidacion" or "Devuelto",
         "Incidencias" => envio.Estado == "Extraviado",
         "Cancelados" => envio.Estado == "Cancelado",
         _ => false
@@ -377,6 +377,9 @@
 
     private static string EstadoLegible(string estado) => estado switch
     {
+        "EntregadoParcialmente" => "Entregado parcialmente", "RetiroSolicitado" => "Retiro solicitado",
+        "RetiroAsignado" => "Retiro asignado", "Retirado" => "Retirado", "RetiroFallido" => "Retiro fallido",
+        "RetiroEnDeposito" => "Retiro en depósito", "EntregadoComercio" => "Entregado al comercio",
         "Admitido" => "Admitido", "EnDeposito" => "En depósito", "AsignadoRuta" => "Asignado a ruta",
         "EnTransito" => "En tránsito", "Entregado" => "Entregado", "NoEntregado" => "No entregado",
         "Reprogramado" => "Reprogramado", "EnDevolucion" => "En devolución", "Devuelto" => "Devuelto",

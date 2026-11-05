@@ -346,7 +346,7 @@ public sealed class OpenApiContractTests
         var amount = rate.GetProperty("properties").GetProperty("importeBaseUyu");
         Assert.Equal("decimal", amount.GetProperty("format").GetString());
         var modality = Resolve(rate.GetProperty("properties").GetProperty("modalidad"), root);
-        Assert.Equal(new[] { "Estandar", "Urgente" }, modality.GetProperty("enum").EnumerateArray()
+        Assert.Equal(new[] { "Estandar", "Urgente", "Retiro" }, modality.GetProperty("enum").EnumerateArray()
             .Select(x => x.GetString()).ToArray());
         var adjustment = Resolve(rate.GetProperty("properties").GetProperty("ajustes").GetProperty("items"), root);
         var adjustmentType = Resolve(adjustment.GetProperty("properties").GetProperty("tipo"), root);

@@ -20,6 +20,12 @@
 @if (!string.IsNullOrEmpty(Model.VersionConcurrencia))
 {
     <form method="post" asp-page-handler="Guardar" data-single-submit data-unsaved-form data-unsaved-initial="@(Model.LocalChangesPending ? "true" : "false")">
+<fieldset class="mb-4"><legend>Entrega parcial de bultos</legend>
+<label asp-for="PermiteEntregaParcial"><input asp-for="PermiteEntregaParcial"/> Admitir entregas parciales</label>
+<div><label asp-for="PoliticaPendientesParcial">Bultos pendientes</label><select asp-for="PoliticaPendientesParcial" class="form-select"><option value="NuevaVisitaSinRecargo">Nueva visita sin recargo</option><option value="NuevaVisitaConRecargo">Nueva visita con recargo</option><option value="DevolverComercio">Devolver al comercio</option></select></div>
+<div><label asp-for="RecargoNuevaVisitaUyu">Recargo por nueva visita (UYU)</label><input asp-for="RecargoNuevaVisitaUyu" type="number" min="0" step="0.01" class="form-control"/><span asp-validation-for="RecargoNuevaVisitaUyu"></span></div>
+</fieldset>
+
         <input type="hidden" asp-for="VersionConcurrencia" />
         <input type="hidden" name="@ReglasOperativasUi.DraftCollectionMarker" value="true" />
         <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>

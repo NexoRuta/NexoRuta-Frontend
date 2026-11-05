@@ -55,6 +55,16 @@ public sealed class RutasApiClient(HttpClient http)
     }
     public Task<ResultadoRecepcionResponse> CotejarBultoAsync(Guid id,CotejoBultoRequest datos,string token,CancellationToken ct) =>
         EnviarResponseAsync<ResultadoRecepcionResponse,CotejoBultoRequest>($"api/deposito/bultos/{id}/recepcion",datos,token,ct);
+    public async Task DevolverBultosComercioAsync(Guid envio, long version, string token, CancellationToken ct)
+    {
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Post, $"api/deposito/envios/{envio}/devolucion-comercio") { Content = JsonContent.Create(new { version }) }, token);
+        await ApiHttp.SendNoContentAsync(http, request, ct);
+    }
+    public async Task EntregarComercioAsync(Guid envio, long version, string token, CancellationToken ct)
+    {
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Post, $"api/deposito/retiros/{envio}/entrega-comercio") { Content = JsonContent.Create(new { version }) }, token);
+        await ApiHttp.SendNoContentAsync(http, request, ct);
+    }
     public async Task RecibirAsync(Guid envio, long version, string token, CancellationToken ct)
     {
         using var request = ApiHttp.WithBearerToken(new(HttpMethod.Post, $"api/deposito/envios/{envio}/recepcion")
