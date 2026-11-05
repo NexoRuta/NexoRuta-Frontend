@@ -8,3 +8,5 @@ Se reutilizan Razor Pages, Blazor, Bootstrap y `shared/portal-design.css`. No se
 - Tracking: mismo enlace/capability y progreso público por conteos, sin identificadores internos.
 
 Ver el ADR, demostración y evidencia separada por compilación/HTTP/navegador/Android en `docs/cambios-requerimientos` del principal. La navegación de Commerce conserva su catálogo compartido y las acciones conservan autorización en la API.
+
+Continuidad H1–H6: las regresiones de componentes y contratos usan la modalidad Retiro, resultados de bulto y campos completos de política parcial. Se preservan selección explícita, valores al fallar y controles de autorización/concurrencia. La validación del superproyecto distingue Chromium real, capturas inspeccionadas y pruebas HTTP de páginas.
