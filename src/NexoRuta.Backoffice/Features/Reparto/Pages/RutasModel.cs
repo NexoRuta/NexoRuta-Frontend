@@ -415,9 +415,23 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
     public bool PuedeCancelarRuta(HojaRutaResponse ruta) => PuedeGestionarRutas
         && ruta.Estado == "Planificada" && ruta.Paradas.All(p => !p.Activa);
     public bool DestinoConfirmado(Guid envioId) => Envios.SingleOrDefault(e => e.Id == envioId)?.DestinoConfirmado == true;
-    public bool AdmiteRecepcion(EnvioResponse envio) =>
-        envio.Estado is "Admitido" or "Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion" or "EntregadoParcialmente" or "Retirado" ||
-        Rutas.Any(r => r.IncidenciasCierre.Any(i => i.EnvioId == envio.Id)) && envio.Estado is "EnTransito" or "NoEntregado";
+    public bool AdmiteRecepcion(EnvioResponse envio)
+    {
+        if (envio.Estado == "Admitido") return envio.Bultos.Count > 0;
+        if (envio.Estado is not ("Reprogramado" or "Cancelado" or "AsignadoRuta" or "EnDevolucion"
+            or "EntregadoParcialmente" or "EnTransito" or "NoEntregado" or "EnDeposito")
+            && !(envio.EsRetiro && envio.Estado == "Retirado")) return false;
+
+        var pendientes = envio.Bultos.Where(b => b.Resultado is "Pendiente" or "EnDevolucion").ToArray();
+        bool TieneIncidenciaVigente(BultoResponse bulto) => Rutas.Where(r => r.Estado == "Finalizada").Any(r =>
+            r.Paradas.Where(p => p.EnvioId == envio.Id).SelectMany(p => p.Bultos).Any(actual =>
+                actual.Codigo == bulto.Codigo && actual.Custodia == "Repartidor" && actual.EnEstaRuta
+                && r.IncidenciasCierre.Any(i => i.EnvioId == envio.Id && i.BultoId == actual.Id && i.VersionBulto == actual.Version)));
+        return pendientes.Length > 0
+            && (envio.Estado == "EnDevolucion" || pendientes.Any(b => b.Custodia != "Deposito"))
+            && pendientes.All(b => b.Custodia is "SinRecepcion" or "PendienteDeposito" or "Deposito"
+                || b.Custodia == "Repartidor" && TieneIncidenciaVigente(b));
+    }
     public bool EsRecepcionInicial(EnvioResponse envio) => envio.Estado == "Admitido";
     public bool EsRecepcionDevolucion(EnvioResponse envio) => envio.Estado == "EnDevolucion";
     public string ResumenRecepcion(EnvioResponse envio) => envio.Estado switch
@@ -426,7 +440,9 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
         "EnDevolucion" => "Recepción física de una devolución iniciada",
         "Cancelado" => "Registrar custodia física sin reactivar el estado Cancelado",
         "AsignadoRuta" => "Confirmar custodia en depósito antes de despachar o reasignar",
-        "EnTransito" or "NoEntregado" => "Recepción vinculada a una incidencia de cierre de jornada",
+        "EnTransito" or "NoEntregado" when envio.Bultos.Any(b => b.Custodia == "PendienteDeposito")
+            => "Rendición declarada; falta confirmar la recepción física en depósito",
+        "EnTransito" or "NoEntregado" => "Confirmar recepción física; la declaración o incidencia no acredita llegada al depósito",
         _ => "Confirmar la custodia física en depósito"
     };
     public string FechaLegible(DateOnly fecha) => fecha.ToDateTime(TimeOnly.MinValue)
