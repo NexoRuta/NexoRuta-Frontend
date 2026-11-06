@@ -36,7 +36,12 @@ const {chromium}=require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
   await page.goto(base+'envios/crear');
   await page.getByRole('button',{name:'Mapa simulado: seleccionar punto'}).waitFor();
   await page.getByRole('combobox',{name:'Operador',exact:true}).selectOption(process.env.ADMISSION_OPERATOR);
-  await page.getByLabel('Nombre',{exact:true}).fill('Destinatario CU09 navegador');await page.getByLabel('Correo del destinatario',{exact:true}).fill('cu09-browser@example.test');
+  // Selecting an operator loads its identity and temporarily disables the form.
+  // Wait for that actual UI state to settle before typing into onchange-bound fields.
+  await page.locator('.operator-identity-preview').waitFor({state:'visible'});
+  await page.getByLabel('Nombre',{exact:true}).fill('Destinatario CU09 navegador');
+  const recipientEmail=page.getByLabel('Correo del destinatario',{exact:true});
+  await recipientEmail.fill('cu09-browser@example.test');await recipientEmail.press('Tab');
   const search=page.getByRole('combobox',{name:'Buscar dirección'});await search.fill('Primera');await page.getByRole('option',{name:'Primera 123',exact:true}).waitFor();
   await search.press('ArrowDown');await search.press('Enter');
   await page.waitForFunction(()=>document.querySelector('#alta-servicio')?.value.includes('|Estandar'));
@@ -51,6 +56,7 @@ const {chromium}=require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
   await page.getByRole('button',{name:'Calcular tarifa',exact:true}).click();
   await page.locator('.validation-errors').waitFor();
   assert.equal(await two.getByLabel('Código',{exact:true}).inputValue(),'CU09-UI-DOS');
+  assert.equal(await recipientEmail.inputValue(),'cu09-browser@example.test','Validation preserves the committed recipient email');
   assert.equal(await page.getByLabel('Dirección',{exact:true}).inputValue(),'Primera 123');
   await page.getByLabel('Nombre',{exact:true}).fill('Destinatario CU09 navegador');
   await page.getByRole('button',{name:'Calcular tarifa',exact:true}).click();await page.getByRole('button',{name:'Confirmar envío',exact:true}).waitFor();
