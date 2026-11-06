@@ -31,6 +31,12 @@ public sealed class SeguimientoApiClient(HttpClient httpClient)
             return null;
         }
     }
+    public async Task<IReadOnlyList<BultoPublicoResponse>> ConsultarBultosAsync(string token, int offset, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/public/seguimiento/{Uri.EscapeDataString(token)}/bultos?offset={offset}&limite=200");
+        return await ApiHttp.SendAsync<BultoPublicoResponse[]>(httpClient, request, ct) ?? [];
+    }
+
     public async Task SolicitarReprogramacionAsync(string token, Guid solicitudId, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"api/public/seguimiento/{Uri.EscapeDataString(token)}/reprogramacion")

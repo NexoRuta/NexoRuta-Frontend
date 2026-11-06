@@ -41,10 +41,13 @@
         document.getElementById('tablero-flota').replaceChildren(...fleetRows);
         const shipmentRows = shipments.map(shipment => {
             const ownParcels = parcels.filter(p => p.envioId === shipment.entidadId);
-            const stop = stops.find(s => s.envioId === shipment.entidadId && s.datos.activa);
+
             const code = snapshot.riesgos?.find(r => r.envioId === shipment.entidadId)?.riesgo;
             const risk = ({ Finalizado: 'Finalizado', SinCompromiso: 'Sin compromiso disponible', ProyeccionAtrasada: 'No evaluable · datos atrasados', PlazoIncumplido: 'Plazo incumplido', SinEstimacion: 'Sin estimación vigente', EnRiesgo: 'En riesgo · llegada después del plazo', SinRiesgoDetectado: 'Sin riesgo detectado con la llegada planificada' })[code] ?? 'Sin evaluación disponible';
-            return row([short(shipment.entidadId), shipment.datos.esRetiro ? 'Retiro' : 'Entrega', label(shipment.datos.estado), `${ownParcels.filter(p => p.datos.resultado === 'Entregado').length}/${ownParcels.length}`, risk]);
+            const delivered = shipment.datos.esRetiro
+                ? `${ownParcels.filter(p => p.datos.custodia === 'Comercio').length}/${ownParcels.length} al comercio`
+                : `${ownParcels.filter(p => p.datos.resultado === 'Entregado').length}/${ownParcels.length} entregados`;
+            return row([short(shipment.entidadId), shipment.datos.esRetiro ? 'Retiro' : 'Entrega', label(shipment.datos.estado), delivered, risk]);
         });
         document.getElementById('tablero-envios').replaceChildren(...shipmentRows);
     }
