@@ -1,0 +1,27 @@
+@page "/tablero"
+@model NexoRuta.Backoffice.Pages.Tablero.IndexModel
+@{ ViewData["Title"] = "Tablero operativo"; }
+<section class="nr-page" aria-labelledby="tablero-titulo">
+    <header class="nr-page-heading"><h1 id="tablero-titulo" tabindex="-1">Tablero operativo</h1></header>
+    <p id="tablero-estado" role="status">Conectando con la operación…</p>
+    <button type="button" id="tablero-reintentar" class="btn btn-outline-primary" hidden>Reconectar</button>
+    <div id="tablero-contenido" aria-busy="true">
+        <div id="tablero-carga" class="placeholder-glow" aria-hidden="true"><span class="placeholder col-8"></span><span class="placeholder col-12"></span></div>
+        <p id="tablero-vacio" hidden>No hay rutas proyectadas todavía.</p>
+        <h2 class="h5">Flota y rutas</h2>
+        <div class="table-responsive" role="region" aria-label="Flota y rutas" tabindex="0">
+            <table class="table"><thead><tr><th scope="col">Ruta / repartidor</th><th scope="col">Posición</th><th scope="col">Antigüedad</th><th scope="col">Paradas</th></tr></thead><tbody id="tablero-flota"></tbody></table>
+        </div>
+        <h2 class="h5">Envíos y compromisos</h2>
+        <p class="small text-muted">El plazo usa las reglas y modalidad capturadas al admitir el envío. Una llegada planificada es una estimación; no crea una franja comprometida.</p>
+        <div class="table-responsive" role="region" aria-label="Envíos y compromisos" tabindex="0">
+            <table class="table"><thead><tr><th scope="col">Envío</th><th scope="col">Operación</th><th scope="col">Estado</th><th scope="col">Bultos entregados</th><th scope="col">Riesgo</th></tr></thead><tbody id="tablero-envios"></tbody></table>
+        </div>
+    </div>
+    <p><a href="/reprogramaciones">Solicitudes de nueva visita</a></p>
+</section>
+@section Head { <link rel="stylesheet" href="~/css/tablero.css" asp-append-version="true" /> }
+@section Scripts {
+    <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
+    <script src="~/js/tablero.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,5 @@
+/* Keep two-dimensional operational tables readable inside their named scroll regions. */
+#tablero-contenido .table { min-width: 52rem; }
+#tablero-contenido th, #tablero-contenido td { overflow-wrap: normal; word-break: normal; }
+#tablero-contenido th:first-child, #tablero-contenido td:first-child { min-width: 8rem; }
+#tablero-flota td:first-child { min-width: 18rem; }

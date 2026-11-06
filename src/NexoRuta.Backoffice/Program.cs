@@ -19,6 +19,7 @@ using NexoRuta.Backoffice.Features.ZonasCobertura;
 using NexoRuta.Backoffice.Features.ReglasOperativas;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSignalR(options => options.MaximumParallelInvocationsPerClient = 1);
 builder.Host.UseNexoRutaLogging("NexoRuta.Backoffice");
 if (!builder.Services.AddSharedDataProtection(builder.Configuration,
         builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "backoffice")
@@ -74,8 +75,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     options.SlidingExpiration = false;
     options.Events.OnRedirectToLogin = context =>
     {
-        var cookiePresent=context.Request.Cookies.ContainsKey(options.Cookie.Name!);
-        context.Response.Redirect(new Uri(new Uri(context.RedirectUri),RutaSesion.Ingreso(context.Request.Path,cookiePresent)).AbsoluteUri);
+        var cookiePresent = context.Request.Cookies.ContainsKey(options.Cookie.Name!);
+        context.Response.Redirect(new Uri(new Uri(context.RedirectUri), RutaSesion.Ingreso(context.Request.Path, cookiePresent)).AbsoluteUri);
         return Task.CompletedTask;
     };
     options.Events.OnRedirectToAccessDenied = context =>
@@ -84,7 +85,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             context.Response.Redirect("/OrganizacionSuspendida");
         else if (context.HttpContext.Items.ContainsKey(ApiPermissionAuthorizationHandler.ExpiredSessionItemKey))
         {
-            context.Response.Redirect(RutaSesion.Ingreso(context.Request.Path,true,SesionUsuario.IngresoWeb(context.HttpContext.User)));
+            context.Response.Redirect(RutaSesion.Ingreso(context.Request.Path, true, SesionUsuario.IngresoWeb(context.HttpContext.User)));
         }
         else if (context.HttpContext.Items.ContainsKey(ApiPermissionAuthorizationHandler.ApiUnavailableItemKey))
             context.Response.Redirect(RutaSesion.Indisponible(context.Request.Path));
@@ -135,6 +136,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/hubs/tablero") && context.Request.Headers.Origin.FirstOrDefault() is { Length: > 0 } origin
+        && (!Uri.TryCreate(origin, UriKind.Absolute, out var source) || source.GetLeftPart(UriPartial.Authority) != $"{context.Request.Scheme}://{context.Request.Host}"))
+    { context.Response.StatusCode = StatusCodes.Status403Forbidden; return; }
+    await next(context);
+});
+app.MapHub<NexoRuta.Backoffice.Features.Operacion.BoardHub>("/hubs/tablero", options => options.CloseOnAuthenticationExpiration = true);
 app.MapStaticAssets();
 app.MapHealthChecks("/health/ready").AllowAnonymous();
 app.MapRazorPages()

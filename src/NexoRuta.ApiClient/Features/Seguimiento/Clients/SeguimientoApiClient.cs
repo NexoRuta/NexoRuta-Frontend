@@ -31,6 +31,13 @@ public sealed class SeguimientoApiClient(HttpClient httpClient)
             return null;
         }
     }
+    public async Task SolicitarReprogramacionAsync(string token, Guid solicitudId, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/public/seguimiento/{Uri.EscapeDataString(token)}/reprogramacion")
+        { Content = JsonContent.Create(new { solicitudId }) };
+        await ApiHttp.SendNoContentAsync(httpClient, request, ct);
+    }
+
     public async Task SolicitarCodigoCancelacionAsync(string token, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"api/public/seguimiento/{Uri.EscapeDataString(token)}/cancelacion/codigo");

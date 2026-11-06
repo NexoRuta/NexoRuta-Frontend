@@ -1,0 +1,81 @@
+const path = require('node:path');
+const fs = require('node:fs/promises');
+const assert = require('node:assert/strict');
+const {chromium} = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE || 'playwright');
+const {default:AxeBuilder} = require(path.join(process.env.NEXORUTA_PLAYWRIGHT_MODULE || 'playwright', '..', '@axe-core/playwright'));
+(async () => {
+    const output = process.env.OPERATIONAL_OUTPUT;
+    const browser = await chromium.launch({headless:true});
+    let page;
+    try {
+        const context = await browser.newContext({viewport:{width:1280,height:900},locale:'es-UY'});
+        await context.route('**/*', route => {
+            const url = new URL(route.request().url());
+            return ['127.0.0.1','localhost'].includes(url.hostname) || ['data:','blob:'].includes(url.protocol) ? route.continue() : route.abort();
+        });
+        page = await context.newPage();
+        const errors = [];page.on('pageerror',error=>errors.push(error.message));
+        await page.goto(process.env.OPERATIONAL_TRACKING_URL);
+        await page.getByRole('heading',{name:'Bultos',exact:true}).waitFor();
+        assert.match(await page.locator('body').innerText(),/No entregado|NoEntregado/);
+        assert.equal(await page.locator('input[type=password]').count(),0);
+        await page.getByRole('button',{name:'Solicitar nueva visita',exact:true}).click();
+        await page.getByText('Solicitud recibida.',{exact:false}).waitFor();
+        await page.screenshot({path:path.join(output,'tracking-desktop.png'),fullPage:true});
+        await page.setViewportSize({width:320,height:812});
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+        await page.screenshot({path:path.join(output,'tracking-mobile.png'),fullPage:true});
+        await page.setViewportSize({width:1280,height:900});
+        await page.reload();await page.getByRole('button',{name:'Solicitar nueva visita',exact:true}).click();
+        await page.getByText('Solicitud recibida.',{exact:false}).waitFor();
+        await page.goto(process.env.OPERATIONAL_BACKOFFICE_URL+'/ingresar');
+        await page.locator('input[name=Email]').fill(process.env.OPERATIONAL_EMAIL);
+        await page.locator('input[name=Password]').fill(process.env.OPERATIONAL_PASSWORD);
+        await page.getByRole('button',{name:/Ingresar/}).click();
+        await page.waitForURL(url=>!url.pathname.includes('/ingresar'));
+        await page.goto(process.env.OPERATIONAL_BACKOFFICE_URL+'/reprogramaciones');
+        await page.locator('textarea[name=Motivo]').fill('Nueva visita aprobada para la demostración sintética.');
+        await page.screenshot({path:path.join(output,'requests-desktop.png'),fullPage:true});
+        await page.setViewportSize({width:320,height:812});
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+        await page.screenshot({path:path.join(output,'requests-mobile.png'),fullPage:true});
+        await page.setViewportSize({width:1280,height:900});
+        const liveBoard = await context.newPage();
+        liveBoard.on('pageerror',error=>errors.push(error.message));
+        await liveBoard.goto(process.env.OPERATIONAL_BACKOFFICE_URL+'/tablero');
+        await liveBoard.waitForFunction(()=>document.querySelector('#tablero-envios')?.textContent.includes('No entregado'));
+        await page.getByRole('button',{name:'Aprobar nueva visita',exact:true}).click();
+        await page.getByText('La solicitud fue aprobada.',{exact:false}).waitFor();
+        await liveBoard.waitForFunction(()=>document.querySelector('#tablero-envios')?.textContent.includes('Reprogramado'));
+        await liveBoard.waitForFunction(()=>document.querySelector('#tablero-estado')?.textContent.includes('datos actualizados'));
+        await page.close(); page = liveBoard;
+        let block = true;
+        await page.route('**/hubs/tablero/negotiate**',route=>block?route.abort():route.continue());
+        await page.goto(process.env.OPERATIONAL_BACKOFFICE_URL+'/tablero');
+        await page.getByRole('button',{name:'Reconectar',exact:true}).waitFor({state:'visible'});
+        assert.match(await page.locator('#tablero-estado').innerText(),/No hay conexión/);
+        block = false;
+        await page.getByRole('button',{name:'Reconectar',exact:true}).focus();
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(()=>document.querySelector('#tablero-estado')?.textContent.startsWith('Conectado'));
+        assert.ok(await page.locator('#tablero-flota tr').count()>0);
+        await page.screenshot({path:path.join(output,'board-desktop.png'),fullPage:true});
+        await page.setViewportSize({width:320,height:812});
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+        await page.keyboard.press('Tab');
+        assert.equal(await page.evaluate(()=>document.activeElement!==document.body),true);
+        await page.screenshot({path:path.join(output,'board-mobile.png'),fullPage:true});
+        const accessibility = await new AxeBuilder({page}).include('.nr-page').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+        await fs.writeFile(path.join(output,'accessibility.json'),JSON.stringify(accessibility.violations,null,2));
+        assert.deepEqual(accessibility.violations.map(x=>({id:x.id,impact:x.impact})),[]);
+        assert.deepEqual(errors,[]);
+        await fs.writeFile(path.join(output,'summary.json'),JSON.stringify({tracking:true,publicRequest:true,duplicateRequest:true,backofficeDecision:true,liveKafkaSignalrUpdate:true,signalrErrorAndReconnect:true,desktop:true,mobileWidth:320,keyboard:true,axeViolations:0},null,2));
+        console.log('Operational browser flow passed.');
+    } catch (error) {
+        if (page) {
+            await page.screenshot({path:path.join(output,'failure.png'),fullPage:true});
+            await fs.writeFile(path.join(output,'failure.txt'),await page.locator('body').innerText());
+        }
+        throw error;
+    } finally { await browser.close(); }
+})().catch(error=>{console.error(error);process.exitCode=1;});
