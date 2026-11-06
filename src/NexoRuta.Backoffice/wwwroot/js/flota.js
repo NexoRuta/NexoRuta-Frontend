@@ -91,7 +91,12 @@
             }
             if (shell) shell.inert = true;
         });
-        panel.addEventListener("shown.bs.offcanvas", () => (body.querySelector("textarea") || title).focus({ preventScroll: true }));
+        panel.addEventListener("shown.bs.offcanvas", () => {
+            // A rapidly reopened panel can paint before its heading inherits
+            // visibility. Keep a focusable owner for Escape even in that frame.
+            panel.focus({ preventScroll: true });
+            (body.querySelector("textarea") || title).focus({ preventScroll: true });
+        });
         panel.addEventListener("hidden.bs.offcanvas", () => {
             if (shell) shell.inert = false;
             if (opener?.isConnected) opener.focus({ preventScroll: true });

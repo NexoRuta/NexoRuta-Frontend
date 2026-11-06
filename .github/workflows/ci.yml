@@ -15,9 +15,16 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
+      NEXORUTA_PLAYWRIGHT_MODULE: ${{ github.workspace }}/tests/browser/node_modules/playwright
+      NEXORUTA_B2_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/b2
+      NEXORUTA_B3_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/b3
+      NEXORUTA_B4_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/b4
+      NEXORUTA_B5_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/b5
+      NEXORUTA_DESTINATION_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/destination
       OfficialDepartmentSource: ${{ github.workspace }}/.ci/backend/src/ZonasCobertura/Data/departamentos-uruguay.geojson
+    runs-on: ubuntu-latest
     steps:
       - name: Validate PR source
         env:
@@ -60,6 +67,10 @@ jobs:
         run: dotnet restore NexoRuta.sln --locked-mode
       - name: Build frontend
         run: dotnet build NexoRuta.sln --no-restore --configuration Release
+      - name: Install pinned browser tools for every opt-in UI test
+        run: |
+          npm ci --prefix tests/browser
+          tests/browser/node_modules/.bin/playwright install --with-deps chromium
       - name: Test portals, API client and OpenAPI contracts
         env:
           DOTNET_PROCESSOR_COUNT: "4"

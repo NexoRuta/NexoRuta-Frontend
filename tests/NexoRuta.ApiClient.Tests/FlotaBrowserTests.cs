@@ -125,6 +125,7 @@ const { chromium } = require(process.env.NEXORUTA_PLAYWRIGHT_MODULE);
         await panel.locator('#fleet-panel-title').waitFor({state:'visible'});
         assert.equal(await panel.locator('#fleet-panel-title').innerText(), 'B2-EN-CURSO');
         assert.equal(await panel.locator('form').count(), 0, 'Latest card replaces the initial inspection form');
+        assert.equal(await panel.evaluate(el=>el.contains(document.activeElement)), true, 'Rapid reopen keeps keyboard focus inside the operation panel');
         await page.keyboard.press('Escape');
         await page.waitForFunction(() => !document.getElementById('backoffice-app-shell').inert);
         assert.equal(await opener.evaluate(el=>el===document.activeElement), true);
