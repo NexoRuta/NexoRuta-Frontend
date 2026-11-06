@@ -58,12 +58,14 @@
         else if (Model.AdmiteRecepcion(envio))
         {
             <h3>@(Model.EsRecepcionInicial(envio) ? "Primera recepción" : Model.EsRecepcionDevolucion(envio) ? "Recepción de retorno" : "Confirmación de custodia")</h3>
-            <p>Confirmá únicamente si todos los bultos están físicamente en depósito. Esta acción registra su recepción; no libera el vehículo.</p>
+            <p>Confirmá únicamente los bultos pendientes o en devolución que están físicamente en depósito. Los entregados conservan su custodia y no se reciben otra vez. Esta acción no libera el vehículo.</p>
             <form method="post" asp-page-handler="Recibir" data-single-submit class="d-flex">
                 <partial name="Shared/_RutasPostContext" model="Model" /><input type="hidden" name="envioId" value="@envio.Id" /><input type="hidden" name="version" value="@envio.Version" />
-                <button class="nr-action-primary" type="submit">Confirmar recepción de todos los bultos</button>
+                <button class="nr-action-primary" type="submit">Confirmar recepción de bultos pendientes</button>
             </form>
         }
+        else if (envio.Bultos.Count > 0 && envio.Bultos.All(b => b.Custodia == "Deposito" || b.Resultado == "Entregado"))
+        { <p>No hay bultos pendientes de recepción física.</p> }
         else { <p>Este envío no admite recepción en su estado actual.</p> }
     </section>
 }

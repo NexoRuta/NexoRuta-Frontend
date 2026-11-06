@@ -85,9 +85,9 @@ var ruta = Model.RutaSeleccionada;
                                                         else { <p class="nr-muted-note">No quedan intentos disponibles. No se puede reprogramar ni realizar otra tentativa.</p> }
                                                     </div>
                                                 }
-                                                @if (ruta.IncidenciasCierre.Any(i => i.EnvioId == parada.EnvioId))
+                                                @if (Model.Envios.FirstOrDefault(e => e.Id == parada.EnvioId) is { } envioRecepcion && Model.AdmiteRecepcion(envioRecepcion))
                                                 {
-                                                    <form method="post" asp-page-handler="Recibir" data-single-submit class="nr-stop-actions">@await Html.PartialAsync("Shared/_RutasPostContext")<input type="hidden" name="envioId" value="@parada.EnvioId"/><input type="hidden" name="version" value="@parada.EnvioVersion"/><button class="nr-action-secondary" type="submit">Confirmar recepción de todos los bultos</button></form>
+                                                    <form method="post" asp-page-handler="Recibir" data-single-submit class="nr-stop-actions">@await Html.PartialAsync("Shared/_RutasPostContext")<input type="hidden" name="envioId" value="@parada.EnvioId"/><input type="hidden" name="version" value="@envioRecepcion.Version"/><button class="nr-action-secondary" type="submit">Confirmar recepción de bultos pendientes</button></form>
                                                 }
                                                 @if (parada.Activa && parada.Estado == "EnTransito")
                                                 { <span class="nr-muted-note">Los envíos en tránsito no se reasignan. Un nuevo intento requiere registrar un intento fallido y seguir la reprogramación hacia una ruta nueva.</span> }

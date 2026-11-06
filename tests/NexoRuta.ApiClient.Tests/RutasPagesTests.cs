@@ -684,7 +684,7 @@ public sealed partial class BackofficeSessionAndPagesTests
     [Fact]
     public async Task CierreConIncidenciaMuestraHistorialCustodiaYRecepcionSinDecisionSobreLaEntrega()
     {
-        var api = new FakeApi { IncludeReparto = true, IncludeIncidenciaCierre = true };
+        var api = new FakeApi { IncludeReparto = true, IncludeIncidenciaCierre = true, BultoCustodyOverride = "Repartidor" };
         api.PermissionOverrides["jwt-user"] = ["envios.gestionar", "envios.consultar"];
         using var factory = new BackofficeFactory(api); using var client = Client(factory);
         await LoginAsync(client, "user@example.test");
@@ -695,7 +695,7 @@ public sealed partial class BackofficeSessionAndPagesTests
         Assert.Contains("TEST-FALTANTE", html);
         Assert.Contains("Custodia actual:", html);
         Assert.Contains("Repartidor", html);
-        Assert.Contains("Confirmar recepción de todos los bultos", html);
+        Assert.Contains("Confirmar recepción de bultos pendientes", html);
         Assert.DoesNotContain("Aceptar entrega", html);
         Assert.DoesNotContain("Rechazar entrega", html);
     }
@@ -839,7 +839,7 @@ public sealed partial class BackofficeSessionAndPagesTests
                 : IncludeIncidenciaCierre ? [new { envioId = EnvioPrueba, orden = 1, activa = false,
                     llegadaEstimadaUtc = DateTimeOffset.Parse("2026-10-20T18:00:00Z"), estado = "EnTransito", envioVersion = 8,
                     destinatario = "Destino de prueba", direccion = "Dirección de prueba", latitud = -34.9, longitud = -56.2,
-                    bultos = new[] { new { id = bultoId, codigo = "TEST-FALTANTE", custodia = "Repartidor", version = 2 } } }]
+                    bultos = new[] { new { id = bultoId, codigo = "TEST-FALTANTE", custodia = "Repartidor", version = 2, enEstaRuta = true } } }]
                 : ShipmentStateOverride == "AsignadoRuta" && !AssignedStopOmittedOverride ? [new { envioId = EnvioPrueba, orden = 1, activa = AssignedStopActiveOverride ?? true,
                     llegadaEstimadaUtc = DateTimeOffset.Parse("2026-10-20T18:00:00Z"), estado = "AsignadoRuta", envioVersion = 8,
                     destinatario = "Destino de prueba", direccion = "Dirección de prueba", latitud = -34.9, longitud = -56.2,
@@ -847,7 +847,7 @@ public sealed partial class BackofficeSessionAndPagesTests
                     reglas = reglasEnvio, intentosFallidos = 0, proximoIntentoElegibleUtc = (DateTimeOffset?)null }]
                 : [];
             object[] incidenciasCierre = IncludeIncidenciaCierre ? [new { operacionId = Guid.NewGuid(), envioId = EnvioPrueba,
-                bultoId, codigo = "TEST-FALTANTE", versionBulto = 2, ocurridaEnUtc = DateTimeOffset.UtcNow, recibidaEnUtc = DateTimeOffset.UtcNow }] : [];
+                bultoId, codigo = "TEST-FALTANTE", versionBulto = DepotCloseIncidentVersion, ocurridaEnUtc = DateTimeOffset.UtcNow, recibidaEnUtc = DateTimeOffset.UtcNow }] : [];
             var ruta = new { id = RutaPrueba, jornadaId = Guid.NewGuid(), repartidorAccesoId = TargetAccessId, vehiculoId = VehiculoPrueba,
                 matricula = "AAA 1234", fecha = RouteDateOverride ?? "2026-10-20", estado = IncludeIncidenciaCierre || ShipmentStateOverride == "AsignadoRuta" && AssignedStopActiveOverride == false ? "Finalizada"
                     : ShipmentStateOverride == "AsignadoRuta" ? "EnCurso" : "Planificada", version = 3, ultimaSecuencia = 0,
@@ -895,7 +895,7 @@ public sealed partial class BackofficeSessionAndPagesTests
                 creadoPorUsuarioId = Guid.NewGuid(), usuarioEmail = "comercio@example.test", operadorNombre = "Operador", comercioNombre = "Comercio",
                 destinatarioNombre = "Destino de prueba", direccion = "Dirección de prueba", estado = CancellationApplied ? "Cancelado" : ShipmentStateOverride ?? (IncludeNoEntregado ? "NoEntregado" : "EnTransito"), version = ShipmentVersionOverride ?? (CancellationApplied ? 9 : 8),
                 destinoConfirmado = DestinationConfirmedOverride,
-                bultos = new[] { new { codigo = "TEST", pesoGramos = 100m, largoCentimetros = 1m, anchoCentimetros = 1m, altoCentimetros = 1m, custodia = BultoCustodyOverride, resultado = "Pendiente" } } } });
+                bultos = new[] { new { codigo = IncludeIncidenciaCierre ? "TEST-FALTANTE" : "TEST", pesoGramos = 100m, largoCentimetros = 1m, anchoCentimetros = 1m, altoCentimetros = 1m, custodia = BultoCustodyOverride, resultado = "Pendiente" } } } });
             if (request.Method == HttpMethod.Post && path.StartsWith("/api/envios/", StringComparison.Ordinal)
                 && path.EndsWith("/cancelacion", StringComparison.Ordinal))
             {
