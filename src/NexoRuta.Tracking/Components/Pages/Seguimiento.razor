@@ -68,7 +68,7 @@
             {
                 <div class="nr-tracking-status" role="status">
                     <span>@(esRetiro ? "Estado del retiro" : "Estado de la entrega")</span><strong>@EstadoVisible</strong>
-                    @if (!esRetiro && totalBultos > 0) { <p>@bultosEntregados de @totalBultos bultos entregados</p> }
+                    @if (totalBultos > 0) { <p>@bultosEntregados de @totalBultos bultos @(esRetiro ? "entregados al comercio" : "entregados")</p> }
                 </div>
             }
             else if (limiteExcedido)
@@ -94,6 +94,59 @@
 
         </div>
     </section>
+
+    @if (!cargando && estado is not null)
+    {
+        <section class="card nr-tracking-card mt-4" aria-labelledby="bultos-titulo">
+            <div class="card-body">
+                <h2 id="bultos-titulo" class="h5" tabindex="-1" @ref="tituloBultos">Bultos</h2>
+                @if (bultos.Count == 0) { <p>No hay detalle de bultos disponible.</p> }
+                else
+                {
+                    <ul data-public-parcels>@foreach (var bulto in bultos) { <li>Bulto @bulto.Numero: @NombreEstado(bulto.Resultado)</li> }</ul>
+                }
+                @if (totalBultos > 200)
+                {
+                    <nav aria-label="Páginas de bultos">
+                        <p role="status">Bultos @(offsetBultos + 1) a @(offsetBultos + bultos.Count) de @totalBultos.</p>
+                        <button type="button" class="btn btn-outline-primary" disabled="@(cargandoBultos || offsetBultos == 0)" @onclick="() => CambiarBultos(offsetBultos - 200)">Bultos anteriores</button>
+                        <button type="button" class="btn btn-outline-primary" disabled="@(cargandoBultos || offsetBultos + 200 >= totalBultos || offsetBultos + 200 > 10000)" @onclick="() => CambiarBultos(offsetBultos + 200)">Bultos siguientes</button>
+                        @if (cargandoBultos) { <p role="status">Consultando bultos…</p> }
+                        @if (mensajeBultos is not null) { <p role="alert">@mensajeBultos</p> }
+                        @if (offsetBultos + 200 > 10000 && offsetBultos + 200 < totalBultos) { <p>Se alcanzó el límite de consulta. Contactá al operador para consultar los bultos restantes.</p> }
+                    </nav>
+                }
+                <h2 class="h5">Ventana estimada</h2>
+                @if (ventana is {} estimada)
+                {
+                    <p>Atención prevista entre @estimada.DesdeUtc.ToString("dd/MM/yyyy HH:mm 'UTC'") y @estimada.HastaUtc.ToString("HH:mm 'UTC'").</p>
+                    <p class="small text-muted">@estimada.Origen · actualizada @estimada.ActualizadaEnUtc.ToString("dd/MM/yyyy HH:mm 'UTC'"). Es una estimación de atención, no una promesa horaria.</p>
+                }
+                else { <p>No hay una estimación vigente disponible.</p> }
+                <h2 class="h5">Historial</h2>
+                @if (historial.Count == 0) { <p>No hay eventos públicos disponibles.</p> }
+                else
+                {
+                    <ol>@foreach (var evento in historial)
+                    {
+                        <li>@NombreEstado(evento.Estado) —
+                            @if (evento.OcurridaEnUtc is {} fisica)
+                            { <time datetime="@fisica.ToString("O")">@fisica.ToString("dd/MM/yyyy HH:mm 'UTC'")</time> }
+                            else { <span>Fecha física no informada</span> }
+                            <span class="small text-muted"> · Registrado @evento.RegistradaEnUtc.ToString("dd/MM/yyyy HH:mm 'UTC'")</span>
+                        </li>
+                    }</ol>
+                }
+                @if (estado == "NoEntregado" && !esRetiro)
+                {
+                    <h2 class="h5">Solicitar nueva visita</h2>
+                    <p>El operador revisará tu solicitud según los intentos y plazos del envío.</p>
+                    <button type="button" class="btn btn-primary" disabled="@(procesando || reprogramacionSolicitada)" @onclick="SolicitarReprogramacion">@(procesando ? "Enviando…" : "Solicitar nueva visita")</button>
+                    @if (mensajeReprogramacion is not null) { <p role="status">@mensajeReprogramacion</p> }
+                }
+            </div>
+        </section>
+    }
 
     @if (PuedeCancelar)
     {
@@ -125,18 +178,60 @@
     private bool cargando = true, enlaceNoDisponible, limiteExcedido;
     private bool procesando, codigoSolicitado, cancelado;
     private string? estado, mensajeCancelacion;
-    private string? EstadoVisible => estado switch
-    {
-        "EntregadoParcialmente" => "Entregado parcialmente", "RetiroSolicitado" => "Retiro solicitado",
-        "RetiroAsignado" => "Retiro asignado", "Retirado" => "Retirado", "RetiroFallido" => "Retiro fallido",
-        "RetiroEnDeposito" => "Retiro en depósito", "EntregadoComercio" => "Entregado al comercio",
-        _ => estado
-    };
+    private string? EstadoVisible => estado is null ? null : NombreEstado(estado);
     private NexoRuta.ApiClient.Features.IdentidadVisual.Contracts.Responses.IdentidadVisualPublicaResponse? identidad;
     private string codigo = "";
     private CancellationTokenSource solicitudes = new();
     private int totalBultos, bultosEntregados;
+    private NexoRuta.ApiClient.Features.Seguimiento.Contracts.Responses.VentanaEstimadaPublicaResponse? ventana;
     private bool esRetiro;
+    private IReadOnlyList<NexoRuta.ApiClient.Features.Seguimiento.Contracts.Responses.EventoPublicoResponse> historial = [];
+    private IReadOnlyList<NexoRuta.ApiClient.Features.Seguimiento.Contracts.Responses.BultoPublicoResponse> bultos = [];
+    private int offsetBultos;
+    private bool cargandoBultos;
+    private string? mensajeBultos;
+    private ElementReference tituloBultos;
+    private Guid solicitudReprogramacion = Guid.NewGuid();
+    private bool reprogramacionSolicitada;
+    private string? mensajeReprogramacion;
+    private static string NombreEstado(string value) => value switch
+    {
+        "RetiroPendiente" => "Pendiente de retiro",
+        "EntregadoParcialmente" => "Entregado parcialmente", "RetiroSolicitado" => "Retiro solicitado",
+        "RetiroAsignado" => "Retiro asignado", "RetiroFallido" => "Retiro fallido", "RetiroEnDeposito" => "Retiro en depósito",
+        "EntregadoComercio" => "Entregado al comercio", "EntregaPendienteValidacion" => "Entrega pendiente de validación",
+        "EntregaSinValidacion" => "Entrega sin validación", "NoEntregado" => "No entregado", "EnDeposito" => "En depósito",
+        "AsignadoRuta" => "Asignado a ruta", "EnTransito" => "En tránsito", "EnDevolucion" => "En devolución", _ => value
+    };
+    private async Task CambiarBultos(int offset)
+    {
+        if (cargandoBultos) return;
+        var ct = solicitudes.Token;
+        cargandoBultos = true; mensajeBultos = null;
+        try
+        {
+            var page = await SeguimientoClient.ConsultarBultosAsync(Token, offset, ct);
+            if (ct.IsCancellationRequested) return;
+            bultos = page; offsetBultos = offset;
+            await tituloBultos.FocusAsync();
+        }
+        catch (HttpRequestException) { if (!ct.IsCancellationRequested) mensajeBultos = "No se pudo consultar esta página. Intentá de nuevo."; }
+        catch (OperationCanceledException) { }
+        finally { if (!ct.IsCancellationRequested) cargandoBultos = false; }
+    }
+
+    private async Task SolicitarReprogramacion()
+    {
+      mensajeReprogramacion = null;
+      await Operar(async (token, ct) => {
+        await SeguimientoClient.SolicitarReprogramacionAsync(token, solicitudReprogramacion, ct);
+        if (ct.IsCancellationRequested) return;
+        reprogramacionSolicitada = true;
+        mensajeReprogramacion = "Solicitud recibida. El operador debe revisarla antes de programar una nueva visita.";
+      });
+      if (!reprogramacionSolicitada && mensajeCancelacion is not null)
+      { mensajeReprogramacion = mensajeCancelacion; mensajeCancelacion = null; }
+    }
     private bool PuedeCancelar => estado is "Admitido" or "EnDeposito" or "AsignadoRuta" or "EnTransito" or "NoEntregado" or "Reprogramado" or "EnDevolucion";
     private string? LogoDataUri => identidad?.LogoContenido is { Length: > 0 } bytes && identidad.LogoTipoContenido is "image/png" or "image/jpeg"
         ? $"data:{identidad.LogoTipoContenido};base64,{Convert.ToBase64String(bytes)}" : null;
@@ -147,6 +242,8 @@
     {
         solicitudes.Cancel(); solicitudes.Dispose(); solicitudes = new();
         var ct = solicitudes.Token;
+        offsetBultos = 0; cargandoBultos = false; mensajeBultos = null;
+        ventana = null; historial = []; bultos = []; solicitudReprogramacion = Guid.NewGuid(); reprogramacionSolicitada = false; mensajeReprogramacion = null;
         cargando = true; estado = null; identidad = null; enlaceNoDisponible = false; limiteExcedido = false;
         procesando = false; codigoSolicitado = false; cancelado = false; codigo = ""; mensajeCancelacion = null;
         try
@@ -154,6 +251,8 @@
             var respuesta = await SeguimientoClient.ConsultarAsync(Token, ct);
             if (ct.IsCancellationRequested) return;
             estado = respuesta?.Estado; totalBultos = respuesta?.TotalBultos ?? 0; bultosEntregados = respuesta?.BultosEntregados ?? 0; esRetiro = respuesta?.EsRetiro ?? false;
+            ventana = respuesta?.VentanaEstimada;
+            historial = respuesta?.Historial ?? []; bultos = respuesta?.Bultos ?? [];
             identidad = respuesta?.Identidad;
             enlaceNoDisponible = respuesta is null;
         }

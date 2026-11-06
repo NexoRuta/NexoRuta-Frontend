@@ -46,7 +46,8 @@ public static class BackofficeNavigation
             new("Envíos", "/", "/Index", "/Index", "envios.consultar"),
             new("Rutas", "/rutas", "/Rutas", "/Rutas", "envios.gestionar"),
             new("Depósito", "/deposito", "/Deposito", "/Deposito", "envios.gestionar"),
-            new("Flota", "/flota", "/Flota", "/Flota", "envios.gestionar")
+            new("Flota", "/flota", "/Flota", "/Flota", "envios.gestionar"),
+            new("Tablero", "/tablero", "/Tablero/Index", "/Tablero", "envios.consultar")
         ]),
         new("Operador y equipo",
         [

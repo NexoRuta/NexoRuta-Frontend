@@ -49,7 +49,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: NexoRuta/NexoRuta-Backend
-          ref: main
+          ref: 74f2b3193844eb02febbecdc003d5c8b823d7588
           path: .ci/backend
           sparse-checkout: src/ZonasCobertura/Data
       - name: Record canonical department asset source

@@ -75,6 +75,12 @@
             opener = trigger;
             title.textContent = trigger.dataset.fleetTitle;
             body.replaceChildren(template.content.cloneNode(true));
+            // Switching cards replaces a possibly focused action form. Keep focus
+            // in the open panel immediately, including during reduced-motion reopen.
+            if (panel.classList.contains("show") || panel.classList.contains("showing")) {
+                panel.focus({ preventScroll: true });
+                title.focus({ preventScroll: true });
+            }
             if (trigger.dataset.fleetInitialAction) chooseAction(trigger.dataset.fleetInitialAction, body.querySelector(`[data-fleet-action-template="${trigger.dataset.fleetInitialAction}"]`) || title);
             return true;
         };

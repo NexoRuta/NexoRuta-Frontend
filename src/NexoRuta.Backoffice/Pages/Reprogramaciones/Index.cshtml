@@ -1,0 +1,24 @@
+@page "/reprogramaciones"
+@model NexoRuta.Backoffice.Pages.Reprogramaciones.IndexModel
+@{ ViewData["Title"]="Solicitudes de nueva visita"; }
+<section class="nr-page">
+    <h1>Solicitudes de nueva visita</h1>
+    <p>Revisá el estado del envío antes de aprobar. La aprobación aplica las reglas capturadas del envío y habilita su planificación posterior.</p>
+    @if(Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
+    @if(Model.Mensaje is not null) { <div class="alert alert-success" role="status">@Model.Mensaje</div> }
+    @if(Model.Error is null&&Model.Pendientes.Count==0) { <p>No hay solicitudes pendientes.</p> }
+    @foreach(var item in Model.Pendientes)
+    {
+        <article class="card mb-3"><div class="card-body">
+            <h2 class="h5">Envío @item.EnvioId.ToString("N")[^8..]</h2>
+            <p>Solicitado el @item.CreadaEnUtc.ToString("dd/MM/yyyy HH:mm 'UTC'").</p>
+            <form method="post">
+                <input type="hidden" name="SolicitudId" value="@item.Id" />
+                <input type="hidden" name="VersionEnvio" value="@item.VersionEnvio" />
+                <div class="mb-3"><label for="motivo-@item.Id" class="form-label">Motivo de la decisión</label><textarea id="motivo-@item.Id" name="Motivo" class="form-control" maxlength="500" required>@(Model.SolicitudId==item.Id?Model.Motivo:"")</textarea></div>
+                <button class="btn btn-primary" name="Aprobar" value="true" type="submit">Aprobar nueva visita</button>
+                <button class="btn btn-outline-secondary" name="Aprobar" value="false" type="submit">Rechazar solicitud</button>
+            </form>
+        </div></article>
+    }
+</section>
