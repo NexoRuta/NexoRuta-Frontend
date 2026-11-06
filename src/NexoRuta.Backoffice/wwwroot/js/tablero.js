@@ -4,7 +4,7 @@
     if (!status) return;
     const content = document.getElementById('tablero-contenido');
     const retry = document.getElementById('tablero-reintentar');
-    const connection = new signalR.HubConnectionBuilder().withUrl('/hubs/tablero').withAutomaticReconnect([0, 2000, 5000, 10000]).build();
+    const connection = new signalR.HubConnectionBuilder().withUrl('/hubs/tablero', { transport: signalR.HttpTransportType.WebSockets, skipNegotiation: true }).withAutomaticReconnect([0, 2000, 5000, 10000]).build();
     let subscription, revision = -1;
     const short = id => id?.slice(-8) ?? 'Sin dato';
     const label = value => ({ EnTransito: 'En tránsito', EntregadoParcialmente: 'Entregado parcialmente', RetiroSolicitado: 'Retiro solicitado', RetiroAsignado: 'Retiro asignado', RetiroEnDeposito: 'Retiro en depósito', EntregadoComercio: 'Entregado al comercio', NoEntregado: 'No entregado', EnDeposito: 'En depósito', AsignadoRuta: 'Asignado a ruta', EntregaPendienteValidacion: 'Entrega pendiente de validación', EntregaSinValidacion: 'Entrega sin validación' }[value] ?? value ?? 'Sin dato');

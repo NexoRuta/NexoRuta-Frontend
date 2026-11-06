@@ -16,7 +16,12 @@ public sealed class BoardHub(IConfiguration configuration) : Hub
         var token = SesionUsuario.ObtenerToken(Context.User!);
         var baseUri = new Uri(configuration["Api:BaseAddress"] ?? "http://localhost:5000/");
         await using var api = new HubConnectionBuilder().WithUrl(new Uri(baseUri, "hubs/operacion"),
-            options => { options.AccessTokenProvider = () => Task.FromResult<string?>(token); })
+            options =>
+            {
+                options.AccessTokenProvider = () => Task.FromResult<string?>(token);
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
+                options.SkipNegotiation = true;
+            })
             .Build();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, Context.ConnectionAborted);
         await api.StartAsync(linked.Token);

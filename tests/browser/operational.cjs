@@ -50,7 +50,7 @@ const {default:AxeBuilder} = require(path.join(process.env.NEXORUTA_PLAYWRIGHT_M
         await liveBoard.waitForFunction(()=>document.querySelector('#tablero-estado')?.textContent.includes('datos actualizados'));
         await page.close(); page = liveBoard;
         let block = true;
-        await page.route('**/hubs/tablero/negotiate**',route=>block?route.abort():route.continue());
+        await page.routeWebSocket('**/hubs/tablero**', socket => block ? socket.close({code:1013,reason:'Controlled test outage'}) : socket.connectToServer());
         await page.goto(process.env.OPERATIONAL_BACKOFFICE_URL+'/tablero');
         await page.getByRole('button',{name:'Reconectar',exact:true}).waitFor({state:'visible'});
         assert.match(await page.locator('#tablero-estado').innerText(),/No hay conexión/);
