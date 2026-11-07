@@ -10256,52 +10256,14 @@
         }
       }
     },
-    "/api/operacion/analitica/volumen": {
-      "get": {
-        "tags": [
-          "Operational"
-        ],
-        "parameters": [
-          {
-            "name": "operadorId",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "desde",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            }
-          },
-          {
-            "name": "hasta",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/api/operacion/historial": {
       "get": {
         "tags": [
-          "Operational"
+          "OperationalHistory"
         ],
         "parameters": [
           {
-            "name": "operadorId",
+            "name": "OperadorId",
             "in": "query",
             "schema": {
               "type": "string",
@@ -10309,7 +10271,7 @@
             }
           },
           {
-            "name": "desde",
+            "name": "Desde",
             "in": "query",
             "schema": {
               "type": "string",
@@ -10317,7 +10279,7 @@
             }
           },
           {
-            "name": "hasta",
+            "name": "Hasta",
             "in": "query",
             "schema": {
               "type": "string",
@@ -10325,7 +10287,7 @@
             }
           },
           {
-            "name": "envioId",
+            "name": "EnvioId",
             "in": "query",
             "schema": {
               "type": "string",
@@ -10333,42 +10295,244 @@
             }
           },
           {
-            "name": "tipo",
+            "name": "Tipo",
             "in": "query",
             "schema": {
+              "maxLength": 32,
+              "minLength": 0,
               "type": "string"
             }
           },
           {
-            "name": "offset",
+            "name": "Offset",
             "in": "query",
             "schema": {
+              "maximum": 10000,
+              "minimum": 0,
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
                 "integer",
                 "string"
               ],
-              "format": "int32",
-              "default": 0
+              "format": "int32"
             }
           },
           {
-            "name": "limite",
+            "name": "Limite",
             "in": "query",
             "schema": {
+              "maximum": 100,
+              "minimum": 1,
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
                 "integer",
                 "string"
               ],
-              "format": "int32",
-              "default": 50
+              "format": "int32"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistorialOperativoResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistorialOperativoResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistorialOperativoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/operacion/analitica/volumen": {
+      "get": {
+        "tags": [
+          "OperationalHistory"
+        ],
+        "parameters": [
+          {
+            "name": "OperadorId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Desde",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "Hasta",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumenOperativoResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumenOperativoResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumenOperativoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -12958,7 +13122,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/pdf": { }
+              "application/pdf": {}
             }
           },
           "404": {
@@ -16924,6 +17088,96 @@
           }
         }
       },
+      "EventoOperativo": {
+        "required": [
+          "schemaVersion",
+          "eventId",
+          "operadorId",
+          "comercioId",
+          "tipo",
+          "entidadId",
+          "envioId",
+          "rutaId",
+          "version",
+          "correlacionId",
+          "ocurridaEnUtc",
+          "registradaEnUtc",
+          "datos"
+        ],
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comercioId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "entidadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "envioId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "rutaId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "correlacionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ocurridaEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "registradaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "datos": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "EventoPublico": {
         "required": [
           "estado",
@@ -17256,6 +17510,56 @@
           },
           "cotejo": {
             "$ref": "#/components/schemas/CotejoBultoDatos"
+          }
+        }
+      },
+      "HistorialOperativoResponse": {
+        "required": [
+          "estadoProyeccion",
+          "verificadaEnUtc",
+          "retencionDias",
+          "offset",
+          "limite",
+          "datos"
+        ],
+        "type": "object",
+        "properties": {
+          "estadoProyeccion": {
+            "type": "string"
+          },
+          "verificadaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "retencionDias": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "offset": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "limite": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "datos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventoOperativo"
+            }
           }
         }
       },
@@ -17731,7 +18035,7 @@
           }
         }
       },
-      "JsonElement": { },
+      "JsonElement": {},
       "LoginRequest": {
         "required": [
           "email",
@@ -21610,6 +21914,53 @@
           }
         }
       },
+      "VolumenOperativoResponse": {
+        "required": [
+          "estadoProyeccion",
+          "verificadaEnUtc",
+          "retencionDias",
+          "desde",
+          "hasta",
+          "volumenPorTipo"
+        ],
+        "type": "object",
+        "properties": {
+          "estadoProyeccion": {
+            "type": "string"
+          },
+          "verificadaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "retencionDias": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "desde": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "volumenPorTipo": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        }
+      },
       "ZonaCoberturaDetalleResponse": {
         "required": [
           "id",
@@ -21823,6 +22174,9 @@
     },
     {
       "name": "Operational"
+    },
+    {
+      "name": "OperationalHistory"
     },
     {
       "name": "PublicParcels"
