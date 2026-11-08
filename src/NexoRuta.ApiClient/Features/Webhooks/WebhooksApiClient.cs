@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using NexoRuta.ApiClient.Core.Http;
 namespace NexoRuta.ApiClient.Features.Webhooks;
 public sealed record WebhookSubscription(Guid Id,Guid OperadorId,Guid ComercioId,string Url,string[] Eventos,int Contrato,bool Habilitada,bool Revocada,long Revision,Guid ClaveId,DateTimeOffset ActualizadaEnUtc);
-public sealed record SaveWebhook(Guid OperadorId,string Url,string[] Eventos,int Contrato,bool Habilitada,bool Revocada,long Revision,string? Secreto);
+public sealed record SaveWebhook(Guid OperadorId,string Url,string[] Eventos,int Contrato,bool Habilitada,long Revision,string? Secreto);
 public sealed record WebhookDelivery(Guid Id,Guid EventoId,Guid SuscripcionId,long Revision,Guid OperadorId,Guid ComercioId,Guid EnvioId,string Tipo,int Contrato,string Url,string Payload,Guid ClaveId,string Estado,int Intentos,int IntentosCiclo,int Reenvios,DateTimeOffset ProximoIntentoUtc,DateTimeOffset CreadaEnUtc,DateTimeOffset? FinalizadaEnUtc,int? CodigoHttp,string? Diagnostico);
 public sealed record WebhookAttempt(Guid EntregaId,int Numero,DateTimeOffset InicioUtc,DateTimeOffset? FinUtc,int? CodigoHttp,string? Diagnostico);
 public sealed record WebhookReplay(Guid EntregaId,int Numero,Guid ActorId,DateTimeOffset FechaUtc,string EstadoAnterior);
