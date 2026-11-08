@@ -1,0 +1,76 @@
+@page "/cuenta"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)]
+@rendermode InteractiveServer
+@using NexoRuta.ApiClient.Features.Gestion
+@using NexoRuta.ApiClient.Features.Operadores.Clients
+@using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses
+@using NexoRuta.ApiClient.Core.Session
+@inject GestionApiClient Api
+@inject OperadoresApiClient Operadores
+@inject AuthenticationStateProvider AuthenticationState
+@implements IDisposable
+<PageTitle>Cuenta y liquidaciones | NexoRuta</PageTitle>
+<h1>Cuenta y liquidaciones</h1>
+<p>Cada operador tiene una cuenta independiente. Importes en UYU. Fechas en America/Montevideo (UTC−03).</p>
+<form method="get" action="/cuenta" class="row g-3 mb-4">
+ <div class="col-lg-5"><label for="cuenta-operador" class="form-label">Operador</label><select id="cuenta-operador" name="OperadorId" class="form-select" required value="@OperadorId"><option value="">Seleccioná un operador</option>@foreach(var o in operadores){<option value="@o.OperadorId" selected="@(OperadorId==o.OperadorId)">@o.Nombre</option>}</select></div>
+ <div class="col-sm-6 col-lg-3"><label for="cuenta-desde" class="form-label">Desde (incluido)</label><input id="cuenta-desde" name="Desde" value="@DesdeValue" type="date" class="form-control" required /></div>
+ <div class="col-sm-6 col-lg-3"><label for="cuenta-hasta" class="form-label">Hasta (excluido)</label><input id="cuenta-hasta" name="Hasta" value="@HastaValue" type="date" class="form-control" required /></div>
+ <div><button class="btn btn-primary" type="submit">Consultar cuenta</button></div>
+</form>
+@if(error is not null){<p class="alert alert-danger" role="alert">@error</p><button class="btn btn-outline-secondary" @onclick="Cargar">Reintentar</button>}
+@if(cargando){<div class="nr-detail-skeleton" aria-busy="true"><span aria-hidden="true"></span><p role="status">Consultando cuenta…</p></div>}
+else if(cuenta is {} c){
+ <h2>Saldo operativo</h2><dl><dt>Acumulado de esta cuenta</dt><dd>@c.SaldoOperativoUyu.ToString("N2") UYU</dd><dt>Movimientos del período</dt><dd>@c.TotalPeriodoUyu.ToString("N2") UYU</dd><dt>Liquidable aún sin confirmar (todos los períodos)</dt><dd>@c.PendienteLiquidarUyu.ToString("N2") UYU</dd></dl>
+ <p>Saldo = cargos y ajustes de tus operaciones más correcciones compensatorias. Incluye importes retenidos. Las liquidaciones no son pagos; no se registran pagos ni conciliaciones bancarias en esta cuenta.</p>
+ <h2>Movimientos</h2><p>Fecha de registro del cargo o ajuste. @c.Total resultados. Página @PaginaActual.</p>
+ @if(c.Movimientos.Count==0){<p>No hay movimientos para el período seleccionado.</p>}
+ else{<div class="table-responsive" role="region" aria-label="Movimientos de mi cuenta" tabindex="0"><table class="table nr-economic-table"><thead><tr><th scope="col">Fecha / operación</th><th scope="col">Concepto</th><th scope="col">Importe UYU</th><th scope="col">Tratamiento</th><th scope="col">Liquidación</th></tr></thead><tbody>@foreach(var m in c.Movimientos){<tr><td class="text-break">@PeriodoGestion.Fecha(m.FechaUtc)<br /><a href="/envios/@m.EnvioId">@m.EnvioId</a><br />Movimiento: @m.Id</td><td>@m.Concepto</td><td>@m.ImporteUyu.ToString("N2")</td><td>@m.Tratamiento</td><td class="text-break">@if(m.LiquidacionId is {} id){<a href="@Enlace(PaginaActual,id)">@id</a>}</td></tr>}</tbody></table></div>}
+ <h2>Liquidaciones confirmadas</h2>
+ @if(c.Liquidaciones.Count==0){<p>No hay liquidaciones confirmadas disponibles.</p>}
+ else{<ul>@foreach(var l in c.Liquidaciones){<li class="text-break"><a href="@Enlace(PaginaActual,l.Id)">@l.Id</a> · @l.TotalUyu.ToString("N2") UYU · Confirmada el @PeriodoGestion.Fecha(l.ConfirmadaEnUtc)</li>}</ul>}
+ <nav aria-label="Páginas de cuenta">@if(PaginaActual>1){<a class="btn btn-outline-secondary" href="@Enlace(PaginaActual-1)">Anterior</a>} @if(PaginaActual*25<c.Total || c.Liquidaciones.Count==25){<a class="btn btn-outline-secondary" href="@Enlace(PaginaActual+1)">Siguiente</a>}</nav>
+}
+else if(!cargando && error is null){<p>Seleccioná un operador para consultar tu cuenta.</p>}
+@if(!cargando && documento is {} d){
+ <section aria-labelledby="liquidacion"><h2 id="liquidacion" class="text-break">Liquidación @d.Documento.Id</h2>
+ <p>@d.Documento.Estado · Período: @PeriodoGestion.Fecha(d.Documento.DesdeUtc) a @PeriodoGestion.Fecha(d.Documento.HastaUtc) (excluido). Corte: @PeriodoGestion.Fecha(d.Documento.CorteUtc).</p>
+ <p class="text-break">Preparada por @d.Documento.PreparadaPor el @PeriodoGestion.Fecha(d.Documento.PreparadaEnUtc). Confirmada por @d.Documento.ConfirmadaPor el @PeriodoGestion.Fecha(d.Documento.ConfirmadaEnUtc).</p>
+ <ol aria-label="Historial del documento">@foreach(var t in d.Transiciones){<li class="text-break">@t.Estado · @PeriodoGestion.Fecha(t.FechaUtc) · Actor: @t.ActorId</li>}</ol>
+ <div class="table-responsive" role="region" aria-label="Detalle histórico de mi liquidación" tabindex="0"><table class="table nr-economic-table"><thead><tr><th scope="col">Movimiento / operación</th><th scope="col">Concepto</th><th scope="col">Importe UYU</th><th scope="col">Origen conservado</th></tr></thead><tbody>@foreach(var l in d.Lineas){<tr><td class="text-break">@l.MovimientoId<br /><a href="/envios/@l.EnvioId">@l.EnvioId</a></td><td>@l.Concepto<br />@PeriodoGestion.Fecha(l.FechaUtc)</td><td>@l.ImporteUyu.ToString("N2")</td><td><details><summary>Ver cargo original</summary><pre class="nr-economic-source">@l.Fuente</pre></details></td></tr>}</tbody><tfoot><tr><th scope="row" colspan="2">Total</th><td>@d.Documento.TotalUyu.ToString("N2")</td><td>@d.Lineas.Count conceptos</td></tr></tfoot></table></div>
+ </section>
+}
+@code{
+ [SupplyParameterFromQuery] public Guid? OperadorId{get;set;}
+ [SupplyParameterFromQuery] public string? Desde{get;set;}
+ [SupplyParameterFromQuery] public string? Hasta{get;set;}
+ [SupplyParameterFromQuery] public int? Pagina{get;set;}
+ [SupplyParameterFromQuery] public Guid? DocumentoId{get;set;}
+ private string DesdeValue=>Desde??PeriodoGestion.Hoy.AddDays(-30).ToString("yyyy-MM-dd");
+ private string HastaValue=>Hasta??PeriodoGestion.Hoy.AddDays(1).ToString("yyyy-MM-dd");
+ private int PaginaActual=>Pagina??1;
+ private IReadOnlyList<OperadorDisponibleResponse> operadores=[];
+ private CuentaGestion? cuenta;
+ private LiquidacionDetalle? documento;
+ private bool cargando;
+ private string? error;
+ private readonly CancellationTokenSource cancelacion=new();
+ private string Enlace(int page,Guid? doc=null)=>$"/cuenta?OperadorId={OperadorId}&Desde={Uri.EscapeDataString(DesdeValue)}&Hasta={Uri.EscapeDataString(HastaValue)}&Pagina={page}&DocumentoId={doc}";
+ protected override async Task OnParametersSetAsync()=>await Cargar();
+ private async Task Cargar(){
+  cargando=true;error=null;cuenta=null;documento=null;
+  try{
+   var token=SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);
+   operadores=await Operadores.ListarOperadoresAsync(token,cancelacion.Token);
+   if(OperadorId is {} op){
+    if(!DateOnly.TryParseExact(DesdeValue,"yyyy-MM-dd",out var desde) || !DateOnly.TryParseExact(HastaValue,"yyyy-MM-dd",out var hasta))throw new ArgumentException("Revisá las fechas del período.");
+    cuenta=await Api.CuentaAsync(new(op,PeriodoGestion.Inicio(desde),PeriodoGestion.Inicio(hasta),Pagina:PaginaActual),token,cancelacion.Token);
+    if(DocumentoId is {} id)documento=await Api.DocumentoAsync(op,id,token,cancelacion.Token);
+   }
+  }catch(HttpRequestException e){error=e.StatusCode switch{System.Net.HttpStatusCode.Forbidden=>"No tenés permiso para consultar esta cuenta.",System.Net.HttpStatusCode.NotFound=>"La liquidación no está disponible para tu cuenta y operador.",System.Net.HttpStatusCode.BadRequest=>"Revisá el operador y el período (máximo 366 días).",_=>"No pudimos consultar la cuenta. Reintentá."};}
+  catch(ArgumentException e){error=e.Message;}
+  catch(OperationCanceledException) when(cancelacion.IsCancellationRequested){}
+  finally{cargando=false;}
+ }
+ public void Dispose(){cancelacion.Cancel();cancelacion.Dispose();}
+}

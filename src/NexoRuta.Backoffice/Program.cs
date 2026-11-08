@@ -35,6 +35,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/", SesionUsuario.Operador);
     options.Conventions.AuthorizePage("/Index", "envios.consultar");
     options.Conventions.AuthorizePage("/ReporteOperaciones", "envios.consultar");
+    options.Conventions.AuthorizeFolder("/Liquidaciones", "envios.consultar");
+    options.Conventions.AuthorizePage("/DetalleGestion", "envios.consultar");
     options.Conventions.AuthorizePage("/Usuarios", "usuarios.gestionar");
     options.Conventions.AuthorizePage("/Rutas", "envios.gestionar");
     options.Conventions.AuthorizePage("/Rutas/Planificar", "envios.gestionar");
@@ -105,6 +107,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IAuthorizationHandler, ApiPermissionAuthorizationHandler>();
 builder.Services.AddHttpClient("NexoRuta", client =>
     client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5000/"))
+    .AddTypedClient<NexoRuta.ApiClient.Features.Gestion.GestionApiClient>()
     .AddTypedClient<EnviosApiClient>()
     .AddTypedClient<AuthApiClient>()
     .AddTypedClient<RolesApiClient>()

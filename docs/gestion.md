@@ -1,0 +1,9 @@
+# Gestión y cuentas
+
+Backoffice conserva Razor Pages: `/ReporteOperaciones` (consulta), `/reportes/operaciones/{id}` (resultado y autor por bulto), `/liquidaciones` (cuenta, preparar/revisar/confirmar/descartar y corrección compensatoria). Commerce conserva Blazor InteractiveServer: `/cuenta` (solo consulta, operador explícito). Navegación: BackofficeNavigation y CommerceNavigationCatalog, sin menús paralelos.
+
+`Features/Gestion` de ApiClient es el único cliente tipado de este circuito. Los DTO HTTP se documentan en el contrato OpenAPI versionado. Los filtros son enlaces/formularios GET conservados al navegar y al volver del detalle; las consultas y páginas se resuelven en API/PostgreSQL. America/Montevideo identifica límites locales y presentación; HTTP transporta instantes con offset.
+
+Se usan Bootstrap, los tokens semánticos de `shared/portal-design.css` y el comportamiento existente `data-single-submit` para comandos Razor. `.nr-economic-source` solo permite reflujo del origen histórico, sin nuevos colores. Commerce reserva estructura de carga, ofrece error/reintento y no renderiza acciones de gestión. Las tablas tienen región local identificada/enfocable; los documentos muestran conceptos, fuente original, total, actor y fechas. No se registra un pago al confirmar.
+
+La aceptación real está en `backend/tests/NexoRuta.IntegrationTests/Gestion/GestionBrowserTests.cs` y `backend/tests/browser/management.cjs` del conjunto integrado. Arranca ambos portales contra API restringida y PostgreSQL reales, con sesiones sintéticas propias; comprueba escritorio/320 px, teclado/foco, reflujo y axe. El CI principal fija los gitlinks y ejecuta esa prueba. Definiciones funcionales, economía, recuperación, ADR y evidencia: `docs/gestion/` y `docs/adr/ADR-reportes-liquidaciones-cuenta.md` del repositorio principal.

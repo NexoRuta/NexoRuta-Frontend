@@ -355,3 +355,8 @@ html { scroll-padding-top: 5.5rem; }
 
 .table thead th { overflow-wrap: normal; }
 @media (min-width: 992px) { .nr-backoffice-shell .nr-menu-toggle { display: none; } }
+
+/* Historical monetary source; wraps within the local detail region at 320 px. */
+.nr-economic-source { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 36rem; font-size: .875rem; }
+
+.nr-economic-table { min-width: 48rem; }
