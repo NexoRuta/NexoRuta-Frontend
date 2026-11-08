@@ -14,6 +14,7 @@ public sealed class DetalleGestionModel(GestionApiClient api,UsuariosApiClient u
     {
         if(Url.IsLocalUrl(volver))Volver=volver!;
         try{var token=SesionUsuario.ObtenerToken(User);var actor=await usuarios.ObtenerUsuarioActualAsync(token,HttpContext.RequestAborted);Detalle=await api.DetalleAsync(actor.OperadorId!.Value,id,token,HttpContext.RequestAborted);
+        if(Detalle?.Operacion.ZonaId is {} zona)await Referencias.Cargar(actor.OperadorId!.Value,"Zona",new[]{zona},token,HttpContext.RequestAborted);
         await Referencias.Cargar(actor.OperadorId!.Value,"Bulto",(Detalle?.Bultos??[]).Select(b=>b.BultoId),token,HttpContext.RequestAborted);
         await Referencias.Cargar(actor.OperadorId!.Value,"Repartidor",(Detalle?.Bultos??[]).Where(b=>b.RepartidorId.HasValue).Select(b=>b.RepartidorId!.Value),token,HttpContext.RequestAborted);
         await Referencias.Cargar(actor.OperadorId!.Value,"Ruta",(Detalle?.Bultos??[]).Where(b=>b.RutaId.HasValue).Select(b=>b.RutaId!.Value),token,HttpContext.RequestAborted);
