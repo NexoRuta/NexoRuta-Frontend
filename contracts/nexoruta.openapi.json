@@ -4,11 +4,6 @@
     "title": "NexoRuta.Api | v1",
     "version": "1.0.0"
   },
-  "servers": [
-    {
-      "url": "http://localhost/"
-    }
-  ],
   "paths": {
     "/health/live": {
       "get": {
@@ -11439,6 +11434,558 @@
         }
       }
     },
+    "/api/gestion/operadores/{operador}/reportes": {
+      "get": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "comercioId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "zonaId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "repartidorId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteGestionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteGestionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteGestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gestion/operadores/{operador}/reportes/operaciones/{envio}": {
+      "get": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "envio",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleGestionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleGestionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleGestionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gestion/operadores/{operador}/cuenta": {
+      "get": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "comercioId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuentaGestionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuentaGestionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuentaGestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gestion/operadores/{operador}/liquidaciones/{id}": {
+      "get": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gestion/operadores/{operador}/liquidaciones": {
+      "post": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepararLiquidacionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepararLiquidacionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepararLiquidacionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gestion/operadores/{operador}/liquidaciones/{id}/confirmar": {
+      "post": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gestion/operadores/{operador}/liquidaciones/{id}/descartar": {
+      "post": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiquidacionDetalleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gestion/operadores/{operador}/correcciones": {
+      "post": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorregirCuentaRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorregirCuentaRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorregirCuentaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreccionRegistradaResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreccionRegistradaResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreccionRegistradaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/avisos-comercio": {
       "get": {
         "tags": [
@@ -13141,44 +13688,6 @@
               "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/reportes/operaciones": {
-      "get": {
-        "tags": [
-          "ReporteOperaciones"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ReporteOperacionesFila"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ReporteOperacionesFila"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ReporteOperacionesFila"
-                  }
                 }
               }
             }
@@ -15996,6 +16505,49 @@
           }
         }
       },
+      "CorreccionRegistradaResponse": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CorregirCuentaRequest": {
+        "required": [
+          "id",
+          "movimientoOriginalId",
+          "importeUyu",
+          "motivo"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "movimientoOriginalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "importeUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "motivo": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "CotejoBultoDatos": {
         "required": [
           "comandoId",
@@ -16343,6 +16895,73 @@
           }
         }
       },
+      "CuentaGestionResponse": {
+        "required": [
+          "operadorId",
+          "comercioId",
+          "saldoOperativoUyu",
+          "totalPeriodoUyu",
+          "pendienteLiquidarUyu",
+          "total",
+          "movimientos",
+          "liquidaciones"
+        ],
+        "type": "object",
+        "properties": {
+          "operadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comercioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "saldoOperativoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "totalPeriodoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "pendienteLiquidarUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "movimientos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovimientoCuentaResponse"
+            }
+          },
+          "liquidaciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiquidacionResumenResponse"
+            }
+          }
+        }
+      },
       "DatosDemoStatusResponse": {
         "required": [
           "sembrada",
@@ -16634,6 +17253,209 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "DetalleBultoGestionResponse": {
+        "required": [
+          "bultoId",
+          "repartidorId",
+          "rutaId",
+          "entregadoEnUtc",
+          "resultado",
+          "enFranja"
+        ],
+        "type": "object",
+        "properties": {
+          "bultoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "repartidorId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "rutaId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "entregadoEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "resultado": {
+            "type": "string"
+          },
+          "enFranja": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "DetalleGestionResponse": {
+        "required": [
+          "operacion",
+          "bultos"
+        ],
+        "type": "object",
+        "properties": {
+          "operacion": {
+            "$ref": "#/components/schemas/DetalleOperacionResponse"
+          },
+          "bultos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetalleBultoGestionResponse"
+            }
+          }
+        }
+      },
+      "DetalleMotivoResponse": {
+        "required": [
+          "operacionId",
+          "envioId",
+          "repartidorId",
+          "rutaId",
+          "ocurridaEnUtc",
+          "tipo",
+          "motivo",
+          "bultos"
+        ],
+        "type": "object",
+        "properties": {
+          "operacionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "repartidorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rutaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ocurridaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "bultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "DetalleOperacionResponse": {
+        "required": [
+          "envioId",
+          "comercioId",
+          "zonaId",
+          "zona",
+          "esRetiro",
+          "estado",
+          "admitidaEnUtc",
+          "compromisoHastaUtc",
+          "completadaEnUtc",
+          "cumplimiento",
+          "bultos",
+          "pesoKg",
+          "volumenM3"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comercioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "zonaId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "zona": {
+            "type": "string"
+          },
+          "esRetiro": {
+            "type": "boolean"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "admitidaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "compromisoHastaUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "completadaEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "cumplimiento": {
+            "type": "string"
+          },
+          "bultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pesoKg": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "volumenM3": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
           }
         }
       },
@@ -18006,6 +18828,142 @@
           }
         }
       },
+      "IndicadorResponse": {
+        "required": [
+          "corte",
+          "clave",
+          "unidad",
+          "cantidad",
+          "cumplidos",
+          "incumplidos",
+          "sinCompromiso",
+          "enPlazo",
+          "pruebaPendiente",
+          "noEvaluables",
+          "bultos",
+          "pesoKg",
+          "volumenM3",
+          "entregados",
+          "pendientes",
+          "devueltos"
+        ],
+        "type": "object",
+        "properties": {
+          "corte": {
+            "type": "string"
+          },
+          "clave": {
+            "type": "string"
+          },
+          "unidad": {
+            "type": "string"
+          },
+          "cantidad": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cumplidos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "incumplidos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sinCompromiso": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enPlazo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pruebaPendiente": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "noEvaluables": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pesoKg": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "volumenM3": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "entregados": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pendientes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "devueltos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "IniciarDevolucionEnvioRequest": {
         "required": [
           "versionEnvio",
@@ -18036,6 +18994,141 @@
         }
       },
       "JsonElement": {},
+      "LineaLiquidacionResponse": {
+        "required": [
+          "movimientoId",
+          "envioId",
+          "fechaUtc",
+          "concepto",
+          "importeUyu",
+          "fuente"
+        ],
+        "type": "object",
+        "properties": {
+          "movimientoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fechaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "concepto": {
+            "type": "string"
+          },
+          "importeUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "fuente": {
+            "type": "string"
+          }
+        }
+      },
+      "LiquidacionDetalleResponse": {
+        "required": [
+          "documento",
+          "lineas",
+          "transiciones"
+        ],
+        "type": "object",
+        "properties": {
+          "documento": {
+            "$ref": "#/components/schemas/LiquidacionResumenResponse"
+          },
+          "lineas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LineaLiquidacionResponse"
+            }
+          },
+          "transiciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransicionLiquidacionResponse"
+            }
+          }
+        }
+      },
+      "LiquidacionResumenResponse": {
+        "required": [
+          "id",
+          "comercioId",
+          "estado",
+          "desdeUtc",
+          "hastaUtc",
+          "corteUtc",
+          "totalUyu",
+          "preparadaPor",
+          "preparadaEnUtc",
+          "confirmadaPor",
+          "confirmadaEnUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comercioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "desdeUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hastaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "corteUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "preparadaPor": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "preparadaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confirmadaPor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "confirmadaEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "LoginRequest": {
         "required": [
           "email",
@@ -18137,6 +19230,34 @@
           "UYU"
         ]
       },
+      "MotivoGestionResponse": {
+        "required": [
+          "tipo",
+          "motivo",
+          "unidad",
+          "cantidad"
+        ],
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "unidad": {
+            "type": "string"
+          },
+          "cantidad": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "MotivoNoEntregaRequest": {
         "required": [
           "codigo",
@@ -18174,6 +19295,62 @@
           },
           "descripcion": {
             "type": "string"
+          }
+        }
+      },
+      "MovimientoCuentaResponse": {
+        "required": [
+          "id",
+          "envioId",
+          "fechaUtc",
+          "concepto",
+          "importeUyu",
+          "totalPersistidoUyu",
+          "tratamiento",
+          "liquidacionId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fechaUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "concepto": {
+            "type": "string"
+          },
+          "importeUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "totalPersistidoUyu": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "decimal"
+          },
+          "tratamiento": {
+            "type": "string"
+          },
+          "liquidacionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -19133,6 +20310,34 @@
           }
         }
       },
+      "PrepararLiquidacionRequest": {
+        "required": [
+          "id",
+          "comercioId",
+          "desdeUtc",
+          "hastaUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comercioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "desdeUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hastaUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
       "PrimerAdministradorRequest": {
         "required": [
           "email",
@@ -19850,24 +21055,56 @@
           }
         }
       },
-      "ReporteOperacionesFila": {
+      "ReporteGestionResponse": {
         "required": [
-          "tipo",
-          "estado",
-          "operaciones",
-          "bultos",
-          "bultosEntregados",
-          "importeUyu"
+          "consultadaEnUtc",
+          "actualizadaEnUtc",
+          "pendientesProyeccion",
+          "estadoProyeccion",
+          "indicadores",
+          "motivos",
+          "total",
+          "detalles",
+          "detallesMotivos",
+          "totalMotivos"
         ],
         "type": "object",
         "properties": {
-          "tipo": {
+          "consultadaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualizadaEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "pendientesProyeccion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "estadoProyeccion": {
             "type": "string"
           },
-          "estado": {
-            "type": "string"
+          "indicadores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndicadorResponse"
+            }
           },
-          "operaciones": {
+          "motivos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MotivoGestionResponse"
+            }
+          },
+          "total": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -19875,29 +21112,25 @@
             ],
             "format": "int32"
           },
-          "bultos": {
+          "detalles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetalleOperacionResponse"
+            }
+          },
+          "detallesMotivos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetalleMotivoResponse"
+            }
+          },
+          "totalMotivos": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
               "string"
             ],
             "format": "int32"
-          },
-          "bultosEntregados": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "importeUyu": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "decimal"
           }
         }
       },
@@ -21305,6 +22538,27 @@
           }
         }
       },
+      "TransicionLiquidacionResponse": {
+        "required": [
+          "estado",
+          "actorId",
+          "fechaUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fechaUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "UsuarioActualResponse": {
         "required": [
           "accesoId",
@@ -22197,6 +23451,9 @@
       "name": "IdentidadVisualPublica"
     },
     {
+      "name": "Gestion"
+    },
+    {
       "name": "AvisosComercio"
     },
     {
@@ -22207,9 +23464,6 @@
     },
     {
       "name": "Envios"
-    },
-    {
-      "name": "ReporteOperaciones"
     },
     {
       "name": "OperadoresDisponibles"
