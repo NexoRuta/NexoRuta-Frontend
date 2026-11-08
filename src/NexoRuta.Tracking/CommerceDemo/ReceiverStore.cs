@@ -28,7 +28,7 @@ public sealed class ReceiverStore
         cmd.ExecuteNonQuery();
         if(!OperatingSystem.IsWindows()) File.SetUnixFileMode(path,UnixFileMode.UserRead|UnixFileMode.UserWrite);
     }
-    private SqliteConnection Open() {var db=new SqliteConnection(connection);db.Open();return db;}
+    private SqliteConnection Open() {var db=new SqliteConnection(connection);db.Open();using var command=db.CreateCommand();command.CommandText="PRAGMA synchronous=FULL; PRAGMA busy_timeout=10000;";command.ExecuteNonQuery();return db;}
     private static SqliteCommand Command(SqliteConnection db, SqliteTransaction? tx, string sql, params (string,object?)[] args)
     {
         var cmd=db.CreateCommand();cmd.Transaction=tx;cmd.CommandText=sql;

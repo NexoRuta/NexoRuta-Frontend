@@ -15,7 +15,7 @@ public static class ReceiverEndpoint
             if(!secret.StartsWith("whsec_",StringComparison.Ordinal)) continue;
             byte[] key;
             try {key=Convert.FromBase64String(secret[6..]);} catch(FormatException) {continue;}
-            if(key.Length!=32) continue;
+            if(key.Length!=32) {CryptographicOperations.ZeroMemory(key);continue;}
             try
             {
                 using var mac=IncrementalHash.CreateHMAC(HashAlgorithmName.SHA256,key);
@@ -59,6 +59,8 @@ public static class ReceiverEndpoint
                 if(version is not (1 or 2) || headerVersion!=version.ToString(CultureInfo.InvariantCulture) || type!=headerType || shipment==Guid.Empty ||
                     version==2 && (root.GetProperty("eventId").GetGuid().ToString("D")!=id || !root.TryGetProperty("ocurridaEnUtc",out _))) throw new JsonException();
                 var progress=version==2 && root.TryGetProperty("progreso",out var p)?$"{p.GetProperty("entregados").GetInt32()} de {p.GetProperty("total").GetInt32()} bultos entregados":"Contrato anterior: sin detalle de bultos";
+                if(version==2 && root.TryGetProperty("esRetiro",out var pickup) && pickup.GetBoolean() && root.GetProperty("progreso").TryGetProperty("retirados",out var picked))
+                    progress=$"{picked.GetInt32()} de {root.GetProperty("progreso").GetProperty("total").GetInt32()} bultos retirados · {root.GetProperty("progreso").GetProperty("entregados").GetInt32()} entregados al comercio";
                 var occurred=version==2?root.GetProperty("ocurridaEnUtc").GetString():null;
                 item=new(id,type,version,shipment.ToString(),state,progress,occurred,DateTimeOffset.UtcNow,Encoding.UTF8.GetString(body));
             }
