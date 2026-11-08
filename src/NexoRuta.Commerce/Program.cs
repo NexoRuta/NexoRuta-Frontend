@@ -84,6 +84,7 @@ builder.Services.AddScoped<IAuthorizationHandler, ApiPermissionAuthorizationHand
 builder.Services.AddHttpClient("NexoRuta", client =>
     client.BaseAddress = new Uri(builder.Configuration["Api:BaseAddress"] ?? "http://localhost:5000/"))
     .AddTypedClient<NexoRuta.ApiClient.Features.Gestion.GestionApiClient>()
+    .AddTypedClient<NexoRuta.ApiClient.Features.Webhooks.WebhooksApiClient>()
     .AddTypedClient<EnviosApiClient>()
     .AddTypedClient<DestinosEnvioApiClient>()
     .AddTypedClient<AuthApiClient>()

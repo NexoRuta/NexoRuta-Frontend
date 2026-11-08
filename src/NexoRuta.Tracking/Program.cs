@@ -2,6 +2,24 @@ using NexoRuta.Hosting;
 using NexoRuta.Tracking.Components;
 using NexoRuta.ApiClient.Features.Seguimiento.Clients;
 var builder = WebApplication.CreateBuilder(args);
+var commerceDemo = builder.Configuration.GetValue<bool>("CommerceDemo:Enabled");
+if (commerceDemo && !(builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing")))
+    throw new InvalidOperationException("CommerceDemo is restricted to Development/Testing.");
+if (commerceDemo)
+{
+    if ((builder.Configuration["CommerceDemo:AdminPassword"]?.Length ?? 0) < 24 ||
+        builder.Configuration.GetSection("CommerceDemo:SigningSecrets").Get<string[]>() is not {Length: >0})
+        throw new InvalidOperationException("CommerceDemo requires a strong controls password and signing keys.");
+    builder.Services.AddSingleton<NexoRuta.Tracking.CommerceDemo.ReceiverStore>();
+    builder.Services.AddAuthentication("CommerceDemo").AddCookie("CommerceDemo", options =>
+    {
+        options.Cookie.Name = "NexoRuta.CommerceDemo";
+        options.Cookie.HttpOnly = true; options.Cookie.SameSite = SameSiteMode.Strict;
+        options.LoginPath = "/comercio/ingresar"; options.ExpireTimeSpan = TimeSpan.FromHours(4);
+    });
+    builder.Services.AddAuthorization();
+    builder.Services.AddRazorPages();
+}
 builder.Host.UseNexoRutaLogging("NexoRuta.Tracking");
 builder.Services.AddHealthChecks();
 if (!builder.Services.AddSharedDataProtection(builder.Configuration,
@@ -49,11 +67,28 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/comercio"))
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        if (!commerceDemo) { context.Response.StatusCode = 404; return; }
+    }
+    await next(context);
+});
 app.UseRouting();
+if (commerceDemo) { app.UseAuthentication(); app.UseAuthorization(); }
 app.UseNexoRutaRequestLogging();
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health/ready").AllowAnonymous();
+if (commerceDemo)
+{
+    app.MapRazorPages();
+    app.MapPost("/comercio/webhook", NexoRuta.Tracking.CommerceDemo.ReceiverEndpoint.Receive)
+        .AllowAnonymous().DisableAntiforgery(); // Raw HTTP endpoint authenticates exact bytes with HMAC.
+}
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

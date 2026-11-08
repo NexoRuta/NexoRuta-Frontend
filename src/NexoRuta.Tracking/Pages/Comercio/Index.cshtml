@@ -1,0 +1,23 @@
+@page "/comercio"
+@model NexoRuta.Tracking.Pages.Comercio.IndexModel
+@{ Layout="_Layout";ViewData["Title"]="Receptor del comercio"; }
+<h1>Receptor del comercio</h1>
+<p>Ensayo sintético del sistema externo. Recibe avisos por HTTP y conserva su propia bandeja.</p>
+<section aria-labelledby="receptor"><h2 id="receptor">Recepción: @Model.Inbox.Mode</h2>
+<p>Eventos procesados: <strong>@Model.Inbox.Processed</strong> · Intentos HTTP recibidos: <strong>@Model.Inbox.Attempts</strong></p>
+<form method="post" class="d-flex flex-wrap gap-2 mb-3">@Html.AntiForgeryToken()
+<button class="btn btn-primary" name="modo" value="Disponible">Recibir normalmente / restaurar</button>
+<button class="btn btn-outline-danger" name="modo" value="FallaSimulada">Simular caída HTTP 503</button>
+<button class="btn btn-outline-secondary" name="modo" value="RespuestaPerdida">Interrumpir próxima respuesta</button>
+</form>
+<p>La caída simulada rechaza antes de procesar. Interrumpir la respuesta persiste el evento y corta la conexión: el reintento debe aparecer como duplicado.</p>
+<a class="btn btn-outline-secondary mb-4" href="/comercio?Pagina=@Model.Pagina">Actualizar bandeja</a></section>
+<h2>Eventos procesados</h2>
+@if(Model.Inbox.Events.Length==0){<p>No se procesaron eventos en esta página. Configurá la suscripción en Commerce y registrá un cambio real.</p>}
+@foreach(var e in Model.Inbox.Events){
+<article class="border rounded p-3 mb-3 text-break"><h3 class="h5">@NexoRuta.Tracking.Pages.Comercio.IndexModel.EventLabel(e.Type) · contrato v@(e.Version)</h3><dl class="row"><dt class="col-sm-3">Referencia de envío</dt><dd class="col-sm-9">@e.Shipment</dd><dt class="col-sm-3">Estado</dt><dd class="col-sm-9">@e.State · @e.Progress</dd>@if(NexoRuta.Tracking.Pages.Comercio.IndexModel.ParcelSummary(e.Payload) is {} parcel){<dt class="col-sm-3">Bulto</dt><dd class="col-sm-9">@parcel</dd>}<dt class="col-sm-3">Fecha del hecho (UTC)</dt><dd class="col-sm-9">@(e.OccurredAt??"No incluida en contrato anterior")</dd><dt class="col-sm-3">Recibido (UTC)</dt><dd class="col-sm-9">@e.ReceivedAt.ToUniversalTime().ToString("u")</dd><dt class="col-sm-3">Firma</dt><dd class="col-sm-9">Válida · Standard Webhooks v1</dd><dt class="col-sm-3">Identidad del evento</dt><dd class="col-sm-9">@e.Id</dd></dl><details><summary>Ver mensaje autorizado</summary><pre class="text-break" style="white-space:pre-wrap">@e.Payload</pre></details></article>
+}
+<h2>Intentos HTTP recibidos</h2><p>Un duplicado es otro intento; no incrementa los eventos procesados. Se conservan los últimos 2000 intentos del ensayo.</p>
+@if(Model.Inbox.RecentAttempts.Length==0){<p>Todavía no llegaron llamadas HTTP.</p>}
+else{<ol class="list-group mb-3">@foreach(var a in Model.Inbox.RecentAttempts){<li class="list-group-item text-break">@a.ReceivedAt.ToUniversalTime().ToString("u") · <strong>@a.Result</strong><br />Evento: @(a.EventId??"Sin identidad válida") · Firma: @(a.SignatureValid?"Válida":"Rechazada")</li>}</ol>}
+<nav aria-label="Páginas del receptor">@if(Model.Pagina>1){<a class="btn btn-outline-secondary" href="/comercio?Pagina=@(Model.Pagina-1)">Anterior</a>} @if(Model.Inbox.Events.Length==25 || Model.Inbox.RecentAttempts.Length==25){<a class="btn btn-outline-secondary" href="/comercio?Pagina=@(Model.Pagina+1)">Siguiente</a>}</nav>
