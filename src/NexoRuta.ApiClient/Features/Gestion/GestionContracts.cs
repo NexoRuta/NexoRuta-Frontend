@@ -39,3 +39,6 @@ public sealed record CuentaGestion(Guid OperadorId, Guid ComercioId, decimal Sal
 public sealed record CorreccionRegistrada(Guid Id);
 public sealed record CorregirCuenta(Guid Id, Guid MovimientoOriginalId, decimal ImporteUyu, string Motivo);
 public sealed record PrepararLiquidacion(Guid Id, Guid ComercioId, DateTimeOffset DesdeUtc, DateTimeOffset HastaUtc);
+
+public sealed record OpcionGestion(Guid Id, string Nombre);
+public sealed record OpcionesGestion(IReadOnlyList<OpcionGestion> Opciones, bool HayMas);

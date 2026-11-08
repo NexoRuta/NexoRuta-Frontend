@@ -3,6 +3,10 @@ using NexoRuta.ApiClient.Core.Http;
 namespace NexoRuta.ApiClient.Features.Gestion;
 public sealed class GestionApiClient(HttpClient http)
 {
+    public Task<OpcionesGestion> NombresAsync(Guid op,string tipo,IEnumerable<Guid> ids,string token,CancellationToken ct=default)
+        => Send<OpcionesGestion>(HttpMethod.Get,$"api/gestion/operadores/{op}/opciones/{tipo}?"+string.Join("&",ids.Select(id=>$"seleccionado={id}")),null,token,ct);
+    public Task<OpcionesGestion> OpcionesAsync(Guid op,string tipo,string token,string buscar="",int pagina=1,Guid? seleccionado=null,CancellationToken ct=default)
+        => Send<OpcionesGestion>(HttpMethod.Get,$"api/gestion/operadores/{op}/opciones/{tipo}?buscar={Uri.EscapeDataString(buscar)}&pagina={pagina}"+(seleccionado is {} id?$"&seleccionado={id}":""),null,token,ct);
     public Task<ReporteGestion> ReporteAsync(FiltroGestion f,string token,CancellationToken ct=default)
         => Send<ReporteGestion>(HttpMethod.Get,Url(f,"reportes"),null,token,ct);
     public Task<DetalleGestion> DetalleAsync(Guid op,Guid envio,string token,CancellationToken ct=default)
