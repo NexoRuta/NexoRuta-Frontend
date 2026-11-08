@@ -17,6 +17,7 @@ public static class CommerceNavigationCatalog
             new("Crear envío", "/envios/crear", "/envios/crear", ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy),
             new("Importar CSV", "/envios/importar", "/envios/importar", ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy),
             new("Solicitar retiro", "/retiros/crear", "/retiros/crear", ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy),
+            new("Webhooks HTTP", "/webhooks", "/webhooks", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy),
             new("Avisos", "/avisos", "/avisos", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy),
             new("Mis envíos", "/envios", "/envios", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)
         ]),

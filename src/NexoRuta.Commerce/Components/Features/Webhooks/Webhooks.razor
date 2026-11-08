@@ -1,0 +1,73 @@
+@page "/webhooks"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)]
+@rendermode InteractiveServer
+@using NexoRuta.ApiClient.Features.Webhooks
+@using NexoRuta.ApiClient.Features.Gestion
+@using NexoRuta.ApiClient.Features.Operadores.Clients
+@using NexoRuta.ApiClient.Features.Operadores.Contracts.Responses
+@using NexoRuta.ApiClient.Core.Session
+@inject WebhooksApiClient Api
+@inject OperadoresApiClient Operadores
+@inject AuthenticationStateProvider AuthenticationState
+@inject IConfiguration Configuration
+<PageTitle>Webhooks HTTP | NexoRuta</PageTitle>
+<h1>Webhooks HTTP</h1>
+<p>Configurá los avisos que recibe tu sistema y consultá cada entrega por operador.</p>
+<a class="btn btn-outline-secondary mb-3" href="@ReceiverUrl" target="_blank" rel="noopener noreferrer">Abrir receptor de prueba en otra pestaña</a>
+<div class="mb-3"><label for="wh-operator" class="form-label">Operador</label><select id="wh-operator" class="form-select" @bind="operatorId" @bind:after="ChangeOperator" disabled="@(busy || !interactive)"><option value="">Seleccioná un operador</option>@foreach(var op in operators){<option value="@op.OperadorId">@op.Nombre</option>}</select></div>
+@if(error is not null){<div class="alert alert-danger" role="alert">@error <button class="btn btn-outline-secondary" @onclick="Load" disabled="@busy">Reintentar consulta</button></div>}
+@if(message is not null){<p role="status" class="alert alert-success">@message</p>}
+@if(busy && history is null){<div class="nr-detail-skeleton" aria-busy="true"><span aria-hidden="true"></span><p role="status">Consultando suscripciones y entregas…</p></div>}
+@if(operatorId is not null){
+<section aria-labelledby="wh-subscriptions" aria-busy="@busy"><h2 id="wh-subscriptions">Suscripciones</h2>
+@if(subscriptions.Length==0 && !busy){<p>Este operador todavía no tiene una suscripción configurada para tu comercio.</p>}
+<ul class="list-group mb-3">@foreach(var s in subscriptions){<li class="list-group-item text-break"><strong>@(s.Habilitada?"Habilitada":"Deshabilitada")</strong> · v@s.Contrato · revisión @s.Revision<br />@s.Url<br />Eventos: @string.Join(", ",s.Eventos)<br />Clave: @s.ClaveId (valor protegido)
+<AuthorizeView Policy="@ApiPermissionAuthorizationHandler.ConfigManagePolicy"><Authorized><button class="btn btn-outline-secondary d-block mt-2" disabled="@busy" @onclick="()=>Edit(s)">Editar suscripción</button></Authorized></AuthorizeView></li>}</ul>
+<AuthorizeView Policy="@ApiPermissionAuthorizationHandler.ConfigManagePolicy"><Authorized>
+<button class="btn btn-outline-secondary mb-3" @onclick="New" disabled="@busy">Nueva suscripción</button>
+@if(editing){
+<form @onsubmit="Save" @onsubmit:preventDefault class="border rounded p-3 mb-4" aria-label="Configuración de suscripción">
+<h3 class="h5">@(revision==0?"Nueva suscripción":"Editar suscripción")</h3>
+<label for="wh-url" class="form-label">URL receptora</label><input id="wh-url" type="url" class="form-control mb-3" @bind="url" required maxlength="2048" aria-describedby="wh-url-help" /><p id="wh-url-help">El destino debe estar autorizado por el operador. En el ensayo usá la URL alcanzable desde el worker.</p>
+<label for="wh-contract" class="form-label">Versión del contrato</label><select id="wh-contract" class="form-select mb-3" @bind="contract" @bind:after="ContractChanged"><option value="2">v2 · envíos, bultos, visitas y retiros</option><option value="1">v1 · formato anterior de estado de envío</option></select>
+<fieldset class="mb-3"><legend class="h6">Tipos de evento</legend>@foreach(var ev in Events.Where(x=>contract==2 || x is "EnvioCreado" or "OperacionActualizada")){<div class="form-check"><input id="@("wh-"+ev)" class="form-check-input" type="checkbox" checked="@selected.Contains(ev)" @onchange="e=>Select(ev,(bool)e.Value!)" /><label for="@("wh-"+ev)" class="form-check-label">@Label(ev)</label></div>}</fieldset>
+<div class="form-check mb-3"><input id="wh-enabled" type="checkbox" class="form-check-input" @bind="enabled" /><label for="wh-enabled" class="form-check-label">Habilitada para nuevos eventos</label></div>
+<label for="wh-secret" class="form-label">@(revision==0?"Clave compartida de firma":"Nueva clave de firma (opcional)")</label><input id="wh-secret" type="password" class="form-control mb-2" @bind="secret" autocomplete="new-password" maxlength="128" required="@(revision==0)" aria-describedby="wh-key-help" />
+<p id="wh-key-help">Configurá la misma clave whsec_ en el receptor por un canal seguro. Nunca se muestra en listados. Al rotar, el receptor debe conservar la clave anterior hasta terminar sus pendientes y reenvíos.</p>
+<p>Los cambios y la deshabilitación afectan eventos futuros. Las entregas existentes conservan URL, contrato y clave originales; el reenvío también utiliza esa copia histórica.</p>
+<button class="btn btn-primary" type="submit" disabled="@busy">@(busy?"Guardando…":"Guardar suscripción")</button> <button class="btn btn-outline-secondary" type="button" @onclick="()=>editing=false" disabled="@busy">Cancelar</button>
+</form>}
+</Authorized><NotAuthorized><p>No tenés permiso para configurar suscripciones ni reenviar avisos.</p></NotAuthorized></AuthorizeView>
+</section>
+<section aria-labelledby="wh-history" aria-busy="@busy"><h2 id="wh-history">Historial de entregas</h2>
+<form @onsubmit="Filter" @onsubmit:preventDefault class="row g-3 mb-3"><div class="col-sm-5"><label for="wh-state" class="form-label">Estado</label><select id="wh-state" class="form-select" @bind="state"><option value="">Todos los estados</option>@foreach(var st in States){<option>@st</option>}</select></div><div class="col-sm-5"><label for="wh-type" class="form-label">Evento</label><select id="wh-type" class="form-select" @bind="type"><option value="">Todos los eventos</option>@foreach(var ev in Events){<option value="@ev">@Label(ev)</option>}</select></div><div class="col-sm-2 d-flex align-items-end"><button class="btn btn-primary" disabled="@busy">Filtrar</button></div></form>
+@if(history is {} h){<p>@h.Total entregas · Página @(page) · Fechas en America/Montevideo (UTC−03).</p>
+@if(h.Entregas.Length==0){<p>No hay entregas con estos filtros. Los avisos se crean al confirmar hechos de negocio posteriores a la suscripción.</p>}
+@foreach(var d in h.Entregas){<article class="border rounded p-3 mb-3 text-break"><h3 class="h5">@Label(d.Tipo) · @d.Estado</h3><p><a href="/envios/@d.EnvioId">Envío @d.EnvioId</a> · Contrato v@d.Contrato · Intentos: @d.Intentos · Reenvíos: @d.Reenvios</p><p>Creada: @PeriodoGestion.Fecha(d.CreadaEnUtc) · @(d.Estado is "Pendiente" or "Reintento"?"Próximo intento: "+PeriodoGestion.Fecha(d.ProximoIntentoUtc):"Finalizada: "+PeriodoGestion.Fecha(d.FinalizadaEnUtc))<br />@(d.CodigoHttp is {} code?"HTTP "+code:"") · @d.Diagnostico</p><button class="btn btn-outline-secondary" @onclick="()=>Detail(d.Id,1)" disabled="@busy">Ver intentos y destino</button>
+<AuthorizeView Policy="@ApiPermissionAuthorizationHandler.ConfigManagePolicy"><Authorized>@if(d.Estado is "Fallido" or "Entregado"){<button class="btn btn-outline-secondary ms-2" @onclick="()=>Replay(d.Id)" disabled="@busy">@(d.Estado=="Entregado"?"Repetir para comprobar deduplicación":"Reenviar aviso fallido")</button>}</Authorized></AuthorizeView></article>}
+<nav aria-label="Páginas de entregas"><button class="btn btn-outline-secondary" disabled="@(busy || page<=1)" @onclick="()=>Page(page-1)">Anterior</button> <button class="btn btn-outline-secondary" disabled="@(busy || page*25>=h.Total)" @onclick="()=>Page(page+1)">Siguiente</button></nav>}
+@if(detail is {} dt){<section class="border rounded p-3 mt-3 text-break" aria-labelledby="wh-detail"><h3 id="wh-detail" class="h5">Intentos de @dt.Entrega.Id</h3><p>Destino utilizado: @dt.Entrega.Url · Revisión @dt.Entrega.Revision · Clave @dt.Entrega.ClaveId<br />Evento estable: @dt.Entrega.EventoId</p><ol>@foreach(var a in dt.Intentos){<li>Intento @a.Numero · @PeriodoGestion.Fecha(a.InicioUtc) · @(a.FinUtc is null?"En curso o respuesta desconocida":PeriodoGestion.Fecha(a.FinUtc)) · HTTP @a.CodigoHttp · @a.Diagnostico</li>}</ol>@foreach(var r in dt.Reenvios){<p>Reenvío @r.Numero solicitado por @r.ActorId el @PeriodoGestion.Fecha(r.FechaUtc). Estado anterior: @r.EstadoAnterior.</p>}<button class="btn btn-outline-secondary" disabled="@(busy || dt.Pagina<=1)" @onclick="()=>Detail(dt.Entrega.Id,dt.Pagina-1)">Intentos anteriores</button> <button class="btn btn-outline-secondary" disabled="@(busy || dt.Intentos.Length<25 && dt.Reenvios.Length<25)" @onclick="()=>Detail(dt.Entrega.Id,dt.Pagina+1)">Más intentos</button><details class="mt-3"><summary>Ver contrato enviado</summary><pre style="white-space:pre-wrap">@dt.Entrega.Payload</pre></details></section>}
+</section>}
+@code{
+ private static readonly string[] Events=["EnvioCreado","OperacionActualizada","BultoActualizado","NuevaVisita","RetiroSolicitado","RetiroRetirado","RetiroEntregadoComercio"];
+ private static readonly string[] States=["Pendiente","Procesando","Reintento","Entregado","Fallido"];
+ private OperadorDisponibleResponse[] operators=[]; private WebhookSubscription[] subscriptions=[];
+ private Guid? operatorId;private WebhookHistory? history;private WebhookDetail? detail;
+ private string token="",state="",type="",url="",secret="";private string? error,message;private bool busy,editing,enabled=true,interactive;
+ private Guid subscriptionId;private long revision;private int contract=2,page=1;private HashSet<string> selected=["OperacionActualizada"];
+ private string ReceiverUrl=>new Uri(new Uri(Configuration["Tracking:BaseAddress"]??"http://localhost:5103/"),"comercio").AbsoluteUri;
+ protected override void OnAfterRender(bool firstRender){if(firstRender){interactive=true;StateHasChanged();}}
+ protected override async Task OnInitializedAsync(){busy=true;try{token=SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);operators=(await Operadores.ListarOperadoresAsync(token)).ToArray();}catch(Exception){error="No pudimos consultar los operadores.";}finally{busy=false;}}
+ private async Task ChangeOperator(){editing=false;history=null;detail=null;page=1;message=null;await Load();}
+ private async Task Load(){if(operatorId is not {} op)return;busy=true;error=null;try{subscriptions=await Api.Subscriptions(op,token);history=await Api.History(op,state,type,page,token);}catch(Exception){error="No pudimos consultar los webhooks. Verificá tu sesión y reintentá.";}finally{busy=false;}}
+ private void New(){subscriptionId=Guid.NewGuid();revision=0;url="";secret="";contract=2;enabled=true;selected=["OperacionActualizada"];editing=true;message=null;}
+ private void Edit(WebhookSubscription s){subscriptionId=s.Id;revision=s.Revision;url=s.Url;secret="";contract=s.Contrato;enabled=s.Habilitada;selected=s.Eventos.ToHashSet();editing=true;message=null;}
+ private void Select(string ev,bool value){if(value)selected.Add(ev);else selected.Remove(ev);}
+ private void ContractChanged(){if(contract==1)selected.RemoveWhere(x=>x is not ("EnvioCreado" or "OperacionActualizada"));}
+ private async Task Save(){if(operatorId is not {} op)return;busy=true;error=null;message=null;try{await Api.Save(subscriptionId,new(op,url,selected.ToArray(),contract,enabled,revision,string.IsNullOrWhiteSpace(secret)?null:secret),token);secret="";editing=false;message="Suscripción guardada. Los eventos futuros usarán esta revisión.";}catch(Exception){error="No se guardó. Revisá destino autorizado, clave y eventos; si otra sesión editó, recargá la suscripción.";}finally{busy=false;}if(error is null)await Load();}
+ private async Task Filter(){page=1;detail=null;await Load();}
+ private async Task Page(int value){page=value;await Load();}
+ private async Task Detail(Guid id,int value){busy=true;error=null;try{detail=await Api.Detail(id,value,token);}catch(Exception){error="No pudimos consultar los intentos de esta entrega.";}finally{busy=false;}}
+ private async Task Replay(Guid id){busy=true;error=null;message=null;try{await Api.Replay(id,token);message="Reenvío solicitado y auditado. El worker conserva el evento y el destino original.";detail=null;}catch(Exception){error="No se pudo solicitar el reenvío. Comprobá permisos y estado de entrega.";}finally{busy=false;}if(error is null)await Load();}
+ private static string Label(string type)=>type switch{"EnvioCreado"=>"Envío creado","OperacionActualizada"=>"Cambio de estado / entrega parcial","BultoActualizado"=>"Resultado de bulto","NuevaVisita"=>"Nueva visita","RetiroSolicitado"=>"Retiro solicitado","RetiroRetirado"=>"Retiro retirado","RetiroEntregadoComercio"=>"Retiro entregado al comercio",_=>type};
+}

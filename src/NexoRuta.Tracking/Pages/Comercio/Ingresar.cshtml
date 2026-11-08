@@ -1,0 +1,6 @@
+@page "/comercio/ingresar"
+@model NexoRuta.Tracking.Pages.Comercio.IngresarModel
+@{Layout="_Layout";ViewData["Title"]="Acceso al ensayo";}
+<h1>Acceso al receptor de prueba</h1><p>Ingresá la clave de controles del entorno sintético. Es distinta de la clave de firma de webhooks.</p>
+@if(Model.Error is not null){<p class="alert alert-danger" role="alert">@Model.Error</p>}
+<form method="post">@Html.AntiForgeryToken()<label for="clave" class="form-label">Clave de controles</label><input id="clave" name="Clave" type="password" class="form-control mb-3" required maxlength="512" autocomplete="current-password" /><button class="btn btn-primary">Abrir receptor</button></form>
