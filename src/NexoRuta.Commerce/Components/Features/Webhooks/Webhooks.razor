@@ -59,7 +59,7 @@
  private string ReceiverUrl=>new Uri(new Uri(Configuration["Tracking:BaseAddress"]??"http://localhost:5103/"),"comercio").AbsoluteUri;
  protected override void OnAfterRender(bool firstRender){if(firstRender){interactive=true;StateHasChanged();}}
  protected override async Task OnInitializedAsync(){busy=true;try{token=SesionUsuario.ObtenerToken((await AuthenticationState.GetAuthenticationStateAsync()).User);operators=(await Operadores.ListarOperadoresAsync(token)).ToArray();}catch(Exception){error="No pudimos consultar los operadores.";}finally{busy=false;}}
- private async Task ChangeOperator(){editing=false;history=null;detail=null;page=1;message=null;await Load();}
+ private async Task ChangeOperator(){editing=false;subscriptions=[];revoke=null;history=null;detail=null;page=1;message=null;await Load();}
  private async Task Load(){if(operatorId is not {} op)return;busy=true;error=null;try{subscriptions=await Api.Subscriptions(op,token);history=await Api.History(op,state,type,page,token);}catch(Exception){error="No pudimos consultar los webhooks. Verificá tu sesión y reintentá.";}finally{busy=false;}}
  private void New(){subscriptionId=Guid.NewGuid();revision=0;url="";secret="";contract=2;enabled=true;selected=["OperacionActualizada"];editing=true;message=null;}
  private void Edit(WebhookSubscription s){subscriptionId=s.Id;revision=s.Revision;url=s.Url;secret="";contract=s.Contrato;enabled=s.Habilitada;selected=s.Eventos.ToHashSet();editing=true;message=null;}
