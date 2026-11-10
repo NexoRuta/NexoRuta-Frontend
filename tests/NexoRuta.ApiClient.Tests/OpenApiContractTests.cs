@@ -20,6 +20,46 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task CommerceReturnsContractPublishesCurrentRoutesAndVersionedCommands()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var paths = root.GetProperty("paths");
+        var expected = new Dictionary<string, string[]>
+        {
+            ["/api/devoluciones"] = ["get"],
+            ["/api/devoluciones/envios/{envioId}"] = ["get"],
+            ["/api/devoluciones/envios/{envioId}/historial"] = ["get"],
+            ["/api/devoluciones/envios/{envioId}/transferencias"] = ["post"],
+            ["/api/devoluciones/transferencias/{transferenciaId}/acuses"] = ["post"]
+        };
+
+        foreach (var (path, methods) in expected)
+        {
+            Assert.True(paths.TryGetProperty(path, out var item), $"OpenAPI path {path} is missing.");
+            foreach (var method in methods)
+                Assert.True(item.TryGetProperty(method, out _), $"OpenAPI operation {method} {path} is missing.");
+        }
+
+        Assert.False(paths.TryGetProperty("/api/deposito/envios/{id}/devolucion-comercio", out _),
+            "The retired physical-transfer endpoint must not remain as a compatibility alias.");
+
+        var schemas = root.GetProperty("components").GetProperty("schemas");
+        var contractProperties = new Dictionary<string, string[]>
+        {
+            ["TransferirDevolucionRequest"] = ["comandoId", "versionEnvio", "bultos", "confirmarTransferenciaFisica"],
+            ["AcusarDevolucionRequest"] = ["comandoId", "versionTransferencia", "conforme", "bultos"],
+            ["BultoDevolucionResponse"] = ["id", "version", "puedeAcusar", "motivoBloqueo"]
+        };
+        foreach (var (schemaName, fields) in contractProperties)
+        {
+            var properties = schemas.GetProperty(schemaName).GetProperty("properties");
+            foreach (var field in fields)
+                Assert.True(properties.TryGetProperty(field, out _), $"OpenAPI field {schemaName}.{field} is missing.");
+        }
+    }
+
+    [Fact]
     public async Task StaticRoadEstimationContractsKeepManualAndCalculatedTimesSeparate()
     {
         using var d=await LoadOpenApiAsync();var paths=d.RootElement.GetProperty("paths");Assert.True(paths.TryGetProperty("/api/rutas/{id}/estimaciones",out var estimates));Assert.True(estimates.TryGetProperty("post",out _));Assert.True(estimates.TryGetProperty("get",out _));Assert.True(paths.TryGetProperty("/api/reparto/perfiles-viales/{id}",out _));Assert.True(paths.TryGetProperty("/api/rutas/{id}/estimaciones/recorrido",out _));

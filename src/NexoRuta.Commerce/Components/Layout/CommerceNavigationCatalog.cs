@@ -19,7 +19,8 @@ public static class CommerceNavigationCatalog
             new("Solicitar retiro", "/retiros/crear", "/retiros/crear", ApiPermissionAuthorizationHandler.ShipmentsCreatePolicy),
             new("Webhooks HTTP", "/webhooks", "/webhooks", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy),
             new("Avisos", "/avisos", "/avisos", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy),
-            new("Mis envíos", "/envios", "/envios", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)
+            new("Mis envíos", "/envios", "/envios", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy),
+            new("Devoluciones", "/devoluciones", "/devoluciones", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)
         ]),
         new("Comercio", [new("Cuenta y liquidaciones", "/cuenta", "/cuenta", ApiPermissionAuthorizationHandler.ShipmentsReadPolicy),new("Mi comercio", "/mi-comercio", "/mi-comercio", null)]),
         new("Administración",

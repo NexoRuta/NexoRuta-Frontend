@@ -4,6 +4,11 @@
     "title": "NexoRuta.Api | v1",
     "version": "1.0.0"
   },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:5000/"
+    }
+  ],
   "paths": {
     "/health/live": {
       "get": {
@@ -5757,49 +5762,6 @@
           },
           "503": {
             "description": "Service Unavailable"
-          }
-        }
-      }
-    },
-    "/api/deposito/envios/{id}/devolucion-comercio": {
-      "post": {
-        "tags": [
-          "Recepcion"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VersionRutaRequest"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VersionRutaRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/VersionRutaRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
           }
         }
       }
@@ -13921,7 +13883,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/pdf": {}
+              "application/pdf": { }
             }
           },
           "404": {
@@ -13938,6 +13900,774 @@
             "description": "Unprocessable Entity",
             "content": {
               "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devoluciones": {
+      "get": {
+        "tags": [
+          "Devoluciones"
+        ],
+        "parameters": [
+          {
+            "name": "operadorId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "desdeUtc",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "hastaUtc",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "situacion",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "referencia",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDevolucionesResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDevolucionesResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDevolucionesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devoluciones/envios/{envioId}": {
+      "get": {
+        "tags": [
+          "Devoluciones"
+        ],
+        "parameters": [
+          {
+            "name": "envioId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "operadorId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "desdeBulto",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevolucionDetalleResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevolucionDetalleResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevolucionDetalleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devoluciones/envios/{envioId}/historial": {
+      "get": {
+        "tags": [
+          "Devoluciones"
+        ],
+        "parameters": [
+          {
+            "name": "envioId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "operadorId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HechoDevolucionResponse"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HechoDevolucionResponse"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HechoDevolucionResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devoluciones/envios/{envioId}/transferencias": {
+      "post": {
+        "tags": [
+          "Devoluciones"
+        ],
+        "parameters": [
+          {
+            "name": "envioId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferirDevolucionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferirDevolucionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferirDevolucionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferenciaDevolucionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferenciaDevolucionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferenciaDevolucionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devoluciones/transferencias/{transferenciaId}/acuses": {
+      "post": {
+        "tags": [
+          "Devoluciones"
+        ],
+        "parameters": [
+          {
+            "name": "transferenciaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "operadorId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcusarDevolucionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcusarDevolucionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcusarDevolucionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcuseDevolucionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcuseDevolucionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcuseDevolucionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -15411,6 +16141,68 @@
         },
         "additionalProperties": false
       },
+      "AcusarDevolucionRequest": {
+        "required": [
+          "comandoId",
+          "versionTransferencia",
+          "conforme",
+          "bultos"
+        ],
+        "type": "object",
+        "properties": {
+          "comandoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionTransferencia": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "conforme": {
+            "type": "boolean"
+          },
+          "bultos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BultoAcuseDevolucionRequest"
+            }
+          }
+        }
+      },
+      "AcuseDevolucionResponse": {
+        "required": [
+          "acuseId",
+          "bultos",
+          "resultado",
+          "registradoEnUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "acuseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resultado": {
+            "type": "string"
+          },
+          "registradoEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "AjusteTarifarioAplicadoResponse": {
         "required": [
           "nombre",
@@ -15817,6 +16609,34 @@
           }
         }
       },
+      "BultoAcuseDevolucionRequest": {
+        "required": [
+          "bultoId",
+          "versionBulto",
+          "observacion"
+        ],
+        "type": "object",
+        "properties": {
+          "bultoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionBulto": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "observacion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "BultoDeclaradoRequest": {
         "required": [
           "codigo",
@@ -15961,6 +16781,18 @@
             ],
             "format": "decimal"
           },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
           "resultado": {
             "type": "string"
           },
@@ -15972,6 +16804,113 @@
           },
           "custodia": {
             "type": "string"
+          }
+        }
+      },
+      "BultoDevolucionRequest": {
+        "required": [
+          "bultoId",
+          "versionBulto"
+        ],
+        "type": "object",
+        "properties": {
+          "bultoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionBulto": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "BultoDevolucionResponse": {
+        "required": [
+          "id",
+          "codigo",
+          "resultado",
+          "custodia",
+          "version",
+          "transferenciaId",
+          "situacion",
+          "puedeAcusar",
+          "motivoBloqueo",
+          "resultadoAcuse",
+          "observacion",
+          "transferidoEnUtc",
+          "acusadoEnUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "resultado": {
+            "type": "string"
+          },
+          "custodia": {
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "transferenciaId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "situacion": {
+            "type": "string"
+          },
+          "puedeAcusar": {
+            "type": "boolean"
+          },
+          "motivoBloqueo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resultadoAcuse": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "observacion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "transferidoEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "acusadoEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -17711,6 +18650,156 @@
           }
         }
       },
+      "DevolucionDetalleResponse": {
+        "required": [
+          "envioId",
+          "operadorId",
+          "operadorNombre",
+          "referencia",
+          "estadoEnvio",
+          "versionEnvio",
+          "esRetiro",
+          "totalBultos",
+          "pendientesAcuse",
+          "bultos"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operadorNombre": {
+            "type": "string"
+          },
+          "referencia": {
+            "type": "string"
+          },
+          "estadoEnvio": {
+            "type": "string"
+          },
+          "versionEnvio": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "esRetiro": {
+            "type": "boolean"
+          },
+          "totalBultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pendientesAcuse": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "bultos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BultoDevolucionResponse"
+            }
+          }
+        }
+      },
+      "DevolucionResumenResponse": {
+        "required": [
+          "envioId",
+          "operadorId",
+          "operadorNombre",
+          "referencia",
+          "estadoEnvio",
+          "actividadEnUtc",
+          "totalBultos",
+          "enRetorno",
+          "enDeposito",
+          "pendientesAcuse",
+          "recibidosConObservaciones",
+          "situacion"
+        ],
+        "type": "object",
+        "properties": {
+          "envioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operadorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operadorNombre": {
+            "type": "string"
+          },
+          "referencia": {
+            "type": "string"
+          },
+          "estadoEnvio": {
+            "type": "string"
+          },
+          "actividadEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalBultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enRetorno": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enDeposito": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pendientesAcuse": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "recibidosConObservaciones": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "situacion": {
+            "type": "string"
+          }
+        }
+      },
       "EnvioCancelado": {
         "required": [
           "cancelacionId",
@@ -18547,6 +19636,63 @@
           }
         }
       },
+      "HechoDevolucionResponse": {
+        "required": [
+          "id",
+          "tipo",
+          "registradoEnUtc",
+          "ocurridoEnUtc",
+          "actor",
+          "bultos",
+          "resultado",
+          "observaciones"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "registradoEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ocurridoEnUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "bultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resultado": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "observaciones": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "HechoRecepcionDatos": {
         "required": [
           "comandoId",
@@ -19245,7 +20391,7 @@
           }
         }
       },
-      "JsonElement": {},
+      "JsonElement": { },
       "LineaLiquidacionResponse": {
         "required": [
           "movimientoId",
@@ -19917,6 +21063,27 @@
           "Borrador",
           "Publicacion"
         ]
+      },
+      "PaginaDevolucionesResponse": {
+        "required": [
+          "items",
+          "cursorSiguiente"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DevolucionResumenResponse"
+            }
+          },
+          "cursorSiguiente": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "PaginaOrganizaciones": {
         "required": [
@@ -22842,6 +24009,64 @@
           }
         }
       },
+      "TransferenciaDevolucionResponse": {
+        "required": [
+          "transferenciaId",
+          "bultos",
+          "registradaEnUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "transferenciaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bultos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "registradaEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TransferirDevolucionRequest": {
+        "required": [
+          "comandoId",
+          "versionEnvio",
+          "bultos",
+          "confirmarTransferenciaFisica"
+        ],
+        "type": "object",
+        "properties": {
+          "comandoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionEnvio": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "bultos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BultoDevolucionRequest"
+            }
+          },
+          "confirmarTransferenciaFisica": {
+            "type": "boolean"
+          }
+        }
+      },
       "TransicionLiquidacionResponse": {
         "required": [
           "estado",
@@ -23771,6 +24996,9 @@
     },
     {
       "name": "Envios"
+    },
+    {
+      "name": "Devoluciones"
     },
     {
       "name": "OperadoresDisponibles"

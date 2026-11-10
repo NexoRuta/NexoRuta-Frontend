@@ -142,10 +142,59 @@
 </section>
 
 <section class="nr-form-section"><h2>Pendientes para devolver al comercio</h2>
-@foreach (var envio in Model.Envios.Where(e => !e.EsRetiro && e.Bultos.Any(b => b.Resultado == "EnDevolucion") && e.Bultos.Where(b => b.Resultado == "EnDevolucion").All(b => b.Custodia == "Deposito")))
+@if (Model.TransferenciaResultadoDesconocido)
 {
-<form method="post" asp-page-handler="DevolverBultosComercio" data-single-submit>@await Html.PartialAsync("Shared/_RutasPostContext")
-<input type="hidden" name="envioId" value="@envio.Id"/><input type="hidden" name="version" value="@envio.Version"/>
-<p>@envio.ComercioNombre · @envio.Bultos.Count(b => b.Resultado == "EnDevolucion") pendiente(s)</p><button type="submit" class="nr-action-primary">Confirmar devolución física al comercio</button></form>
+    <p class="nr-routes-alert is-warning" role="status">@Model.Error La selección y el identificador del comando se conservaron para consultar el resultado idempotente.</p>
+}
+@foreach (var envio in Model.Envios.Where(e => !e.EsRetiro
+    && (e.Bultos.Any(b => b.Custodia == "Deposito" && b.Resultado is "EnDevolucion" or "Devuelto")
+        || Model.TransferenciaEnvioId == e.Id && Model.TransferenciaComandoId != Guid.Empty)))
+{
+    var candidatosActuales = envio.Bultos.Where(b => b.Custodia == "Deposito" && b.Resultado is "EnDevolucion" or "Devuelto").ToArray();
+    var repetirMismoComando = Model.TransferenciaEnvioId == envio.Id && Model.TransferenciaComandoId != Guid.Empty && Model.TransferenciaResultadoDesconocido;
+    var candidatos = repetirMismoComando
+        ? Model.BultosTransferencia
+        : candidatosActuales.Select(b => new NexoRuta.Backoffice.Features.Reparto.Pages.TransferenciaBultoFormulario
+            { BultoId = b.Id, VersionBulto = b.Version, Seleccionado = Model.TransferenciaEnvioId == envio.Id && Model.BultosTransferencia.Any(x => x.BultoId == b.Id && x.Seleccionado) }).ToList();
+    var comando = repetirMismoComando ? Model.TransferenciaComandoId : Guid.NewGuid();
+    var versionEnvio = repetirMismoComando ? Model.TransferenciaVersionEnvio : envio.Version;
+    var confirmar = repetirMismoComando ? Model.ConfirmarTransferenciaFisica : false;
+    <form method="post" asp-page-handler="DevolverBultosComercio" data-single-submit class="nr-return-transfer-form">
+        @await Html.PartialAsync("Shared/_RutasPostContext")
+        <input type="hidden" name="envioId" value="@envio.Id" />
+        <input type="hidden" name="TransferenciaEnvioId" value="@envio.Id" />
+        <input type="hidden" name="TransferenciaComandoId" value="@comando" />
+        <input type="hidden" name="TransferenciaVersionEnvio" value="@versionEnvio" />
+        <p>@envio.ComercioNombre · @candidatosActuales.Length bulto(s) de devolución actualmente en depósito</p>
+        @if (repetirMismoComando)
+        { <p class="nr-stop-help">Reintentá el mismo comando. No cambies las versiones ni la selección hasta recuperar su resultado.</p> }
+        @if (candidatos.Count > 0)
+        {
+            <fieldset class="nr-return-transfer-packages" disabled="@repetirMismoComando">
+                <legend>Seleccionar bultos entregados físicamente al comercio</legend>
+                @for (var i = 0; i < candidatos.Count; i++)
+                {
+                    var bulto = candidatos[i];
+                    var estadoActual = envio.Bultos.FirstOrDefault(x => x.Id == bulto.BultoId);
+                    <label class="nr-check-line" for="transfer-@envio.Id-@bulto.BultoId">
+                        <input id="transfer-@envio.Id-@bulto.BultoId" name="BultosTransferencia[@i].Seleccionado" value="true" type="checkbox" checked="@(bulto.Seleccionado ? "checked" : null)" />
+                        <input type="hidden" name="BultosTransferencia[@i].BultoId" value="@bulto.BultoId" />
+                        <input type="hidden" name="BultosTransferencia[@i].VersionBulto" value="@bulto.VersionBulto" />
+                        @(estadoActual?.Codigo ?? bulto.BultoId.ToString("N")[..8]) · @(estadoActual?.Resultado ?? "Transferencia pendiente de confirmar") · versión @bulto.VersionBulto
+                    </label>
+                }
+            </fieldset>
+        }
+        @if (repetirMismoComando)
+        {
+            <input type="hidden" name="ConfirmarTransferenciaFisica" value="true" />
+            <p class="nr-check-line">✓ Confirmación física conservada para este reintento.</p>
+        }
+        else
+        {
+            <label class="nr-check-line"><input type="checkbox" name="ConfirmarTransferenciaFisica" value="true" required checked="@(confirmar ? "checked" : null)" />Confirmo que los bultos seleccionados se entregaron físicamente al comercio.</label>
+        }
+        <button type="submit" class="nr-action-primary" disabled="@(candidatos.Count == 0)">@(repetirMismoComando ? "Reintentar el mismo comando" : "Registrar transferencia física")</button>
+    </form>
 }
 </section>

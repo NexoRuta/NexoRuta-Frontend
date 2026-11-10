@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using NexoRuta.ApiClient.Core.Http;
 using NexoRuta.ApiClient.Features.Reparto.Contracts;
+using NexoRuta.ApiClient.Features.Devoluciones.Contracts;
 namespace NexoRuta.ApiClient.Features.Reparto.Clients;
 
 public sealed class RutasApiClient(HttpClient http)
@@ -55,10 +56,10 @@ public sealed class RutasApiClient(HttpClient http)
     }
     public Task<ResultadoRecepcionResponse> CotejarBultoAsync(Guid id,CotejoBultoRequest datos,string token,CancellationToken ct) =>
         EnviarResponseAsync<ResultadoRecepcionResponse,CotejoBultoRequest>($"api/deposito/bultos/{id}/recepcion",datos,token,ct);
-    public async Task DevolverBultosComercioAsync(Guid envio, long version, string token, CancellationToken ct)
+    public async Task<TransferenciaDevolucionResponse> DevolverBultosComercioAsync(Guid envio, TransferirDevolucionRequest datos, string token, CancellationToken ct)
     {
-        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Post, $"api/deposito/envios/{envio}/devolucion-comercio") { Content = JsonContent.Create(new { version }) }, token);
-        await ApiHttp.SendNoContentAsync(http, request, ct);
+        using var request = ApiHttp.WithBearerToken(new(HttpMethod.Post, $"api/devoluciones/envios/{envio}/transferencias") { Content = JsonContent.Create(datos) }, token);
+        return await ApiHttp.SendAsync<TransferenciaDevolucionResponse>(http, request, ct);
     }
     public async Task EntregarComercioAsync(Guid envio, long version, string token, CancellationToken ct)
     {

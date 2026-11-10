@@ -79,6 +79,10 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Comercio)
         .AddRequirements(new ApiPermissionRequirement("envios.consultar")));
+    options.AddPolicy(ApiPermissionAuthorizationHandler.ReturnsManagePolicy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(SesionUsuario.ClaimTipoAcceso, SesionUsuario.Comercio)
+        .AddRequirements(new ApiPermissionRequirement("devoluciones.gestionar")));
 });
 builder.Services.AddScoped<IAuthorizationHandler, ApiPermissionAuthorizationHandler>();
 builder.Services.AddHttpClient("NexoRuta", client =>
@@ -86,6 +90,7 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<NexoRuta.ApiClient.Features.Gestion.GestionApiClient>()
     .AddTypedClient<NexoRuta.ApiClient.Features.Webhooks.WebhooksApiClient>()
     .AddTypedClient<EnviosApiClient>()
+    .AddTypedClient<NexoRuta.ApiClient.Features.Devoluciones.Clients.DevolucionesApiClient>()
     .AddTypedClient<DestinosEnvioApiClient>()
     .AddTypedClient<AuthApiClient>()
     .AddTypedClient<UsuariosApiClient>()

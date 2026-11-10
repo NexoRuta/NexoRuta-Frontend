@@ -1,0 +1,339 @@
+@page "/devoluciones"
+@page "/devoluciones/{EnvioId:guid}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = ApiPermissionAuthorizationHandler.ShipmentsReadPolicy)]
+@using System.Globalization
+@using System.Net
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using NexoRuta.ApiClient.Core.Exceptions
+@using NexoRuta.ApiClient.Core.Session
+@using NexoRuta.ApiClient.Features.Devoluciones.Clients
+@using NexoRuta.ApiClient.Features.Devoluciones.Contracts
+@using NexoRuta.ApiClient.Features.Operadores.Clients
+@inject DevolucionesApiClient ApiDevoluciones
+@inject OperadoresApiClient Operadores
+@inject AuthenticationStateProvider AuthenticationState
+@inject IAuthorizationService Authorization
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Devoluciones | NexoRuta</PageTitle>
+<main class="nr-returns-page" aria-labelledby="returns-title">
+    @if (EnvioId is null)
+    {
+        <header class="nr-returns-heading">
+            <div><p class="nr-returns-eyebrow">COMERCIO</p><h1 id="returns-title">Devoluciones</h1>
+                <p>Consultá el retorno de tus envíos y los bultos entregados en el comercio.</p></div>
+            <button class="btn btn-outline-secondary" type="button" disabled="@cargando" @onclick="CargarPaginaAsync">Actualizar</button>
+        </header>
+
+        <form class="nr-returns-filters" @onsubmit="AplicarFiltrosAsync" @onsubmit:preventDefault>
+            <div><label class="form-label" for="returns-from">Desde (UTC)</label><input id="returns-from" class="form-control" type="date" @bind="desde" /></div>
+            <div><label class="form-label" for="returns-to">Hasta (UTC)</label><input id="returns-to" class="form-control" type="date" @bind="hasta" /></div>
+            <div><label class="form-label" for="returns-operator">Operador</label>
+                <select id="returns-operator" class="form-select" @bind="operadorSeleccionado">
+                    <option value="">Todos</option>
+                    @foreach (var operador in operadores)
+                    { <option value="@operador.OperadorId">@operador.Nombre</option> }
+                </select>
+            </div>
+            <div><label class="form-label" for="returns-status">Situación</label>
+                <select id="returns-status" class="form-select" @bind="situacion">
+                    <option value="">Todas</option><option value="EnRetorno">En retorno</option>
+                    <option value="EnDeposito">En depósito</option><option value="PendienteAcuse">Pendiente de acuse</option>
+                    <option value="Recibido">Recibida</option><option value="Historico">Histórica</option>
+                </select>
+            </div>
+            <div class="nr-returns-reference"><label class="form-label" for="returns-reference">Referencia</label>
+                <input id="returns-reference" class="form-control" type="search" maxlength="128" @bind="referencia" /></div>
+            <button class="btn btn-primary" type="submit" disabled="@cargando">Aplicar filtros</button>
+        </form>
+
+        @if (mensaje is not null)
+        { <p class="nr-returns-message" role="status">@mensaje</p> }
+        @if (cargando && !listaCargada)
+        {
+            <section class="nr-returns-loading" aria-busy="true" aria-label="Cargando devoluciones">
+                <p class="visually-hidden" role="status">Cargando devoluciones.</p>
+                <div aria-hidden="true" class="nr-returns-skeleton"><span></span><span></span><span></span><span></span></div>
+            </section>
+        }
+        else
+        {
+            <section class="nr-returns-results" aria-labelledby="returns-results-title" aria-busy="@(cargando ? "true" : "false")">
+                <h2 id="returns-results-title" class="visually-hidden">Resultados de devoluciones</h2>
+                @if (cargando) { <p class="visually-hidden" role="status">Actualizando resultados.</p> }
+                @if (errorLista is not null)
+                {
+                    <div class="nr-returns-alert" role="alert"><p>@errorLista</p><button class="btn btn-outline-primary" type="button" @onclick="CargarPaginaAsync">Reintentar</button></div>
+                }
+                else if (pagina?.Items.Count is null or 0)
+                { <section class="nr-returns-empty"><h2>No hay devoluciones para estos filtros</h2><p>Probá ampliar las fechas o cambiar la situación.</p></section> }
+                else
+                {
+                    <div class="nr-returns-list">
+                        @foreach (var item in pagina.Items)
+                        {
+                            <article class="nr-return-row" @key="item.EnvioId">
+                                <div><p class="nr-return-reference">@item.Referencia</p><h3>@item.OperadorNombre</h3>
+                                    <p class="nr-return-meta">@item.ActividadEnUtc.ToUniversalTime().ToString("dd/MM/yyyy HH:mm 'UTC'", CultureInfo.GetCultureInfo("es-UY"))</p></div>
+                                <div class="nr-return-counts" aria-label="Estado de los bultos">
+                                    <span>@item.EnRetorno en retorno</span><span>@item.EnDeposito en depósito</span>
+                                    <span>@item.PendientesAcuse pendientes de acuse</span>
+                                    @if (item.RecibidosConObservaciones > 0) { <span>@item.RecibidosConObservaciones con observaciones</span> }
+                                </div>
+                                <span class="nr-return-status">@EtiquetaSituacion(item.Situacion)</span>
+                                <a class="btn btn-outline-primary" href="@DetalleUrl(item)">Ver devolución</a>
+                            </article>
+                        }
+                    </div>
+                    <footer class="nr-returns-pagination">
+                        <p role="status">@pagina.Items.Count resultado(s) en esta página</p>
+                        <div><button class="btn btn-outline-secondary" type="button" disabled="@(cursores.Count == 0 || cargando)" @onclick="PaginaAnteriorAsync">Anterior</button>
+                            <button class="btn btn-outline-secondary" type="button" disabled="@(string.IsNullOrEmpty(pagina.CursorSiguiente) || cargando)" @onclick="PaginaSiguienteAsync">Siguiente</button></div>
+                    </footer>
+                }
+            </section>
+        }
+    }
+    else
+    {
+        <header class="nr-returns-heading">
+            <div><p class="nr-returns-eyebrow">COMERCIO</p><h1 id="returns-title">Detalle de devolución</h1>
+                @if (detalle is not null) { <p>@detalle.Referencia · @detalle.OperadorNombre</p> }</div>
+            <a class="btn btn-outline-secondary" href="/devoluciones">Volver a devoluciones</a>
+        </header>
+        @if (errorDetalle is not null) { <div class="nr-returns-alert" role="alert"><p>@errorDetalle</p><button class="btn btn-outline-primary" type="button" @onclick="CargarDetalleAsync">Reintentar</button></div> }
+        @if (cargandoDetalle && detalle is null)
+        {
+            <section class="nr-returns-loading" aria-busy="true" aria-label="Cargando detalle">
+                <p class="visually-hidden" role="status">Cargando detalle de devolución.</p><div aria-hidden="true" class="nr-returns-skeleton"><span></span><span></span><span></span></div>
+            </section>
+        }
+        else if (detalle is not null)
+        {
+            <section class="nr-return-detail" aria-labelledby="return-parcels-title" aria-busy="@(cargandoDetalle ? "true" : "false")">
+                <div class="nr-return-summary"><p><strong>Estado del envío:</strong> @detalle.EstadoEnvio</p>
+                    <p><strong>Bultos en este circuito:</strong> @detalle.TotalBultos</p>
+                    <p><strong>Pendientes de acuse:</strong> @detalle.PendientesAcuse</p></div>
+                <div class="nr-return-section-heading"><h2 id="return-parcels-title">Situación por bulto</h2>
+                    <button class="btn btn-outline-secondary" type="button" disabled="@cargandoDetalle" @onclick="CargarDetalleAsync">Actualizar detalle</button></div>
+                @if (detalle.Bultos.Count == 0) { <p class="nr-returns-empty">No hay bultos de devolución trazables para este envío.</p> }
+                else
+                {
+                    <div class="nr-return-parcels">
+                        @foreach (var bulto in detalle.Bultos)
+                        {
+                            <article class="nr-return-parcel" @key="bulto.Id">
+                                <div><h3>@bulto.Codigo</h3><p>@bulto.Situacion</p>
+                                    @if (bulto.Observacion is not null) { <p><strong>Observación registrada:</strong> @bulto.Observacion</p> }
+                                    @if (bulto.MotivoBloqueo is not null) { <p class="nr-return-blocked">@bulto.MotivoBloqueo</p> }</div>
+                                @if (bulto.TransferenciaId is { } transferencia && bulto.PuedeAcusar && puedeAcusar)
+                                {
+                                    <label class="nr-return-select"><input type="checkbox" checked="@Seleccionado(bulto.Id)" disabled="@(guardandoAcuse || resultadoAcuseDesconocido || TransferenciaActiva is { } activa && activa != transferencia)" @onchange="e => CambiarSeleccion(bulto.Id, e)" /> Seleccionar para acuse</label>
+                                }
+                            </article>
+                        }
+                    </div>
+                    @if (detalle.TotalBultos > detalle.Bultos.Count)
+                    { <button class="btn btn-outline-secondary" type="button" disabled="@cargandoDetalle" @onclick="CargarSiguienteDetalleAsync">Ver más bultos</button> }
+                }
+                @if (puedeAcusar && TransferenciaActiva is not null && BultosSeleccionados.Count > 0)
+                {
+                    <form class="nr-return-ack" @onsubmit="EnviarAcuseAsync" @onsubmit:preventDefault>
+                        <h2>Registrar recepción</h2>
+                        <p>El acuse queda registrado como un hecho definitivo y no modifica estados ni cargos.</p>
+                        <fieldset disabled="@(guardandoAcuse || resultadoAcuseDesconocido)">
+                            <legend>Resultado de la recepción</legend>
+                            <label><input type="radio" name="ack-result" checked="@conforme" @onchange="() => conforme = true" /> Conforme</label>
+                            <label><input type="radio" name="ack-result" checked="@(!conforme)" @onchange="() => conforme = false" /> Con observaciones</label>
+                        </fieldset>
+                        @if (!conforme)
+                        {
+                            @foreach (var bulto in BultosSeleccionados)
+                            {
+                                <div class="nr-return-note"><label for="note-@bulto.Id">Observación para @bulto.Codigo</label>
+                                    <textarea id="note-@bulto.Id" class="form-control" minlength="10" maxlength="500" required disabled="@resultadoAcuseDesconocido" @bind="observaciones[bulto.Id]"></textarea></div>
+                            }
+                        }
+                        @if (resultadoAcuseDesconocido) { <p role="status">No modifiques la selección. Repetí el mismo comando para recuperar su resultado.</p> }
+                        <button class="btn btn-primary" type="submit" disabled="@(guardandoAcuse || !resultadoAcuseDesconocido && !conforme && BultosSeleccionados.Any(x => observaciones.GetValueOrDefault(x.Id)?.Trim().Length is < 10 or > 500))">
+                            @(guardandoAcuse ? "Registrando…" : resultadoAcuseDesconocido ? "Reintentar el mismo acuse" : $"Registrar acuse de {BultosSeleccionados.Count} bulto(s)")</button>
+                    </form>
+                }
+                @if (mensajeDetalle is not null) { <p class="nr-returns-message" role="status">@mensajeDetalle</p> }
+            </section>
+            <section class="nr-return-history" aria-labelledby="return-history-title">
+                <h2 id="return-history-title">Historial</h2>
+                @if (cargandoHistorial && historial.Count == 0) { <p role="status">Cargando historial.</p> }
+                else if (historial.Count == 0) { <p>Aún no hay hechos de devolución registrados.</p> }
+                else
+                { <ol>@foreach (var hecho in historial) { <li><strong>@hecho.Tipo</strong> · <span>@hecho.Actor</span>@if (hecho.Bultos is { } total) { <span> · @total bulto(s)</span> } · @hecho.RegistradoEnUtc.ToUniversalTime().ToString("dd/MM/yyyy HH:mm 'UTC'", CultureInfo.GetCultureInfo("es-UY"))</li> }</ol> }
+            </section>
+        }
+    }
+</main>
+
+@code {
+    [Parameter] public Guid? EnvioId { get; set; }
+    [SupplyParameterFromQuery(Name = "operadorId")] public Guid? OperadorDetalleId { get; set; }
+    private readonly CancellationTokenSource lifetime = new();
+    private string token = "";
+    private DateTime desde = DateTime.UtcNow.Date.AddDays(-29);
+    private DateTime hasta = DateTime.UtcNow.Date;
+    private string operadorSeleccionado = "";
+    private string situacion = "";
+    private string referencia = "";
+    private IReadOnlyList<NexoRuta.ApiClient.Features.Operadores.Contracts.Responses.OperadorDisponibleResponse> operadores = [];
+    private PaginaDevolucionesResponse? pagina;
+    private DevolucionDetalleResponse? detalle;
+    private IReadOnlyList<HechoDevolucionResponse> historial = [];
+    private readonly List<string?> cursores = [];
+    private readonly HashSet<Guid> seleccionados = [];
+    private readonly Dictionary<Guid, string> observaciones = [];
+    private bool cargando = true, listaCargada, cargandoDetalle, cargandoHistorial, guardandoAcuse, puedeAcusar, conforme = true, resultadoAcuseDesconocido;
+    private string? errorLista, errorDetalle, mensaje, mensajeDetalle;
+    private int offsetBultos;
+    private Guid? comandoAcusePendiente;
+    private Guid? transferenciaAcusePendiente;
+    private IReadOnlyList<BultoDevolucionResponse> BultosSeleccionados => detalle?.Bultos.Where(b => seleccionados.Contains(b.Id)).ToArray() ?? [];
+    private Guid? TransferenciaActiva => BultosSeleccionados.Select(x => x.TransferenciaId).Where(x => x is not null).Distinct().SingleOrDefault();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var user = (await AuthenticationState.GetAuthenticationStateAsync()).User;
+            token = SesionUsuario.ObtenerToken(user);
+            operadores = await Operadores.ListarOperadoresAsync(token, lifetime.Token);
+            puedeAcusar = (await Authorization.AuthorizeAsync(user, resource: null, ApiPermissionAuthorizationHandler.ReturnsManagePolicy)).Succeeded;
+        }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath, true), forceLoad: true); return; }
+        catch (Exception ex) when (ex is NexoRutaApiException or HttpRequestException or OperationCanceledException)
+        { errorLista = "No pudimos consultar los operadores. Actualizá la página para reintentar."; }
+        await CargarPaginaAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EnvioId is not null && token.Length > 0 && OperadorDetalleId is { } operador)
+            await CargarDetalleAsync();
+    }
+
+    private async Task CargarPaginaAsync()
+    {
+        if (desde == default || hasta == default || hasta < desde || (hasta.Date - desde.Date).TotalDays >= 90)
+        { errorLista = "Seleccioná un período UTC de hasta 90 días."; listaCargada = true; return; }
+        cargando = true; errorLista = null;
+        try
+        {
+            pagina = await ApiDevoluciones.ListarAsync(Guid.TryParse(operadorSeleccionado, out var op) ? op : null,
+                new DateTimeOffset(DateTime.SpecifyKind(desde.Date, DateTimeKind.Utc)),
+                new DateTimeOffset(DateTime.SpecifyKind(hasta.Date.AddDays(1), DateTimeKind.Utc)),
+                string.IsNullOrWhiteSpace(situacion) ? null : situacion,
+                string.IsNullOrWhiteSpace(referencia) ? null : referencia.Trim(),
+                cursores.Count == 0 ? null : cursores[^1], 50, token, lifetime.Token);
+            listaCargada = true; mensaje = null;
+        }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath, true), forceLoad: true); }
+        catch (Exception ex) when (ex is NexoRutaApiException or HttpRequestException or OperationCanceledException)
+        { errorLista = ex is NexoRutaApiException api ? api.Message : "No pudimos cargar las devoluciones. Intentá nuevamente."; }
+        finally { cargando = false; listaCargada = true; }
+    }
+
+    private async Task AplicarFiltrosAsync()
+    { cursores.Clear(); await CargarPaginaAsync(); }
+
+    private async Task PaginaSiguienteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(pagina?.CursorSiguiente)) return;
+        cursores.Add(pagina.CursorSiguiente); await CargarPaginaAsync();
+    }
+
+    private async Task PaginaAnteriorAsync()
+    {
+        if (cursores.Count == 0) return;
+        cursores.RemoveAt(cursores.Count - 1); await CargarPaginaAsync();
+    }
+
+    private string DetalleUrl(DevolucionResumenResponse item) => $"/devoluciones/{item.EnvioId:D}?operadorId={item.OperadorId:D}";
+
+    private async Task CargarDetalleAsync()
+    {
+        if (EnvioId is not { } envio || OperadorDetalleId is not { } operador) return;
+        cargandoDetalle = true; errorDetalle = null;
+        try
+        {
+            detalle = await ApiDevoluciones.ObtenerAsync(operador, envio, offsetBultos, 100, token, lifetime.Token);
+            cargandoHistorial = true;
+            historial = await ApiDevoluciones.HistorialAsync(operador, envio, token, lifetime.Token);
+            if (transferenciaAcusePendiente is null)
+            {
+                var first = detalle.Bultos.FirstOrDefault(x => x.PuedeAcusar && x.TransferenciaId is not null);
+                if (first?.TransferenciaId is { } transfer)
+                {
+                    foreach (var parcel in detalle.Bultos.Where(x => x.PuedeAcusar && x.TransferenciaId == transfer)) seleccionados.Add(parcel.Id);
+                    transferenciaAcusePendiente = transfer; comandoAcusePendiente = Guid.NewGuid();
+                }
+            }
+        }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath, true), forceLoad: true); }
+        catch (Exception ex) when (ex is NexoRutaApiException or HttpRequestException or OperationCanceledException)
+        { errorDetalle = ex is NexoRutaApiException api ? api.Message : "No pudimos cargar el detalle. Intentá nuevamente."; }
+        finally { cargandoDetalle = false; cargandoHistorial = false; }
+    }
+
+    private async Task CargarSiguienteDetalleAsync()
+    { if (detalle is null || detalle.Bultos.Count >= detalle.TotalBultos) return; offsetBultos += detalle.Bultos.Count; await CargarDetalleAsync(); }
+
+    private bool Seleccionado(Guid id) => seleccionados.Contains(id);
+    private void CambiarSeleccion(Guid id, ChangeEventArgs args)
+    {
+        if (resultadoAcuseDesconocido) return;
+        if (args.Value is true || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            seleccionados.Add(id);
+            if (detalle?.Bultos.FirstOrDefault(x => x.Id == id)?.TransferenciaId is { } transferencia) transferenciaAcusePendiente = transferencia;
+            comandoAcusePendiente ??= Guid.NewGuid();
+        }
+        else seleccionados.Remove(id);
+    }
+
+    private async Task EnviarAcuseAsync()
+    {
+        if (detalle is null || OperadorDetalleId is not { } operador || TransferenciaActiva is not { } transferencia || BultosSeleccionados.Count == 0) return;
+        if (!conforme && BultosSeleccionados.Any(x => observaciones.GetValueOrDefault(x.Id)?.Trim().Length is < 10 or > 500))
+        { mensajeDetalle = "Cada observación debe tener entre 10 y 500 caracteres."; return; }
+        guardandoAcuse = true; mensajeDetalle = null;
+        try
+        {
+            var commandId = comandoAcusePendiente ??= Guid.NewGuid();
+            var lines = BultosSeleccionados.Select(x => new BultoAcuseDevolucionRequest(x.Id, x.Version,
+                conforme ? null : observaciones.GetValueOrDefault(x.Id)?.Trim())).ToArray();
+            var result = await ApiDevoluciones.AcusarAsync(operador, transferencia,
+                new AcusarDevolucionRequest(commandId, 1, conforme, lines), token, lifetime.Token);
+            mensajeDetalle = $"Acuse registrado para {result.Bultos} bulto(s).";
+            seleccionados.Clear(); observaciones.Clear(); comandoAcusePendiente = null; transferenciaAcusePendiente = null;
+            resultadoAcuseDesconocido = false;
+            await CargarDetalleAsync();
+        }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+        { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath, true), forceLoad: true); }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+        { mensajeDetalle = "Tu rol ya no tiene permiso para registrar acuses. Actualizá la página."; puedeAcusar = false; }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
+        { mensajeDetalle = ex.Message + " Se conserva la selección y el comando; actualizá el detalle antes de iniciar otro acuse."; }
+        catch (Exception ex) when (ex is NexoRutaApiException or HttpRequestException or OperationCanceledException)
+        { resultadoAcuseDesconocido = true; mensajeDetalle = "No se confirmó el resultado. Podés reintentar el mismo comando; no se duplicará el acuse."; }
+        finally { guardandoAcuse = false; }
+    }
+
+    private static string EtiquetaSituacion(string value) => value switch
+    { "EnRetorno" => "En retorno", "EnDeposito" => "En depósito", "PendienteAcuse" => "Pendiente de acuse", "Recibido" => "Recibida", _ => "Histórica" };
+
+    public void Dispose() { lifetime.Cancel(); lifetime.Dispose(); }
+}

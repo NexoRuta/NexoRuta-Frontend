@@ -9,6 +9,7 @@ using NexoRuta.ApiClient.Features.Envios.Clients;
 using NexoRuta.ApiClient.Features.Envios.Contracts.Responses;
 using NexoRuta.ApiClient.Features.Reparto.Clients;
 using NexoRuta.ApiClient.Features.Reparto.Contracts;
+using NexoRuta.ApiClient.Features.Devoluciones.Contracts;
 using NexoRuta.ApiClient.Features.Usuarios.Clients;
 using NexoRuta.Backoffice.Core.Security;
 namespace NexoRuta.Backoffice.Features.Reparto.Pages;
@@ -96,6 +97,12 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
     [BindProperty] public Guid ComandoId { get; set; }
     [BindProperty] public string? MotivoDevolucion { get; set; }
     [BindProperty] public bool ConfirmarDevolucion { get; set; }
+    [BindProperty] public Guid TransferenciaEnvioId { get; set; }
+    [BindProperty] public Guid TransferenciaComandoId { get; set; }
+    [BindProperty] public long TransferenciaVersionEnvio { get; set; }
+    [BindProperty] public bool ConfirmarTransferenciaFisica { get; set; }
+    [BindProperty] public List<TransferenciaBultoFormulario> BultosTransferencia { get; set; } = [];
+    public bool TransferenciaResultadoDesconocido { get; private set; }
     [BindProperty] public Guid ExtravioEnvioId { get; set; }
     [BindProperty] public string? MotivoExtravio { get; set; }
     [BindProperty] public bool ConfirmarExtravio { get; set; }
@@ -191,11 +198,56 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
         catch (HttpRequestException) { Error = "No se pudo confirmar el resultado. Actualizá la ruta antes de repetir la operación."; }
         return await Cargar();
     }
-    public Task<IActionResult> OnPostDevolverBultosComercioAsync(Guid envioId, long version) => Ejecutar(async () =>
+    public async Task<IActionResult> OnPostDevolverBultosComercioAsync(Guid envioId)
     {
-        await api.DevolverBultosComercioAsync(envioId, version, Token(), HttpContext.RequestAborted);
-        Confirmacion = "Bultos pendientes devueltos físicamente al comercio.";
-    });
+        TransferenciaEnvioId = envioId;
+        if (!ModelState.IsValid || TransferenciaComandoId == Guid.Empty || TransferenciaVersionEnvio < 0
+            || !ConfirmarTransferenciaFisica || BultosTransferencia is null
+            || BultosTransferencia.Count is < 1 or > 100
+            || BultosTransferencia.Where(x => x.Seleccionado).Select(x => x.BultoId).Distinct().Count() != BultosTransferencia.Count(x => x.Seleccionado))
+        {
+            Error = "Confirmá la entrega física y seleccioná al menos un bulto único con su versión actual.";
+            return await Cargar();
+        }
+
+        var seleccionados = BultosTransferencia.Where(x => x.Seleccionado).ToArray();
+        if (seleccionados.Length == 0)
+        {
+            Error = "Seleccioná al menos un bulto para transferir.";
+            return await Cargar();
+        }
+
+        try
+        {
+            await api.DevolverBultosComercioAsync(envioId,
+                new TransferirDevolucionRequest(TransferenciaComandoId, TransferenciaVersionEnvio,
+                    seleccionados.Select(x => new BultoDevolucionRequest(x.BultoId, x.VersionBulto)).ToArray(), true),
+                Token(), HttpContext.RequestAborted);
+            Confirmacion = "Transferencia física registrada para los bultos seleccionados.";
+            return RedirectarDiario();
+        }
+        catch (NexoRutaApiException ex)
+        {
+            var redirect = await ApiSession.RedirectIfExpiredAsync(this, ex);
+            if (redirect is not null) return redirect;
+            Error = (int?)ex.StatusCode == 409
+                ? ex.Message + " El estado cambió; revisá la selección antes de enviar otro comando."
+                : ex.Message;
+            TransferenciaResultadoDesconocido = false;
+            if ((int?)ex.StatusCode == 409) TransferenciaComandoId = Guid.Empty;
+        }
+        catch (HttpRequestException)
+        {
+            Error = "No se confirmó el resultado. Reintentá exactamente el mismo comando para recuperar su respuesta.";
+            TransferenciaResultadoDesconocido = true;
+        }
+        catch (TaskCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            Error = "Se agotó el tiempo de espera. El resultado puede haberse guardado; reintentá el mismo comando.";
+            TransferenciaResultadoDesconocido = true;
+        }
+        return await Cargar();
+    }
     public Task<IActionResult> OnPostEntregarComercioAsync(Guid envioId, long version) => Ejecutar(async () =>
     {
         await api.EntregarComercioAsync(envioId, version, Token(), HttpContext.RequestAborted);
@@ -323,6 +375,11 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
         {
             Vista = "deposito";
             EnvioSeleccionadoId = ExtravioEnvioId;
+        }
+        if (TransferenciaEnvioId != Guid.Empty && !EsDetalle)
+        {
+            Vista = "deposito";
+            EnvioSeleccionadoId = TransferenciaEnvioId;
         }
 
         var fechaInvalida = ModelState.TryGetValue(nameof(FechaSalida), out var fechaSalidaModelState) && fechaSalidaModelState.Errors.Count > 0
@@ -506,3 +563,10 @@ public sealed partial class RutasModel(RutasApiClient api, EnviosApiClient envio
 
 public sealed record AccionFlotaFormulario(Guid Vehiculo, Guid? Ocupacion, long Version, string Accion, string Texto,
     DateOnly Fecha, Guid? Envio = null, long? VersionEnvio = null);
+
+public sealed class TransferenciaBultoFormulario
+{
+    public Guid BultoId { get; set; }
+    public long VersionBulto { get; set; }
+    public bool Seleccionado { get; set; }
+}
