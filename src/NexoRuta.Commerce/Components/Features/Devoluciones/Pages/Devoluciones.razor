@@ -104,7 +104,12 @@
                 @if (detalle is not null) { <p>@detalle.Referencia · @detalle.OperadorNombre</p> }</div>
             <a class="btn btn-outline-secondary" href="/devoluciones">Volver a devoluciones</a>
         </header>
-        @if (errorDetalle is not null) { <div class="nr-returns-alert" role="alert"><p>@errorDetalle</p><button class="btn btn-outline-primary" type="button" @onclick="CargarDetalleAsync">Reintentar</button></div> }
+        @if (errorDetalle is not null)
+        {
+            <div class="nr-returns-alert" role="alert"><p>@errorDetalle</p>
+                @if (!detalleNoEncontrado) { <button class="btn btn-outline-primary" type="button" @onclick="CargarDetalleAsync">Reintentar</button> }
+            </div>
+        }
         @if (cargandoDetalle && detalle is null)
         {
             <section class="nr-returns-loading" aria-busy="true" aria-label="Cargando detalle">
@@ -192,7 +197,7 @@
     private readonly List<string?> cursores = [];
     private readonly HashSet<Guid> seleccionados = [];
     private readonly Dictionary<Guid, string> observaciones = [];
-    private bool cargando = true, listaCargada, cargandoDetalle, cargandoHistorial, guardandoAcuse, puedeAcusar, conforme = true, resultadoAcuseDesconocido;
+    private bool cargando = true, listaCargada, cargandoDetalle, cargandoHistorial, guardandoAcuse, puedeAcusar, conforme = true, resultadoAcuseDesconocido, detalleNoEncontrado;
     private string? errorLista, errorDetalle, mensaje, mensajeDetalle;
     private int offsetBultos;
     private Guid? comandoAcusePendiente;
@@ -264,7 +269,7 @@
     private async Task CargarDetalleAsync()
     {
         if (EnvioId is not { } envio || OperadorDetalleId is not { } operador) return;
-        cargandoDetalle = true; errorDetalle = null;
+        cargandoDetalle = true; errorDetalle = null; detalleNoEncontrado = false;
         try
         {
             detalle = await ApiDevoluciones.ObtenerAsync(operador, envio, offsetBultos, 100, token, lifetime.Token);
@@ -282,6 +287,8 @@
         }
         catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
         { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath, true), forceLoad: true); }
+        catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        { errorDetalle = "No encontramos una devolución disponible para este envío."; detalleNoEncontrado = true; }
         catch (Exception ex) when (ex is NexoRutaApiException or HttpRequestException or OperationCanceledException)
         { errorDetalle = ex is NexoRutaApiException api ? api.Message : "No pudimos cargar el detalle. Intentá nuevamente."; }
         finally { cargandoDetalle = false; cargandoHistorial = false; }
