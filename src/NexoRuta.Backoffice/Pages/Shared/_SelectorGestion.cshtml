@@ -1,0 +1,13 @@
+@model NexoRuta.ApiClient.Features.Gestion.SelectorGestion
+<div data-nr-selector data-tipo="@Model.Etiqueta" class="nr-selector">
+<label for="@Model.Campo" class="form-label">@Model.Etiqueta</label>
+<select id="@Model.Campo" name="@Model.Campo" class="form-select" required="@Model.Obligatorio">
+<option value="">@(Model.Obligatorio?"Seleccioná un comercio":"Todos")</option>
+@foreach(var o in Model.Opciones.Opciones){<option value="@o.Id" selected="@(Model.Seleccion==o.Id)">@o.Nombre</option>}
+</select>
+<details class="mt-2"><summary>Buscar más opciones</summary>
+<label for="buscar-@Model.Campo" class="form-label">Buscar @Model.Etiqueta.ToLowerInvariant()</label>
+<input id="buscar-@Model.Campo" type="search" class="form-control" maxlength="160" />
+<div class="d-flex flex-wrap gap-2 mt-2"><button type="button" class="btn btn-outline-secondary" data-search>Buscar</button><button type="button" class="btn btn-outline-secondary" data-more hidden="@(!Model.Opciones.HayMas)">Más opciones</button></div>
+</details><span role="status" class="small" data-options-status>@(Model.Opciones.Opciones.Count==0?"No hay opciones disponibles.":"")</span>
+</div>

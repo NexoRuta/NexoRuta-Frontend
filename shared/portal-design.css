@@ -364,3 +364,18 @@ html { scroll-padding-top: 5.5rem; }
 .nr-economic-source { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 36rem; font-size: .875rem; }
 
 .nr-economic-table { min-width: 48rem; }
+
+/* Compact account summary; data tables retain their local scrolling regions. */
+.nr-account-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem 1rem; max-width: 48rem; }
+.nr-account-summary dd { text-align: end; font-variant-numeric: tabular-nums; }
+.nr-selector { min-width: 0; }
+.nr-selector select { width: 100%; }
+@media (max-width: 575.98px) {
+  .nr-account-summary { grid-template-columns: minmax(0, 1fr); }
+  .nr-account-summary dd { text-align: start; margin-bottom: .75rem; }
+}
+/* Preserve words and allow narrow data views to scroll locally. */
+.nr-report-table { min-width: 44rem; }
+.nr-report-table th, .nr-report-table td { min-width: 9rem; word-break: normal; overflow-wrap: normal; }
+.nr-report-table td:first-child { min-width: 13rem; }
+.nr-report-table td details { overflow-wrap: anywhere; }

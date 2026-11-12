@@ -3,41 +3,42 @@
 @using NexoRuta.ApiClient.Features.Gestion
 @{ ViewData["Title"]="Reportes de gestión"; }
 <h1>Reportes de gestión</h1>
-<p>Períodos en America/Montevideo (UTC−03). Desde incluido; hasta excluido. Volumen y cumplimiento por fecha de admisión; motivos por fecha física del intento.</p>
-<form method="get" class="row g-3 mb-4">
+<p class="small text-muted">Hora de Uruguay · Hasta excluido</p>
+<form data-single-submit method="get" class="row g-3 mb-4">
  <div class="col-sm-6 col-lg-3"><label for="Desde" class="form-label">Desde</label><input asp-for="Desde" type="date" class="form-control" required /></div>
  <div class="col-sm-6 col-lg-3"><label for="Hasta" class="form-label">Hasta (excluido)</label><input asp-for="Hasta" type="date" class="form-control" required /></div>
- <div class="col-sm-6 col-lg-4"><label for="ComercioId" class="form-label">Comercio (ID)</label><input asp-for="ComercioId" class="form-control" /></div>
- <div class="col-sm-6 col-lg-4"><label for="ZonaId" class="form-label">Zona (ID)</label><input asp-for="ZonaId" class="form-control" /></div>
- <div class="col-sm-6 col-lg-4"><label for="RepartidorId" class="form-label">Repartidor (ID de acceso)</label><input asp-for="RepartidorId" class="form-control" /></div>
+ <div class="col-sm-6 col-lg-4">@if(Model.Opciones.TryGetValue("Comercio",out var opcionesComercio)){<partial name="_SelectorGestion" model='new SelectorGestion("ComercioId","Comercio",Model.ComercioId,opcionesComercio)' />}</div>
+ <div class="col-sm-6 col-lg-4">@if(Model.Opciones.TryGetValue("Zona",out var opcionesZona)){<partial name="_SelectorGestion" model='new SelectorGestion("ZonaId","Zona",Model.ZonaId,opcionesZona)' />}</div>
+ <div class="col-sm-6 col-lg-4">@if(Model.Opciones.TryGetValue("Repartidor",out var opcionesRepartidor)){<partial name="_SelectorGestion" model='new SelectorGestion("RepartidorId","Repartidor",Model.RepartidorId,opcionesRepartidor)' />}</div>
  <div><button class="btn btn-primary" type="submit">Consultar indicadores</button> <a asp-page="/ReporteOperaciones" class="btn btn-outline-secondary">Limpiar filtros</a></div>
 </form>
 @if(Model.Error is not null){<p class="alert alert-danger" role="alert">@Model.Error</p>}
 @if(Model.Reporte is {} r){
- <p role="status">Proyección: @r.EstadoProyeccion. Última aplicación del worker: @PeriodoGestion.Fecha(r.ActualizadaEnUtc). Consulta: @PeriodoGestion.Fecha(r.ConsultadaEnUtc). Operaciones pendientes de proyección: @r.PendientesProyeccion.</p>
- @if(r.PendientesProyeccion>0){<p class="alert alert-warning">Los indicadores están atrasados. El worker debe procesar los hechos pendientes.</p>}
- <h2>Cumplimiento y volumen</h2>
- <p>Porcentaje = cumplidos ÷ (cumplidos + incumplidos). «Sin compromiso», «en plazo», «prueba pendiente» y «no evaluable» se muestran fuera del denominador. Zona y comercio cuentan cada operación una vez. Repartidor cuenta bultos atribuidos a quien realizó su entrega física o retiro; una operación puede tener varios repartidores.</p>
+ <details class="small mb-3"><summary>Proyección: @EtiquetasGestion.Texto(r.EstadoProyeccion)</summary><p>Última actualización: @PeriodoGestion.Fecha(r.ActualizadaEnUtc) · Consulta: @PeriodoGestion.Fecha(r.ConsultadaEnUtc) · @r.PendientesProyeccion pendientes.</p></details>
+ @if(r.EstadoProyeccion!="Actualizada"){<p class="alert alert-warning" role="status">Los indicadores pueden estar desactualizados. Volvé a consultar más tarde.</p>}
+ <h2>Cumplimiento y volumen</h2><p class="small text-muted">Comercios, zonas y autores: nombres actuales.</p>
+ <details class="mb-3"><summary>Cómo se calcula el cumplimiento</summary><p>Porcentaje = cumplidos ÷ (cumplidos + incumplidos). «Sin compromiso», «en plazo», «prueba pendiente» y «no evaluable» se muestran fuera del denominador. Zona y comercio cuentan cada operación una vez. Repartidor cuenta bultos atribuidos a quien realizó su entrega física o retiro; una operación puede tener varios repartidores.</p></details>
  @if(r.Indicadores.Count==0){<p>No hay operaciones admitidas en este período.</p>}
  else{
- <div class="table-responsive" role="region" aria-label="Indicadores por corte" tabindex="0"><table class="table"><thead><tr><th scope="col">Corte</th><th scope="col">Grupo y detalle</th><th scope="col">Unidad / cantidad</th><th scope="col">Cumplimiento</th><th scope="col">Fuera del denominador</th><th scope="col">Volumen declarado</th><th scope="col">Resultados de bultos</th></tr></thead><tbody>
- @foreach(var i in r.Indicadores){var denominator=i.Cumplidos+i.Incumplidos;<tr><td>@i.Corte</td><td class="text-break">
+ @foreach(var corte in r.Indicadores.GroupBy(i=>i.Corte)){
+ <details class="mb-3 nr-report-cut" open="@(corte.Key=="Comercio")"><summary>@corte.Key · @corte.Count() grupos</summary><div class="table-responsive" role="region" aria-label="Indicadores por corte" tabindex="0"><table class="table nr-report-table"><thead><tr><th scope="col">Grupo y detalle</th><th scope="col">Unidad / cantidad</th><th scope="col">Cumplimiento</th><th scope="col">Fuera del denominador</th><th scope="col">Volumen declarado</th><th scope="col">Resultados de bultos</th></tr></thead><tbody>
+ @foreach(var i in corte){var denominator=i.Cumplidos+i.Incumplidos;<tr><td class="text-break">
  @if(Guid.TryParse(i.Clave,out var id) && i.Corte is "Zona" or "Comercio" or "Repartidor"){
- <a href="@Model.Enlace(1,i.Corte=="Comercio"?id:null,i.Corte=="Zona"?id:null,i.Corte=="Repartidor"?id:null)">@i.Clave</a>
- @if(i.Corte=="Comercio"){<div><a asp-page="/Liquidaciones/Index" asp-route-ComercioId="@id">Consultar cuenta y preparar liquidación</a></div>}}
- else{@i.Clave}</td><td>@i.Unidad: @i.Cantidad</td><td>@i.Cumplidos / @denominator · @(denominator==0 ? "Sin evaluables" : (100m*i.Cumplidos/denominator).ToString("N1")+" %")<br />Incumplidos: @i.Incumplidos</td><td>Sin compromiso: @i.SinCompromiso<br />En plazo: @i.EnPlazo<br />Prueba pendiente: @i.PruebaPendiente<br />No evaluables: @i.NoEvaluables</td><td>@i.Bultos bultos<br />@i.PesoKg.ToString("N3") kg<br />@i.VolumenM3.ToString("N6") m³</td><td>Entregados: @i.Entregados<br />Pendientes: @i.Pendientes<br />En devolución/devueltos: @i.Devueltos</td></tr>}
- </tbody></table></div>}
+ <a href="@Model.Enlace(1,i.Corte=="Comercio"?id:null,i.Corte=="Zona"?id:null,i.Corte=="Repartidor"?id:null)">@Model.Referencias.Nombre(i.Corte,id)</a>
+ @if(i.Corte=="Comercio"){<div><a asp-page="/Liquidaciones/Index" asp-route-ComercioId="@id" asp-route-Desde="@Model.Desde.ToString("yyyy-MM-dd")" asp-route-Hasta="@Model.Hasta.ToString("yyyy-MM-dd")" class="btn btn-outline-secondary btn-sm mt-2">Ver cuenta</a></div>}}
+ else{@EtiquetasGestion.Texto(i.Clave)}</td><td>@i.Unidad: @i.Cantidad</td><td>@i.Cumplidos / @denominator · @(denominator==0 ? "Sin evaluables" : (100m*i.Cumplidos/denominator).ToString("N1")+" %")<br />Incumplidos: @i.Incumplidos</td><td>Sin compromiso: @i.SinCompromiso<br />En plazo: @i.EnPlazo<br />Prueba pendiente: @i.PruebaPendiente<br />No evaluables: @i.NoEvaluables</td><td>Bultos: @i.Bultos<br />@i.PesoKg.ToString("N3") kg<br />@i.VolumenM3.ToString("N6") m³</td><td>Entregados: @i.Entregados<br />Pendientes: @i.Pendientes<br />En devolución/devueltos: @i.Devueltos</td></tr>}
+ </tbody></table></div></details>}}
  <h2>Motivos de no entrega y retiro</h2>
- <p>Los intentos fallidos y fallos de retiro cuentan operaciones aceptadas del diario, una vez por identidad. Los pendientes cuentan resultados de bulto por visita; pueden repetirse en visitas distintas.</p>
+ <details class="mb-3"><summary>Qué cuentan los motivos</summary><p>Los intentos fallidos y fallos de retiro cuentan operaciones aceptadas del diario, una vez por identidad. Los pendientes cuentan resultados de bulto por visita; pueden repetirse en visitas distintas.</p></details>
  @if(r.Motivos.Count==0){<p>No hay motivos registrados para estos filtros.</p>}
- else{<ul>@foreach(var m in r.Motivos){<li>@m.Tipo · @m.Motivo: @m.Cantidad @m.Unidad</li>}</ul>}
+ else{<ul>@foreach(var m in r.Motivos){<li>@EtiquetasGestion.Texto(m.Tipo) · @m.Motivo: @m.Cantidad @(m.Cantidad==1 && m.Unidad=="intentos"?"intento":m.Unidad)</li>}</ul>}
  <h2>Operaciones que explican el volumen</h2><p>@r.Total resultados. Página @Model.Pagina.</p>
- <div class="table-responsive" role="region" aria-label="Detalle de operaciones" tabindex="0"><table class="table"><thead><tr><th scope="col">Operación</th><th scope="col">Zona capturada</th><th scope="col">Admisión</th><th scope="col">Compromiso / finalización física</th><th scope="col">Estado y cumplimiento</th><th scope="col">Declaración</th></tr></thead><tbody>
- @foreach(var d in r.Detalles){<tr><td class="text-break"><a href="/reportes/operaciones/@d.EnvioId?volver=@Uri.EscapeDataString("/ReporteOperaciones"+Model.Enlace(Model.Pagina))">@d.EnvioId</a><br />@(d.EsRetiro?"Retiro":"Entrega")</td><td>@d.Zona</td><td>@PeriodoGestion.Fecha(d.AdmitidaEnUtc)</td><td>@PeriodoGestion.Fecha(d.CompromisoHastaUtc)<br />@PeriodoGestion.Fecha(d.CompletadaEnUtc)</td><td>@d.Estado<br />@d.Cumplimiento</td><td>@d.Bultos bultos · @d.PesoKg.ToString("N3") kg · @d.VolumenM3.ToString("N6") m³</td></tr>}
+ <div class="table-responsive" role="region" aria-label="Detalle de operaciones" tabindex="0"><table class="table nr-report-table"><thead><tr><th scope="col">Operación</th><th scope="col">Zona capturada</th><th scope="col">Admisión</th><th scope="col">Compromiso / finalización física</th><th scope="col">Estado y cumplimiento</th><th scope="col">Declaración</th></tr></thead><tbody>
+ @foreach(var d in r.Detalles){<tr><td class="text-break"><a href="/reportes/operaciones/@d.EnvioId?volver=@Uri.EscapeDataString("/ReporteOperaciones"+Model.Enlace(Model.Pagina))">@Model.Referencias.Nombre("Envio",d.EnvioId)</a><br />@(d.EsRetiro?"Retiro":"Entrega")</td><td>@if(Guid.TryParse(d.Zona,out var zona)){<span>@Model.Referencias.Nombre("Zona",zona) <small>(nombre actual)</small></span>}else{@d.Zona}</td><td>@PeriodoGestion.Fecha(d.AdmitidaEnUtc)</td><td>@PeriodoGestion.Fecha(d.CompromisoHastaUtc)<br />@PeriodoGestion.Fecha(d.CompletadaEnUtc)</td><td>@EtiquetasGestion.Texto(d.Estado)<br />@EtiquetasGestion.Texto(d.Cumplimiento)</td><td>Bultos: @d.Bultos · @d.PesoKg.ToString("N3") kg · @d.VolumenM3.ToString("N6") m³</td></tr>}
  </tbody></table></div>
  <h2>Visitas que explican los motivos</h2><p>@r.TotalMotivos registros.</p>
- <div class="table-responsive" role="region" aria-label="Detalle de motivos" tabindex="0"><table class="table"><thead><tr><th scope="col">Operación / visita</th><th scope="col">Repartidor histórico</th><th scope="col">Fecha física</th><th scope="col">Motivo</th></tr></thead><tbody>
- @foreach(var m in r.DetallesMotivos){<tr><td class="text-break">@m.EnvioId<br />Visita: @m.OperacionId</td><td class="text-break">@m.RepartidorId</td><td>@PeriodoGestion.Fecha(m.OcurridaEnUtc)</td><td>@m.Tipo · @m.Motivo @if(m.Bultos>0){<span>· @m.Bultos bultos</span>}</td></tr>}
+ <div class="table-responsive" role="region" aria-label="Detalle de motivos" tabindex="0"><table class="table nr-report-table"><thead><tr><th scope="col">Operación / visita</th><th scope="col">Autor · nombre actual</th><th scope="col">Fecha física</th><th scope="col">Motivo</th></tr></thead><tbody>
+ @foreach(var m in r.DetallesMotivos){<tr><td class="text-break">@Model.Referencias.Nombre("Envio",m.EnvioId)<details><summary>Identificadores</summary>Envío: @m.EnvioId<br />Visita: @m.OperacionId</details></td><td class="text-break">@Model.Referencias.Nombre("Repartidor",m.RepartidorId)<details><summary>Referencia técnica</summary>@m.RepartidorId</details></td><td>@PeriodoGestion.Fecha(m.OcurridaEnUtc)</td><td>@EtiquetasGestion.Texto(m.Tipo) · @m.Motivo @if(m.Bultos>0){<span>· @m.Bultos bultos</span>}</td></tr>}
  </tbody></table></div>
  <nav aria-label="Páginas de detalles">@if(Model.Pagina>1){<a class="btn btn-outline-secondary" href="@Model.Enlace(Model.Pagina-1)">Anterior</a>} @if(Model.Pagina*25<Math.Max(r.Total,r.TotalMotivos)){<a class="btn btn-outline-secondary" href="@Model.Enlace(Model.Pagina+1)">Siguiente</a>}</nav>
 }

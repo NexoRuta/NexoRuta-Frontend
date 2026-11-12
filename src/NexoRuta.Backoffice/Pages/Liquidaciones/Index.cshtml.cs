@@ -8,6 +8,26 @@ using NexoRuta.ApiClient.Core.Exceptions;
 namespace NexoRuta.Backoffice.Pages.Liquidaciones;
 public sealed class IndexModel(GestionApiClient api,UsuariosApiClient usuarios,IAuthorizationService authorization):PageModel
 {
+    public Dictionary<string,OpcionesGestion> Opciones {get;}=[];
+    public ReferenciasGestion Referencias {get;}=new(api);
+    public async Task<IActionResult> OnGetOpcionesAsync(string tipo,string? buscar,int pagina=1)
+    {
+        try {var token=SesionUsuario.ObtenerToken(User);var actor=await usuarios.ObtenerUsuarioActualAsync(token,HttpContext.RequestAborted);
+        return new JsonResult(await api.OpcionesAsync(actor.OperadorId!.Value,tipo,token,buscar??"",pagina,ct:HttpContext.RequestAborted));}
+        catch(HttpRequestException){return new StatusCodeResult(503);}
+    }
+    private async Task CargarOpciones(Guid op,string token)
+    {
+        foreach(var (tipo,id) in new (string,Guid?)[]{("Comercio",ComercioId)})
+        {
+            var options=await api.OpcionesAsync(op,tipo,token,ct:HttpContext.RequestAborted);
+            if(id is {} selected && !options.Opciones.Any(o=>o.Id==selected)){
+                var current=await api.OpcionesAsync(op,tipo,token,seleccionado:selected,ct:HttpContext.RequestAborted);
+                options=options with {Opciones=options.Opciones.Concat(current.Opciones).ToArray()};
+            }
+            Opciones[tipo]=options;
+        }
+    }
     [BindProperty(SupportsGet=true)] public DateOnly Desde {get;set;}=PeriodoGestion.Hoy.AddDays(-30);
     [BindProperty(SupportsGet=true)] public DateOnly Hasta {get;set;}=PeriodoGestion.Hoy.AddDays(1);
     [BindProperty(SupportsGet=true)] public Guid? ComercioId {get;set;}
@@ -27,11 +47,14 @@ public sealed class IndexModel(GestionApiClient api,UsuariosApiClient usuarios,I
     private async Task Cargar()
     {
         PuedeGestionar=(await authorization.AuthorizeAsync(User,"envios.gestionar")).Succeeded;
-        if(!ModelState.IsValid){Error="Revisá las fechas y los identificadores.";return;}
+        if(!ModelState.IsValid){Error="Revisá el período y el comercio.";return;}
         try {
             var op=await Operador();
+            await CargarOpciones(op,Token);
             if(DocumentoId is {} id) Documento=await api.DocumentoAsync(op,id,Token,HttpContext.RequestAborted);
             if(ComercioId is {} comercio) Cuenta=await api.CuentaAsync(new(op,PeriodoGestion.Inicio(Desde),PeriodoGestion.Inicio(Hasta),comercio,Pagina:Pagina),Token,HttpContext.RequestAborted);
+            await Referencias.Cargar(op,"Comercio",ComercioId is {} cid ? new[]{cid} : Array.Empty<Guid>(),Token,HttpContext.RequestAborted);
+            await Referencias.Cargar(op,"Envio",(Cuenta?.Movimientos.Select(m=>m.EnvioId)??[]).Concat(Documento?.Lineas.Select(l=>l.EnvioId)??[]),Token,HttpContext.RequestAborted);
         }catch(HttpRequestException e){Error=Mensaje(e);}
     }
     private static string Mensaje(HttpRequestException e)=>e.StatusCode switch {

@@ -57,3 +57,39 @@
         e.target.append(status);
     });
 })();
+
+// Native selectors with explicit, bounded search and paging. Keep the chosen value on refresh/error.
+for (const group of document.querySelectorAll('[data-nr-selector]')) {
+    const select = group.querySelector('select'), search = group.querySelector('input[type=search]');
+    const status = group.querySelector('[data-options-status]'), more = group.querySelector('[data-more]');
+    let page = 1, query = '', busy = false;
+    async function load(append) {
+        if (busy) return;
+        busy = true;
+        group.setAttribute('aria-busy', 'true');
+        group.querySelectorAll('button').forEach(b => b.disabled = true);
+        status.textContent = 'Buscando opciones…';
+        const next = append ? page + 1 : 1;
+        const term = append ? query : search.value.trim();
+        try {
+            const url = new URL(location.href);
+            url.search = new URLSearchParams({handler:'Opciones',tipo:group.dataset.tipo,buscar:term,pagina:next});
+            const response = await fetch(url, {headers:{Accept:'application/json'}});
+            if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw Error();
+            const result = await response.json(), selected = select.selectedOptions[0]?.cloneNode(true);
+            if (!append) {
+                select.replaceChildren(select.options[0].cloneNode(true));
+                if (selected?.value) select.append(selected);
+            }
+            for (const option of result.opciones) {
+                if (![...select.options].some(o => o.value === option.id)) select.add(new Option(option.nombre, option.id));
+            }
+            page = next; query = term; more.hidden = !result.hayMas;
+            status.textContent = result.opciones.length ? (result.hayMas ? 'Hay más opciones. Afiná la búsqueda o cargá la siguiente página.' : 'Opciones actualizadas.') : 'Sin coincidencias. Probá otro nombre.';
+        } catch { status.textContent = 'No pudimos cargar opciones. Reintentá la búsqueda; conservamos tu selección.'; }
+        finally { busy = false; group.setAttribute('aria-busy', 'false'); group.querySelectorAll('button').forEach(b => b.disabled = false); }
+    }
+    group.querySelector('[data-search]').addEventListener('click', () => load(false));
+    more.addEventListener('click', () => load(true));
+    search.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); load(false); } });
+}
