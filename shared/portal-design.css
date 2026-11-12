@@ -268,6 +268,9 @@ dialog#components-reconnect-modal::backdrop { background: var(--nr-overlay-backd
 
 @media (max-width: 379.98px) {
     .nr-topbar { gap: .5rem; padding-inline: .65rem; }
+    .nr-commerce-shell .nr-topbar { flex-wrap: wrap; }
+    .nr-commerce-shell .nr-brand { flex-shrink: 0; }
+    .nr-commerce-shell .nr-topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
     .nr-brand { gap: .45rem; font-size: .95rem; }
     .nr-brand small { display: none; }
     .nr-auth-header .nr-brand small { display: block; font-size: .72rem; }
@@ -289,6 +292,7 @@ html { scroll-padding-top: 5.5rem; }
 .nr-main-column { display: flex; flex-direction: column; }
 .nr-main-content { flex: 1; }
 .nr-main-content:focus-visible { outline: 3px solid var(--nr-focus); outline-offset: -3px; }
+.nr-returns-page #return-ack-status:focus { outline: 3px solid var(--nr-focus); outline-offset: 2px; }
 .nr-footer { margin-block-start: auto; background: var(--nr-surface); }
 .nr-topbar { box-shadow: 0 1px 0 var(--nr-border); }
 .nr-sidebar { max-height: calc(100dvh - 4.5rem); overflow-y: auto; }

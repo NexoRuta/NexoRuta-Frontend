@@ -63,7 +63,7 @@
         {
             <section class="nr-returns-results" aria-labelledby="returns-results-title" aria-busy="@(cargando ? "true" : "false")">
                 <h2 id="returns-results-title" class="visually-hidden">Resultados de devoluciones</h2>
-                @if (cargando) { <p class="visually-hidden" role="status">Actualizando resultados.</p> }
+                @if (cargando) { <p class="nr-returns-updating" role="status">Actualizando resultados.</p> }
                 @if (errorLista is not null)
                 {
                     <div class="nr-returns-alert" role="alert"><p>@errorLista</p><button class="btn btn-outline-primary" type="button" @onclick="CargarPaginaAsync">Reintentar</button></div>
@@ -151,15 +151,15 @@
                         <p>El acuse queda registrado como un hecho definitivo y no modifica estados ni cargos.</p>
                         <fieldset disabled="@(guardandoAcuse || resultadoAcuseDesconocido)">
                             <legend>Resultado de la recepción</legend>
-                            <label><input type="radio" name="ack-result" checked="@conforme" @onchange="() => conforme = true" /> Conforme</label>
-                            <label><input type="radio" name="ack-result" checked="@(!conforme)" @onchange="() => conforme = false" /> Con observaciones</label>
+                            <label><input type="radio" name="ack-result" checked="@conforme" @onchange="() => CambiarResultadoAcuse(true)" /> Conforme</label>
+                            <label><input type="radio" name="ack-result" checked="@(!conforme)" @onchange="() => CambiarResultadoAcuse(false)" /> Con observaciones</label>
                         </fieldset>
                         @if (!conforme)
                         {
                             @foreach (var bulto in BultosSeleccionados)
                             {
                                 <div class="nr-return-note"><label for="note-@bulto.Id">Observación para @bulto.Codigo</label>
-                                    <textarea id="note-@bulto.Id" class="form-control" minlength="10" maxlength="500" required disabled="@resultadoAcuseDesconocido" @bind="observaciones[bulto.Id]"></textarea></div>
+                                    <textarea id="note-@bulto.Id" class="form-control" minlength="10" maxlength="500" required disabled="@resultadoAcuseDesconocido" @bind="observaciones[bulto.Id]" @bind:event="oninput"></textarea></div>
                             }
                         }
                         @if (resultadoAcuseDesconocido) { <p role="status">No modifiques la selección. Repetí el mismo comando para recuperar su resultado.</p> }
@@ -167,7 +167,7 @@
                             @(guardandoAcuse ? "Registrando…" : resultadoAcuseDesconocido ? "Reintentar el mismo acuse" : $"Registrar acuse de {BultosSeleccionados.Count} bulto(s)")</button>
                     </form>
                 }
-                @if (mensajeDetalle is not null) { <p class="nr-returns-message" role="status">@mensajeDetalle</p> }
+                @if (mensajeDetalle is not null) { <p @ref="estadoAcuse" id="return-ack-status" class="nr-returns-message" role="status" tabindex="-1">@mensajeDetalle</p> }
             </section>
             <section class="nr-return-history" aria-labelledby="return-history-title">
                 <h2 id="return-history-title">Historial</h2>
@@ -304,10 +304,28 @@
         if (args.Value is true || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase))
         {
             seleccionados.Add(id);
+            if (!conforme) observaciones.TryAdd(id, "");
             if (detalle?.Bultos.FirstOrDefault(x => x.Id == id)?.TransferenciaId is { } transferencia) transferenciaAcusePendiente = transferencia;
             comandoAcusePendiente ??= Guid.NewGuid();
         }
         else seleccionados.Remove(id);
+    }
+
+    private void CambiarResultadoAcuse(bool resultadoConforme)
+    {
+        conforme = resultadoConforme;
+        if (conforme) return;
+        foreach (var bulto in BultosSeleccionados) observaciones.TryAdd(bulto.Id, "");
+    }
+
+    private ElementReference estadoAcuse;
+    private bool enfocarEstadoAcuse;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!enfocarEstadoAcuse) return;
+        enfocarEstadoAcuse = false;
+        await estadoAcuse.FocusAsync();
     }
 
     private async Task EnviarAcuseAsync()
@@ -327,6 +345,7 @@
             seleccionados.Clear(); observaciones.Clear(); comandoAcusePendiente = null; transferenciaAcusePendiente = null;
             resultadoAcuseDesconocido = false;
             await CargarDetalleAsync();
+            enfocarEstadoAcuse = true;
         }
         catch (NexoRutaApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
         { Navigation.NavigateTo(RutaSesion.Ingreso(new Uri(Navigation.Uri).AbsolutePath, true), forceLoad: true); }
