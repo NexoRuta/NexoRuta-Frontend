@@ -20,6 +20,26 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task PublishesAuthorizedManagementNameOptionsContract()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var operation = root.GetProperty("paths").GetProperty("/api/gestion/operadores/{operador}/opciones/{tipo}").GetProperty("get");
+        var parameters = operation.GetProperty("parameters").EnumerateArray().Select(p => p.GetProperty("name").GetString()).ToHashSet();
+        foreach (var name in new[] { "operador", "tipo", "buscar", "pagina", "seleccionado" })
+            Assert.Contains(name, parameters);
+        var response = Resolve(operation.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema"), root);
+        var properties = response.GetProperty("properties");
+        Assert.Equal("boolean", properties.GetProperty("hayMas").GetProperty("type").GetString());
+        var options = properties.GetProperty("opciones");
+        Assert.Equal("array", options.GetProperty("type").GetString());
+        var option = Resolve(options.GetProperty("items"), root).GetProperty("properties");
+        Assert.Equal("uuid", option.GetProperty("id").GetProperty("format").GetString());
+        Assert.Equal("string", option.GetProperty("nombre").GetProperty("type").GetString());
+    }
+
+    [Fact]
     public async Task CommerceReturnsContractPublishesCurrentRoutesAndVersionedCommands()
     {
         using var document = await LoadOpenApiAsync();
