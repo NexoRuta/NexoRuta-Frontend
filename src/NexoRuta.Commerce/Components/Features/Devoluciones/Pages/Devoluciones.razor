@@ -80,7 +80,7 @@
                                     <p class="nr-return-meta">@item.ActividadEnUtc.ToUniversalTime().ToString("dd/MM/yyyy HH:mm 'UTC'", CultureInfo.GetCultureInfo("es-UY"))</p></div>
                                 <div class="nr-return-counts" aria-label="Estado de los bultos">
                                     <span>@item.EnRetorno en retorno</span><span>@item.EnDeposito en depósito</span>
-                                    <span>@item.PendientesAcuse pendientes de acuse</span>
+                                    <span>@item.PendientesAcuse @(item.PendientesAcuse == 1 ? "pendiente" : "pendientes") de acuse</span>
                                     @if (item.RecibidosConObservaciones > 0) { <span>@item.RecibidosConObservaciones con observaciones</span> }
                                 </div>
                                 <span class="nr-return-status">@EtiquetaSituacion(item.Situacion)</span>
