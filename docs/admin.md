@@ -43,7 +43,7 @@ Before starting the updated API, explicitly review/apply `20261016035056_AddPlat
 | `/operadores/{id}`, `/comercios/{id}` | ID/name detail or controlled not-found state |
 | `/acceso-denegado`, `/api-indisponible`, `/error` | Controlled denied/unavailable/error states |
 | POST `/salir` | Antiforgery-protected logout; GET never logs out |
-| `/health/ready` | Existing frontend liveness/readiness convention |
+| `/ready` | Existing frontend liveness/readiness convention |
 
 ```text
 NexoRuta.Admin/

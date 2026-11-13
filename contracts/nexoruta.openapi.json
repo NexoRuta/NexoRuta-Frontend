@@ -10,7 +10,7 @@
     }
   ],
   "paths": {
-    "/health/live": {
+    "/live": {
       "get": {
         "tags": [
           "NexoRuta.Api"

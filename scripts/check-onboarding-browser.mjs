@@ -60,7 +60,7 @@ try {
         OpenTelemetry__Enabled: 'false', Jwt__Issuer: 'browser-check', Jwt__Audience: 'browser-check', Jwt__SigningKeyBase64: randomBytes(32).toString('base64')
     };
     start('dotnet', ['bin/Release/net10.0/NexoRuta.Api.dll'], apiEnvironment, apiDirectory, 'api');
-    await waitFor(`http://127.0.0.1:${apiPort}/health/ready`);
+    await waitFor(`http://127.0.0.1:${apiPort}/ready`);
     // Health-ready follows ephemeral migration completion; the explicit one-shot CLI creates only platform authority.
     const platformPassword = await initializePlatformAccount({ email: platformEmail, apiDirectory, environment: apiEnvironment });
     for (const [app, appPort] of [['Commerce', commercePort], ['Backoffice', operatorPort]]) {
@@ -68,13 +68,13 @@ try {
             ASPNETCORE_ENVIRONMENT: 'Development', ASPNETCORE_URLS: `http://127.0.0.1:${appPort}`,
             Api__BaseAddress: `http://127.0.0.1:${apiPort}/`, Portales__BackofficeLoginUrl: `${operator}/ingresar`
         }, join(root, `src/NexoRuta.${app}`), app);
-        await waitFor(`http://127.0.0.1:${appPort}/health/ready`);
+        await waitFor(`http://127.0.0.1:${appPort}/ready`);
     }
     start('dotnet', ['bin/Release/net10.0/NexoRuta.Admin.dll'], {
         ASPNETCORE_ENVIRONMENT: 'Development', ASPNETCORE_URLS: admin,
         Api__BaseAddress: `http://127.0.0.1:${apiPort}/`
     }, join(root, 'src/NexoRuta.Admin'), 'admin');
-    await waitFor(`http://127.0.0.1:${adminPort}/health/ready`);
+    await waitFor(`http://127.0.0.1:${adminPort}/ready`);
     const executable = process.env.NEXORUTA_BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
     assert(existsSync(executable), 'Set NEXORUTA_BROWSER to an installed Chromium executable');
     const profile = join(scratch, 'profile');

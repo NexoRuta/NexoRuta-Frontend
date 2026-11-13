@@ -21,13 +21,14 @@ using NexoRuta.Backoffice.Features.ReglasOperativas;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR(options => options.MaximumParallelInvocationsPerClient = 1);
 builder.Host.UseNexoRutaLogging("NexoRuta.Backoffice");
-if (!builder.Services.AddSharedDataProtection(builder.Configuration,
-        builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "backoffice")
-    && builder.Environment.IsProduction())
+var sharedDataProtection = builder.Services.AddSharedDataProtection(builder.Configuration,
+    builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "backoffice");
+if (!sharedDataProtection && builder.Environment.IsProduction())
     throw new InvalidOperationException("Production Backoffice requires shared Data Protection storage.");
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Backoffice");
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks().AddNexoRutaReadiness(sharedDataProtection);
+builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(20));
 
 // Add services to the container.
 builder.Services.AddRazorPages(options =>
@@ -148,7 +149,7 @@ app.Use(async (context, next) =>
 });
 app.MapHub<NexoRuta.Backoffice.Features.Operacion.BoardHub>("/hubs/tablero", options => options.CloseOnAuthenticationExpiration = true);
 app.MapStaticAssets();
-app.MapHealthChecks("/health/ready").AllowAnonymous();
+app.MapNexoRutaHealthEndpoints();
 app.MapRazorPages()
    .WithStaticAssets();
 

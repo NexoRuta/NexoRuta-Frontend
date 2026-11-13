@@ -73,7 +73,7 @@ for app,port in [('Backoffice',55141),('Commerce',55140),('Tracking',55142)]:
    time.sleep(.25)
   else:raise AssertionError(app+' startup timeout')
   if app=='Tracking':
-   for path in ['/','/Error','/not-found','/arq05-missing','/health/ready']:
+   for path in ['/','/Error','/not-found','/arq05-missing','/ready']:
     code,_,page,_=fetch(path)
     if path=='/':assert code==200 and 'Hello, world!' in page.text
     else:assert code==(200 if path in ['/Error','/not-found'] else 404)
@@ -109,9 +109,9 @@ for app,port in [('Backoffice',55141),('Commerce',55140),('Tracking',55142)]:
     code,_,shipments,_=fetch('/envios',label='authenticated_shipments')
     assert code==200 and 'Mis envíos' in shipments.text and 'Ver seguimiento' in shipments.text
     assert any('Admitido' in text for text in shipments.text)
-   for path in ['/Error','/not-found','/arq05-missing','/health/ready']:
+   for path in ['/Error','/not-found','/arq05-missing','/ready']:
     code,_,_,_=fetch(path,label='authenticated'+path)
-    assert code==(200 if path in ['/Error','/health/ready'] or app=='Commerce' and path=='/not-found' else 404)
+    assert code==(200 if path in ['/Error','/ready'] or app=='Commerce' and path=='/not-found' else 404)
    for path in home.css:
     if path.startswith(('http:','https:')):continue
     code,_,_,body=fetch('/'+path.lstrip('/'),record=False);assert code==200;results['asset:'+path]={'status':code,'sha256':hashlib.sha256(body).hexdigest()}
