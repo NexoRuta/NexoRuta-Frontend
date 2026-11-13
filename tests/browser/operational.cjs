@@ -42,6 +42,19 @@ const {default:AxeBuilder} = require(path.join(process.env.NEXORUTA_PLAYWRIGHT_M
         await page.setViewportSize({width:1280,height:900});
         const liveBoard = await context.newPage();
         liveBoard.on('pageerror',error=>errors.push(error.message));
+        let block = false;
+        let websocketConnections = 0;
+        let clientSocket;
+        let forwardedSocket;
+        await liveBoard.routeWebSocket('**/hubs/tablero**', route => {
+            clientSocket = route;
+            if (block) {
+                void route.close({code:1013,reason:'Controlled test outage'});
+                return;
+            }
+            forwardedSocket = route.connectToServer();
+            websocketConnections++;
+        });
         await liveBoard.goto(process.env.OPERATIONAL_BACKOFFICE_URL+'/tablero');
         await liveBoard.waitForFunction(()=>document.querySelector('#tablero-envios')?.textContent.includes('No entregado'));
         await page.getByRole('button',{name:'Aprobar nueva visita',exact:true}).click();
@@ -49,9 +62,18 @@ const {default:AxeBuilder} = require(path.join(process.env.NEXORUTA_PLAYWRIGHT_M
         await liveBoard.waitForFunction(()=>document.querySelector('#tablero-envios')?.textContent.includes('Reprogramado'));
         await liveBoard.waitForFunction(()=>document.querySelector('#tablero-estado')?.textContent.includes('datos actualizados'));
         await page.close(); page = liveBoard;
-        let block = true;
-        await page.routeWebSocket('**/hubs/tablero**', socket => block ? socket.close({code:1013,reason:'Controlled test outage'}) : socket.connectToServer());
-        await page.goto(process.env.OPERATIONAL_BACKOFFICE_URL+'/tablero');
+        await page.waitForFunction(()=>document.querySelector('#tablero-estado')?.textContent.startsWith('Conectado'));
+        assert.ok(forwardedSocket,'The first live SignalR connection must reach the portal.');
+        const establishedConnections = websocketConnections;
+        const reconnecting = page.waitForFunction(()=>document.querySelector('#tablero-estado')?.textContent.startsWith('Reconectando.'));
+        await clientSocket.close({code:1013,reason:'Controlled backend loss after connection'});
+        await reconnecting;
+        await page.waitForFunction(()=>document.querySelector('#tablero-estado')?.textContent.startsWith('Conectado'));
+        assert.ok(websocketConnections > establishedConnections,'The browser must automatically establish a new SignalR connection.');
+        await page.waitForFunction(()=>document.querySelector('#tablero-envios')?.textContent.includes('Reprogramado'));
+        await page.screenshot({path:path.join(output,'board-auto-reconnect.png'),fullPage:true});
+        block = true;
+        await page.reload();
         await page.getByRole('button',{name:'Reconectar',exact:true}).waitFor({state:'visible'});
         assert.match(await page.locator('#tablero-estado').innerText(),/No hay conexión/);
         block = false;
@@ -69,7 +91,7 @@ const {default:AxeBuilder} = require(path.join(process.env.NEXORUTA_PLAYWRIGHT_M
         await fs.writeFile(path.join(output,'accessibility.json'),JSON.stringify(accessibility.violations,null,2));
         assert.deepEqual(accessibility.violations.map(x=>({id:x.id,impact:x.impact})),[]);
         assert.deepEqual(errors,[]);
-        await fs.writeFile(path.join(output,'summary.json'),JSON.stringify({tracking:true,publicRequest:true,duplicateRequest:true,backofficeDecision:true,liveKafkaSignalrUpdate:true,signalrErrorAndReconnect:true,desktop:true,mobileWidth:320,keyboard:true,axeViolations:0},null,2));
+        await fs.writeFile(path.join(output,'summary.json'),JSON.stringify({tracking:true,publicRequest:true,duplicateRequest:true,backofficeDecision:true,liveKafkaSignalrUpdate:true,signalrAutomaticReconnectAfterEstablishedSocketLoss:true,signalrManualRecoveryAfterFailedInitialConnection:true,desktop:true,mobileWidth:320,keyboard:true,axeViolations:0},null,2));
         console.log('Operational browser flow passed.');
     } catch (error) {
         if (page) {
