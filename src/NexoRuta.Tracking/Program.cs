@@ -21,11 +21,12 @@ if (commerceDemo)
     builder.Services.AddRazorPages();
 }
 builder.Host.UseNexoRutaLogging("NexoRuta.Tracking");
-builder.Services.AddHealthChecks();
-if (!builder.Services.AddSharedDataProtection(builder.Configuration,
-        builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "tracking")
-    && builder.Environment.IsProduction())
+var sharedDataProtection = builder.Services.AddSharedDataProtection(builder.Configuration,
+    builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "tracking");
+if (!sharedDataProtection && builder.Environment.IsProduction())
     throw new InvalidOperationException("Production Tracking requires shared Data Protection storage.");
+builder.Services.AddHealthChecks().AddNexoRutaReadiness(sharedDataProtection);
+builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(20));
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Tracking");
 
@@ -82,7 +83,7 @@ if (commerceDemo) { app.UseAuthentication(); app.UseAuthorization(); }
 app.UseNexoRutaRequestLogging();
 app.UseAntiforgery();
 
-app.MapHealthChecks("/health/ready").AllowAnonymous();
+app.MapNexoRutaHealthEndpoints();
 if (commerceDemo)
 {
     app.MapRazorPages();

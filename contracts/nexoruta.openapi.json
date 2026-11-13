@@ -10,7 +10,7 @@
     }
   ],
   "paths": {
-    "/health/live": {
+    "/live": {
       "get": {
         "tags": [
           "NexoRuta.Api"
@@ -11628,6 +11628,85 @@
         }
       }
     },
+    "/api/gestion/operadores/{operador}/opciones/{tipo}": {
+      "get": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "buscar",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "seleccionado",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpcionesGestionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpcionesGestionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpcionesGestionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/gestion/operadores/{operador}/reportes": {
       "get": {
         "tags": [
@@ -20802,6 +20881,40 @@
           },
           "puedeAnular": {
             "type": "boolean"
+          }
+        }
+      },
+      "OpcionesGestionResponse": {
+        "required": [
+          "opciones",
+          "hayMas"
+        ],
+        "type": "object",
+        "properties": {
+          "opciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpcionGestionResponse"
+            }
+          },
+          "hayMas": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OpcionGestionResponse": {
+        "required": [
+          "id",
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string"
           }
         }
       },
