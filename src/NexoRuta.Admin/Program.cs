@@ -11,12 +11,13 @@ using NexoRuta.ApiClient.Features.Usuarios.Clients;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseNexoRutaLogging("NexoRuta.Admin");
-if (!builder.Services.AddSharedDataProtection(builder.Configuration, "NexoRuta.Admin", "admin")
-    && builder.Environment.IsProduction())
+var sharedDataProtection = builder.Services.AddSharedDataProtection(builder.Configuration, "NexoRuta.Admin", "admin");
+if (!sharedDataProtection && builder.Environment.IsProduction())
     throw new InvalidOperationException("Production Admin requires shared Data Protection storage.");
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Admin");
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks().AddNexoRutaReadiness(sharedDataProtection);
+builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(20));
 builder.Services.AddDataProtection().SetApplicationName("NexoRuta.Admin");
 builder.Services.AddRazorPages(options =>
 {
@@ -77,7 +78,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 app.MapStaticAssets();
-app.MapHealthChecks("/health/ready").AllowAnonymous();
+app.MapNexoRutaHealthEndpoints();
 app.MapRazorPages().WithStaticAssets();
 app.Run();
 

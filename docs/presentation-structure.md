@@ -34,7 +34,7 @@ Pages/
 | `/Error` | `/Error` | Unchanged transversal page |
 
 Keep `AuthorizeFolder("/", Operador)`, anonymous exceptions, cookies, antiforgery,
-layout discovery and `/health/ready` unchanged. Layout navigation still addresses
+layout discovery and `/ready` unchanged. Layout navigation still addresses
 `/Index` and `/Salir`; login forms still address `/Ingresar`.
 
 ## Commerce: Blazor and Razor Pages

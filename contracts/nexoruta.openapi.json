@@ -10,7 +10,7 @@
     }
   ],
   "paths": {
-    "/health/live": {
+    "/live": {
       "get": {
         "tags": [
           "NexoRuta.Api"
@@ -4667,6 +4667,98 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/sync-status": {
+      "post": {
+        "tags": [
+          "EstadoSincronizacionMovil"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstadoSincronizacionMovilRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstadoSincronizacionMovilRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstadoSincronizacionMovilRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "text/plain": {
                 "schema": {
@@ -11313,6 +11405,132 @@
         }
       }
     },
+    "/api/admin/mensajes-internos": {
+      "get": {
+        "tags": [
+          "InternalMessages"
+        ],
+        "parameters": [
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FailedInternalMessage"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FailedInternalMessage"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FailedInternalMessage"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/mensajes-internos/{id}/reintentos": {
+      "post": {
+        "tags": [
+          "InternalMessages"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryInternalMessage"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryInternalMessage"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryInternalMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalRetryResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalRetryResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalRetryResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/configuracion/identidad-visual": {
       "get": {
         "tags": [
@@ -11621,6 +11839,85 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gestion/operadores/{operador}/opciones/{tipo}": {
+      "get": {
+        "tags": [
+          "Gestion"
+        ],
+        "parameters": [
+          {
+            "name": "operador",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "buscar",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "seleccionado",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpcionesGestionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpcionesGestionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpcionesGestionResponse"
                 }
               }
             }
@@ -13863,7 +14160,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/pdf": { }
+              "application/pdf": {}
             }
           },
           "404": {
@@ -19067,6 +19364,36 @@
           }
         }
       },
+      "EstadoSincronizacionMovilRequest": {
+        "required": [
+          "installationId",
+          "sequence",
+          "pendingOperations"
+        ],
+        "type": "object",
+        "properties": {
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "pendingOperations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "EstadoVersionReglasOperativasContract": {
         "enum": [
           "Borrador",
@@ -19369,6 +19696,39 @@
           }
         },
         "additionalProperties": false
+      },
+      "FailedInternalMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "destino": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "intentos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "diagnostico": {
+            "type": "string"
+          },
+          "proximoIntentoEnUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "FilaImportacionEnviosResponse": {
         "required": [
@@ -20371,7 +20731,23 @@
           }
         }
       },
-      "JsonElement": { },
+      "InternalRetryResult": {
+        "required": [
+          "solicitudId",
+          "resultado"
+        ],
+        "type": "object",
+        "properties": {
+          "solicitudId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resultado": {
+            "type": "string"
+          }
+        }
+      },
+      "JsonElement": {},
       "LineaLiquidacionResponse": {
         "required": [
           "movimientoId",
@@ -20802,6 +21178,40 @@
           },
           "puedeAnular": {
             "type": "boolean"
+          }
+        }
+      },
+      "OpcionesGestionResponse": {
+        "required": [
+          "opciones",
+          "hayMas"
+        ],
+        "type": "object",
+        "properties": {
+          "opciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpcionGestionResponse"
+            }
+          },
+          "hayMas": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OpcionGestionResponse": {
+        "required": [
+          "id",
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string"
           }
         }
       },
@@ -22920,6 +23330,31 @@
           }
         }
       },
+      "RetryInternalMessage": {
+        "required": [
+          "solicitudId",
+          "intentos",
+          "motivo"
+        ],
+        "type": "object",
+        "properties": {
+          "solicitudId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "intentos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "motivo": {
+            "type": "string"
+          }
+        }
+      },
       "RolResumen": {
         "required": [
           "id",
@@ -24897,6 +25332,9 @@
       "name": "ConfiguracionReparto"
     },
     {
+      "name": "EstadoSincronizacionMovil"
+    },
+    {
       "name": "Estimaciones"
     },
     {
@@ -24955,6 +25393,9 @@
     },
     {
       "name": "NotificacionesReparto"
+    },
+    {
+      "name": "InternalMessages"
     },
     {
       "name": "IdentidadVisualOperador"

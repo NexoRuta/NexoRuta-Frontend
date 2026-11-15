@@ -102,6 +102,12 @@
             // visibility. Keep a focusable owner for Escape even in that frame.
             panel.focus({ preventScroll: true });
             (body.querySelector("textarea") || title).focus({ preventScroll: true });
+            // A reduced-motion reopen can finish before descendants inherit visibility.
+            // Restore focus on the next rendered frame, unless the panel closed meanwhile.
+            requestAnimationFrame(() => {
+                if (panel.classList.contains("show") && !panel.classList.contains("hiding"))
+                    (body.querySelector("textarea") || title).focus({ preventScroll: true });
+            });
         });
         panel.addEventListener("hidden.bs.offcanvas", () => {
             if (shell) shell.inert = false;

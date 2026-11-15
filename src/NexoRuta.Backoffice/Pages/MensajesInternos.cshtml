@@ -1,0 +1,48 @@
+@page "/mensajes-internos"
+@model NexoRuta.Backoffice.Features.Messaging.MensajesInternosModel
+@{ ViewData["Title"] = "Mensajes internos"; }
+<header class="nr-page-header"><div><h1>Mensajes internos</h1><p>Publicaciones fallidas de tu operador. Solicitá un reintento después de corregir la causa.</p></div></header>
+@if (Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
+@if (Model.Confirmacion is not null) { <div class="alert alert-success" role="status">@Model.Confirmacion</div> }
+<div asp-validation-summary="All" class="text-danger" role="alert"></div>
+@if (Model.ConservarSolicitud)
+{
+    <section class="border-bottom py-3" aria-labelledby="pending-request">
+        <h2 id="pending-request" class="h5">Solicitud @Model.SolicitudId</h2>
+        <p class="text-break">Mensaje @Model.MensajeId</p>
+        <partial name="Messaging/_FormularioReintento" model="@(new NexoRuta.Backoffice.Features.Messaging.FormularioReintento(Model.MensajeId, Model.SolicitudId, Model.Intentos, Model.Pagina, Model.Motivo, true, Model.SolicitudIncierta))" />
+    </section>
+}
+@if (!Model.Cargado)
+{
+    <a class="btn btn-outline-primary" href="/mensajes-internos?pagina=@Model.Pagina">Reintentar carga</a>
+}
+else if (Model.Mensajes.Length == 0 && !Model.ConservarSolicitud)
+{
+    <p>No hay publicaciones fallidas disponibles en esta página.</p>
+}
+else
+{
+    @foreach (var message in Model.Mensajes)
+    {
+        if (Model.ConservarSolicitud && Model.MensajeId == message.Id) { continue; }
+        <section class="border-bottom py-3" aria-labelledby="message-@message.Id">
+            <h2 id="message-@message.Id" class="h5">@message.Tipo</h2>
+            <dl class="row mb-2">
+                <dt class="col-sm-3">Identificador</dt><dd class="col-sm-9 text-break">@message.Id</dd>
+                <dt class="col-sm-3">Estado</dt><dd class="col-sm-9">Publicación fallida · @message.Estado</dd>
+                <dt class="col-sm-3">Destino</dt><dd class="col-sm-9">@message.Destino</dd>
+                <dt class="col-sm-3">Intentos</dt><dd class="col-sm-9">@message.Intentos</dd>
+                <dt class="col-sm-3">Diagnóstico</dt><dd class="col-sm-9">@message.Diagnostico</dd>
+            </dl>
+            <details>
+                <summary>Solicitar reintento</summary>
+                <partial name="Messaging/_FormularioReintento" model="@(new NexoRuta.Backoffice.Features.Messaging.FormularioReintento(message.Id, Guid.NewGuid(), message.Intentos, Model.Pagina, "", false, false))" />
+            </details>
+        </section>
+    }
+}
+<nav class="mt-4 d-flex gap-3" aria-label="Páginas de mensajes">
+    @if (Model.Pagina > 1) { <a href="?pagina=@(Model.Pagina - 1)">Página anterior</a> }
+    @if (Model.Cargado && Model.Mensajes.Length == 25 && Model.Pagina < 100000) { <a href="?pagina=@(Model.Pagina + 1)">Página siguiente</a> }
+</nav>

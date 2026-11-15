@@ -2511,6 +2511,7 @@ public async Task OperationalRulesHomeCreatesInitialDraftOrCopyOnlyAfterExplicit
             var path = request.RequestUri!.AbsolutePath;
             var token = request.Headers.Authorization?.Parameter;
             Calls.Enqueue(new ApiCall(path, request.Method, token, request.RequestUri.Query));
+            if (await InternalMessages(request, path, ct) is { } internalMessages) return internalMessages;
             if (IncludeReparto && await Reparto(request, path, token, ct) is { } reparto) return reparto;
             if (path == "/api/auth/login")
             {

@@ -14,13 +14,14 @@ using NexoRuta.Commerce.Core.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseNexoRutaLogging("NexoRuta.Commerce");
-if (!builder.Services.AddSharedDataProtection(builder.Configuration,
-        builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "commerce")
-    && builder.Environment.IsProduction())
+var sharedDataProtection = builder.Services.AddSharedDataProtection(builder.Configuration,
+    builder.Environment.ContentRootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "commerce");
+if (!sharedDataProtection && builder.Environment.IsProduction())
     throw new InvalidOperationException("Production Commerce requires shared Data Protection storage.");
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddHostingTelemetry(builder.Configuration, "NexoRuta.Commerce");
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks().AddNexoRutaReadiness(sharedDataProtection);
+builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(20));
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -124,7 +125,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapHealthChecks("/health/ready").AllowAnonymous();
+app.MapNexoRutaHealthEndpoints();
 app.MapRazorPages();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
