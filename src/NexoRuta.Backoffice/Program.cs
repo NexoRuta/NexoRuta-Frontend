@@ -1,3 +1,4 @@
+using NexoRuta.ApiClient.Features.Messaging;
 using NexoRuta.Hosting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -116,6 +117,7 @@ builder.Services.AddHttpClient("NexoRuta", client =>
     .AddTypedClient<RepartidoresApiClient>()
     .AddTypedClient<RutasApiClient>()
     .AddTypedClient<ConfiguracionRepartoApiClient>()
+    .AddTypedClient<InternalMessagesApiClient>()
     .AddTypedClient<OrganizacionPropiaApiClient>()
       .AddTypedClient<OrganizacionSuspendidaApiClient>()
       .AddTypedClient<ZonasCoberturaApiClient>()

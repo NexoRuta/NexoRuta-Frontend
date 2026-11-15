@@ -60,6 +60,7 @@ public static class BackofficeNavigation
         ]),
         new("Configuración",
         [
+            new("Mensajes internos", "/mensajes-internos", "/MensajesInternos", "/MensajesInternos", ZonaCoberturaUi.PermisoGestionar),
             new("Configuración de reparto", "/configuracion-reparto", "/ConfiguracionReparto", "/ConfiguracionReparto", ZonaCoberturaUi.PermisoGestionar),
             new("Roles y permisos", "/roles", "/Roles", "/Roles", ZonaCoberturaUi.PermisoGestionar),
             new("Identidad visual", "/identidad-visual", "/IdentidadVisual", "/IdentidadVisual", ZonaCoberturaUi.PermisoGestionar),

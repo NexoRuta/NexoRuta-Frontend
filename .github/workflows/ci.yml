@@ -22,6 +22,7 @@ jobs:
       NEXORUTA_B3_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/b3
       NEXORUTA_B4_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/b4
       NEXORUTA_B5_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/b5
+      NEXORUTA_INTERNAL_MESSAGES_UI_DIR: ${{ github.workspace }}/artifacts/browser/internal-messages
       NEXORUTA_DESTINATION_BROWSER_DIR: ${{ github.workspace }}/artifacts/browser/destination
       OfficialDepartmentSource: ${{ github.workspace }}/.ci/backend/src/ZonasCobertura/Data/departamentos-uruguay.geojson
     runs-on: ubuntu-latest
@@ -79,7 +80,9 @@ jobs:
         if: always()
         with:
           name: frontend-test-results-${{ github.run_id }}
-          path: artifacts/**/*.trx
+          path: |
+            artifacts/**/*.trx
+            artifacts/browser/internal-messages/**
           if-no-files-found: error
           retention-days: 14
 

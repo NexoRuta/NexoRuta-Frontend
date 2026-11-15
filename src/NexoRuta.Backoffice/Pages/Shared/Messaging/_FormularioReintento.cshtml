@@ -1,0 +1,12 @@
+@model NexoRuta.Backoffice.Features.Messaging.FormularioReintento
+@{ var invalid = Model.Seleccionado && ViewData.ModelState.TryGetValue("Motivo", out var state) && state.Errors.Count > 0; var fieldId = $"reason-{Model.SolicitudId}"; }
+<form method="post" class="nr-form-stack mt-3" data-single-submit>
+    <input type="hidden" name="MensajeId" value="@Model.MensajeId" />
+    <input type="hidden" name="Intentos" value="@Model.Intentos" />
+    <input type="hidden" name="SolicitudId" value="@Model.SolicitudId" />
+    <input type="hidden" name="Pagina" value="@Model.Pagina" />
+    <label for="@fieldId">Motivo del reintento (obligatorio)</label>
+    <textarea id="@fieldId" name="Motivo" class="form-control" required maxlength="500" rows="2" readonly="@Model.Incierto" aria-invalid="@(invalid ? "true" : null)" aria-describedby="@(fieldId + "-error")">@Model.Motivo</textarea>
+    <span id="@(fieldId + "-error")" class="text-danger">@(invalid ? ViewData.ModelState["Motivo"]!.Errors.First().ErrorMessage : "")</span>
+    <button class="btn btn-primary align-self-start" type="submit" data-loading-text="Solicitando reintento…">Solicitar reintento</button>
+</form>

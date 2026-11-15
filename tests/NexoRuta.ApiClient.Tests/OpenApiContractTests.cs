@@ -20,6 +20,19 @@ namespace NexoRuta.ApiClient.Tests;
 public sealed class OpenApiContractTests
 {
     [Fact]
+    public async Task InternalMessagesContractMatchesAdministrativeClient()
+    {
+        using var document = await LoadOpenApiAsync();
+        var root = document.RootElement;
+        var list = root.GetProperty("paths").GetProperty("/api/admin/mensajes-internos").GetProperty("get");
+        AssertSchema(typeof(IReadOnlyList<NexoRuta.ApiClient.Features.Messaging.FailedInternalMessage>), list.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        var retry = root.GetProperty("paths").GetProperty("/api/admin/mensajes-internos/{id}/reintentos").GetProperty("post");
+        AssertSchema(typeof(NexoRuta.ApiClient.Features.Messaging.RetryInternalMessage), retry.GetProperty("requestBody").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+        AssertSchema(typeof(NexoRuta.ApiClient.Features.Messaging.InternalRetryResult), retry.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("schema"), root);
+    }
+
+
+    [Fact]
     public async Task PublishesAuthorizedManagementNameOptionsContract()
     {
         using var document = await LoadOpenApiAsync();
