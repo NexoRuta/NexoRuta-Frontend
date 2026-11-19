@@ -3,8 +3,6 @@ using NexoRuta.Tracking.Components;
 using NexoRuta.ApiClient.Features.Seguimiento.Clients;
 var builder = WebApplication.CreateBuilder(args);
 var commerceDemo = builder.Configuration.GetValue<bool>("CommerceDemo:Enabled");
-if (commerceDemo && !(builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing")))
-    throw new InvalidOperationException("CommerceDemo is restricted to Development/Testing.");
 if (commerceDemo)
 {
     if ((builder.Configuration["CommerceDemo:AdminPassword"]?.Length ?? 0) < 24 ||
@@ -15,6 +13,9 @@ if (commerceDemo)
     {
         options.Cookie.Name = "NexoRuta.CommerceDemo";
         options.Cookie.HttpOnly = true; options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.Path = "/comercio";
+        options.Cookie.SecurePolicy = builder.Environment.IsProduction()
+            ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
         options.LoginPath = "/comercio/ingresar"; options.ExpireTimeSpan = TimeSpan.FromHours(4);
     });
     builder.Services.AddAuthorization();
